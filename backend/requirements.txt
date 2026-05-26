@@ -1,0 +1,13 @@
+fastapi==0.115.*
+uvicorn[standard]==0.29.*
+pydantic==2.*
+python-multipart==0.0.9
+torch>=2.0.0
+torchvision
+torchxrayvision
+grad-cam
+opencv-python-headless
+Pillow
+pydicom
+numpy
+h5py

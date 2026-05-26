@@ -1,0 +1,11 @@
+{
+  "num_classes": 4,
+  "embedding_dim": 512,
+  "num_heads": 8,
+  "num_layers": 4,
+  "mlp_dim": 1024,
+  "dropout": 0.1,
+  "backbone": "densenet121-res224-nih",
+  "sprint": 3,
+  "checkpoint_file": "sprint3_model.pt"
+}

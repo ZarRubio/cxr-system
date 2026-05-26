@@ -1,0 +1,28 @@
+# Modelo (demasiado grande para GitHub, vive en Google Drive)
+backend/artifacts/*.pt
+backend/artifacts/*.pth
+backend/artifacts/*.bin
+backend/artifacts/*.ckpt
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.env
+.venv/
+venv/
+*.egg-info/
+
+# Streamlit
+.streamlit/
+
+# Docker
+.docker/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDEs
+.vscode/
+.idea/

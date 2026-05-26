@@ -9,6 +9,9 @@ services:
       - ./backend/artifacts:/app/artifacts
     environment:
       - PYTHONUNBUFFERED=1
+      - CXR_CORS_ORIGINS=${CXR_CORS_ORIGINS:-*}
+      - CXR_RATE_LIMIT_PREDICT=${CXR_RATE_LIMIT_PREDICT:-20/minute}
+      - CXR_AUDIT_LOG_PATH=${CXR_AUDIT_LOG_PATH:-logs/audit.jsonl}
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s

@@ -11,3 +11,18 @@ class PredictionResponse(BaseModel):
     gradcam_class: str
     processing_time_ms: float
     disclaimer: str
+    image_hash: str | None = None
+    cached: bool = False
+    image_warnings: list[str] = []
+    uncertainty_std: dict[str, float] | None = None
+
+
+class BatchPredictionItem(BaseModel):
+    filename: str
+    result: PredictionResponse | None = None
+    error: str | None = None
+
+
+class BatchPredictionResponse(BaseModel):
+    results: list[BatchPredictionItem]
+    processing_time_ms: float

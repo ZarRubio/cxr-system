@@ -68,6 +68,25 @@ pip install -r requirements.txt
 BACKEND_URL=http://localhost:8000 streamlit run app.py
 ```
 
+### Variables de entorno utiles
+
+- `CXR_CORS_ORIGINS`: lista separada por comas de origenes permitidos por CORS. Por defecto usa `*` para desarrollo local.
+- `CXR_SKIP_MODEL_LOAD=1`: evita cargar el checkpoint real al iniciar la API. Se usa para tests con mocks, no para inferencia real.
+- `CXR_RATE_LIMIT_PREDICT`: limite de requests para `/predict` y `/predict-batch` compatible con SlowAPI, por defecto `20/minute`.
+- `CXR_AUDIT_LOG_PATH`: ruta del log JSONL de auditoria sin imagenes ni metadatos de paciente, por defecto `logs/audit.jsonl`.
+- `BACKEND_URL`: URL del backend usada por Streamlit, validada con Pydantic Settings.
+
+## Endpoints principales
+
+- `POST /predict`: analiza una imagen.
+- `POST /predict-batch`: analiza hasta 8 imagenes en un lote.
+- `GET /model-info`: expone checkpoint, clases, thresholds y metricas.
+- `GET /health`: expone estado del modelo, checkpoint, tiempo de carga y uptime.
+
+`/predict` y `/predict-batch` aceptan `gradcam_method=gradcam|gradcam++|scorecam` y
+`mc_passes=N` para incertidumbre por MC Dropout. Si `model_config.json` incluye
+`temperature`, se aplica Temperature Scaling en inferencia.
+
 ## Estructura del proyecto
 
 ```

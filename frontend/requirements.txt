@@ -1,5 +1,8 @@
 streamlit>=1.32.0
 requests
+pydantic-settings
 Pillow
 pandas
 numpy
+pydicom
+reportlab

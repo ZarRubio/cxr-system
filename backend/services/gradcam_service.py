@@ -5,7 +5,7 @@ import cv2
 import numpy as np
 import torch
 from PIL import Image
-from pytorch_grad_cam import GradCAM
+from pytorch_grad_cam import GradCAM, GradCAMPlusPlus, ScoreCAM
 from pytorch_grad_cam.utils.image import show_cam_on_image
 from pytorch_grad_cam.utils.model_targets import ClassifierOutputTarget
 
@@ -17,6 +17,7 @@ def generate_gradcam(
     tensor: torch.Tensor,
     img_array: np.ndarray,
     predicted_label: int,
+    method: str = "gradcam",
 ) -> str:
     """
     Generates a Grad-CAM heatmap overlay for the predicted class.
@@ -38,7 +39,13 @@ def generate_gradcam(
 
     targets = [ClassifierOutputTarget(predicted_label)]
 
-    with GradCAM(model=model, target_layers=[target_layer]) as cam:
+    cam_cls = {
+        "gradcam": GradCAM,
+        "gradcam++": GradCAMPlusPlus,
+        "scorecam": ScoreCAM,
+    }.get(method.lower(), GradCAM)
+
+    with cam_cls(model=model, target_layers=[target_layer]) as cam:
         grayscale_cam = cam(input_tensor=tensor, targets=targets)
 
     heatmap_overlay = show_cam_on_image(img_rgb, grayscale_cam[0], use_rgb=True)

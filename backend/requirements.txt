@@ -1,7 +1,9 @@
 fastapi==0.115.*
-uvicorn[standard]==0.29.*
+uvicorn[standard]>=0.30.0
 pydantic==2.*
-python-multipart==0.0.9
+pydantic-settings
+python-multipart>=0.0.10
+slowapi
 torch>=2.0.0
 torchvision
 torchxrayvision

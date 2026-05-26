@@ -1,43 +1,199 @@
 import streamlit as st
 
-CLASS_COLORS = {
-    "No Finding": "#4CAF50",
-    "Cardiomegaly": "#F44336",
-    "Effusion": "#2196F3",
-    "Infiltration": "#FF9800",
+COLOR_MAP = {
+    "No Finding": {"bg": "#E8F5E9", "border": "#2E7D32", "text": "#1B5E20", "bar": "#2E7D32"},
+    "Cardiomegaly": {"bg": "#FFEBEE", "border": "#C62828", "text": "#B71C1C", "bar": "#C62828"},
+    "Effusion": {"bg": "#E3F2FD", "border": "#1565C0", "text": "#0D47A1", "bar": "#1565C0"},
+    "Infiltration": {"bg": "#FFF3E0", "border": "#E65100", "text": "#BF360C", "bar": "#E65100"},
+}
+
+BADGES = {
+    "No Finding": "NORMAL",
+    "Cardiomegaly": "CARDIACO",
+    "Effusion": "PLEURAL",
+    "Infiltration": "PULMONAR",
+}
+
+DESCRIPTIONS = {
+    "No Finding": "No se detectaron hallazgos patologicos significativos en la imagen analizada.",
+    "Cardiomegaly": "Posible aumento del tamano cardiaco. Correlacionar con criterio clinico.",
+    "Effusion": "Posible derrame pleural. Considerar evaluacion radiologica complementaria.",
+    "Infiltration": "Posible infiltrado pulmonar. En contexto HNAL, considerar tamizaje clinico de TB.",
+}
+
+LABEL_TO_INDEX = {
+    "No Finding": "0",
+    "Cardiomegaly": "1",
+    "Effusion": "2",
+    "Infiltration": "3",
 }
 
 
-def render_results(response: dict) -> None:
-    """Renders the prediction result: main finding, threshold alerts, probability bars."""
+def _threshold_for(class_name: str, thresholds: dict | None) -> float:
+    if not thresholds:
+        return 0.5
+    return float(thresholds.get(class_name, thresholds.get(LABEL_TO_INDEX.get(class_name, ""), 0.5)))
+
+
+def render_main_finding(response: dict) -> None:
+    predicted = response["predicted_class"]
+    confidence = response["confidence"]
+
+    colors = COLOR_MAP.get(predicted, COLOR_MAP["No Finding"])
+    badge = BADGES.get(predicted, "HALLAZGO")
+    desc = DESCRIPTIONS.get(predicted, "")
+
+    st.markdown(
+        f"""
+        <div style="
+            background: {colors['bg']};
+            border-left: 6px solid {colors['border']};
+            border-radius: 8px;
+            padding: 20px 24px;
+            margin-bottom: 16px;
+        ">
+            <div style="
+                display:inline-block;
+                padding:3px 8px;
+                border-radius:4px;
+                background:{colors['border']};
+                color:white;
+                font-size:11px;
+                font-weight:800;
+                margin-bottom:10px;
+            ">{badge}</div>
+            <div style="
+                font-size: 24px;
+                font-weight: 700;
+                color: {colors['text']};
+                margin-bottom: 4px;
+            ">{predicted}</div>
+            <div style="
+                font-size: 34px;
+                font-weight: 800;
+                color: {colors['border']};
+                margin-bottom: 8px;
+            ">{confidence * 100:.1f}% confianza</div>
+            <div style="font-size:14px;color:#374151;">{desc}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def render_probability_bars(response: dict, thresholds: dict | None = None) -> None:
+    probs = response["probabilities"]
+
+    st.markdown("#### Probabilidades por clase")
+    sorted_probs = sorted(probs.items(), key=lambda x: x[1], reverse=True)
+
+    for class_name, prob in sorted_probs:
+        colors = COLOR_MAP.get(class_name, {"bar": "#9E9E9E"})
+        color = colors["bar"]
+        thr = _threshold_for(class_name, thresholds)
+        pct = prob * 100
+        threshold_pct = thr * 100
+
+        col1, col2, col3 = st.columns([2, 5, 1])
+        with col1:
+            st.markdown(
+                f'<p style="margin:0;padding-top:8px;font-size:14px;'
+                f'font-weight:600;color:{color}">{class_name}</p>',
+                unsafe_allow_html=True,
+            )
+        with col2:
+            st.markdown(
+                f"""
+                <div style="position:relative;margin-top:10px">
+                    <div style="background:#E5E7EB;border-radius:4px;height:10px;width:100%;">
+                        <div style="
+                            background:{color};
+                            border-radius:4px;
+                            height:10px;
+                            width:{pct:.1f}%;
+                        "></div>
+                    </div>
+                    <div style="
+                        position:absolute;
+                        left:{threshold_pct:.1f}%;
+                        top:-4px;
+                        width:2px;
+                        height:18px;
+                        background:#111827;
+                        opacity:0.55;
+                    " title="Threshold: {threshold_pct:.0f}%"></div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+        with col3:
+            st.markdown(
+                f'<p style="margin:0;padding-top:8px;font-size:14px;'
+                f'font-weight:700;color:{color}">{pct:.1f}%</p>',
+                unsafe_allow_html=True,
+            )
+
+
+def render_additional_findings(response: dict, thresholds: dict | None = None) -> None:
+    predicted = response["predicted_class"]
+    positive = response.get("positive_findings", [])
+    additional = [finding for finding in positive if finding != predicted]
+
+    if not additional:
+        return
+
+    st.markdown("---")
+    st.markdown("#### Hallazgos secundarios sobre umbral")
+    st.info(
+        "El modelo detecto senales adicionales compatibles con "
+        f"**{', '.join(additional)}**. Esto no implica diagnostico; requiere revision medica."
+    )
+
+    for finding in additional:
+        prob = response["probabilities"].get(finding, 0)
+        thr = _threshold_for(finding, thresholds)
+        color = COLOR_MAP.get(finding, {}).get("bar", "#9E9E9E")
+
+        col1, col2 = st.columns([2, 1])
+        with col1:
+            st.markdown(
+                f'<span style="color:{color};font-weight:bold">- {finding}</span>',
+                unsafe_allow_html=True,
+            )
+            st.caption(f"Probabilidad: {prob * 100:.1f}% | Umbral: {thr * 100:.0f}%")
+        with col2:
+            st.metric(
+                label=f"Probabilidad de {finding}",
+                value=f"{prob * 100:.1f}%",
+                delta=f"+{(prob - thr) * 100:.1f} pp",
+                label_visibility="collapsed",
+            )
+
+
+def render_results(response: dict, model_info: dict | None = None) -> None:
     if "error" in response:
         st.error(f"Error: {response['error']}")
         return
 
-    predicted = response["predicted_class"]
-    confidence = response["confidence"]
-    color = CLASS_COLORS.get(predicted, "#9E9E9E")
+    thresholds = (model_info or {}).get("thresholds")
+    if response.get("cached"):
+        st.info("Resultado recuperado desde cache de inferencia.")
+    for warning in response.get("image_warnings", []):
+        st.warning(warning)
 
-    st.markdown("### Hallazgo principal")
-    st.markdown(
-        f'<div style="background:{color};padding:16px;border-radius:8px;'
-        f'color:white;font-size:24px;font-weight:bold;text-align:center">'
-        f"{predicted} — {confidence * 100:.1f}%</div>",
-        unsafe_allow_html=True,
-    )
+    render_main_finding(response)
+    render_probability_bars(response, thresholds)
 
-    st.markdown("")
+    if response.get("uncertainty_std"):
+        st.markdown("#### Incertidumbre predictiva")
+        st.caption("Desviacion estandar estimada con MC Dropout; valores altos sugieren menor estabilidad.")
+        for label, std in response["uncertainty_std"].items():
+            st.caption(f"{label}: +/- {std * 100:.1f} pp")
 
-    positive = response.get("positive_findings", [])
-    if positive:
-        st.warning(f"Hallazgos sobre threshold: {', '.join(positive)}")
-    else:
-        st.success("Ningún hallazgo supera el umbral de detección.")
+    render_additional_findings(response, thresholds)
 
-    st.markdown("#### Probabilidades por clase")
-    for class_name, prob in response["probabilities"].items():
-        st.markdown(f"**{class_name}**")
-        st.progress(float(prob), text=f"{prob * 100:.1f}%")
-
+    image_hash = response.get("image_hash")
+    if image_hash:
+        st.caption(f"Hash SHA256: `{image_hash[:12]}...`")
     st.caption(f"Tiempo de procesamiento: {response['processing_time_ms']:.0f} ms")
     st.caption(f"_{response.get('disclaimer', '')}_")

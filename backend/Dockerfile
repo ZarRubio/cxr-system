@@ -12,6 +12,7 @@ RUN apt-get update && apt-get install -y \
 # Instalar dependencias Python
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
+RUN python -c "import torchxrayvision as xrv; xrv.models.DenseNet(weights='densenet121-res224-nih')"
 
 # Copiar código
 COPY . .

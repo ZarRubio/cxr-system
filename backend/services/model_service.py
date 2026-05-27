@@ -25,13 +25,15 @@ def load_model(checkpoint_path: str) -> CNNViT:
 
 def run_inference(model: CNNViT, tensor: torch.Tensor, temperature: float = 1.0) -> dict:
     """
-    Runs forward pass and returns independent multi-label probabilities.
+    Runs forward pass and returns softmax probabilities (sum to 1).
+    El modelo fue entrenado con cross-entropy (clasificación multi-clase, NO multi-label).
+    Se usa softmax con temperature scaling para calibración.
     tensor: (1, 1, 224, 224) in [-1024, 1024]
     Returns: {"probs": [p0, p1, p2, p3], "predicted_label": int}
     """
     with torch.no_grad():
         logits = model(tensor)
-        probs = torch.sigmoid(logits / max(float(temperature), 1e-6))[0].tolist()
+        probs = torch.softmax(logits / max(float(temperature), 1e-6), dim=1)[0].tolist()
     predicted_label = int(torch.argmax(torch.tensor(probs)).item())
     return {"probs": probs, "predicted_label": predicted_label}
 
@@ -54,7 +56,7 @@ def run_inference_mc_dropout(
     with torch.no_grad():
         for _ in range(max(passes, 2)):
             logits = model(tensor)
-            probs_runs.append(torch.sigmoid(logits / max(float(temperature), 1e-6))[0])
+            probs_runs.append(torch.softmax(logits / max(float(temperature), 1e-6), dim=1)[0])
 
     for module in dropout_modules:
         module.eval()

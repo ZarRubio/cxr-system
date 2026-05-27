@@ -1,8 +1,10 @@
 import streamlit as st
 
 from components.comparison import render_comparison
+from components.demo_loader import render_demo_loader
 from components.gradcam_view import render_gradcam
 from components.history import add_to_history, render_history
+from components.metrics import render_metrics
 from components.results import render_results
 from components.uploader import render_uploader
 from utils.api_client import call_predict_api, get_model_info
@@ -31,15 +33,30 @@ html, body, [class*="css"] {
     font-family: 'Inter', 'Segoe UI', sans-serif;
 }
 .stApp, [data-testid="stAppViewContainer"] {
-    background: #0F172A;
-    color: #E5E7EB;
+    background: #F4F7FB;
+    color: #111827;
 }
 [data-testid="stHeader"] {
-    background: rgba(15, 23, 42, 0.92);
+    background: rgba(244, 247, 251, 0.92);
 }
 .block-container {
-    color: #E5E7EB;
+    color: #111827;
     padding-top: 2rem;
+    max-width: 1280px;
+}
+.block-container [data-testid="stMarkdownContainer"],
+.block-container [data-testid="stMarkdownContainer"] p,
+.block-container [data-testid="stMarkdownContainer"] li,
+.block-container [data-testid="stMarkdownContainer"] span {
+    color: inherit;
+}
+.block-container h1,
+.block-container h2,
+.block-container h3,
+.block-container h4,
+.block-container h5,
+.block-container h6 {
+    color: #0F172A;
 }
 [data-testid="stSidebar"] {
     background-color: #111827;
@@ -48,38 +65,181 @@ html, body, [class*="css"] {
 [data-testid="stSidebar"] * {
     color: #E8EAF6 !important;
 }
+[data-testid="stSidebar"] code {
+    background: #263244 !important;
+    color: #F8FAFC !important;
+    border: 1px solid #334155;
+}
+[data-testid="stSidebar"] [data-testid="stMetric"] {
+    background: #172033;
+    border: 1px solid #2B364A;
+    border-radius: 8px;
+    padding: 10px 12px;
+}
+[data-testid="stSidebar"] [data-testid="stMetric"] label,
+[data-testid="stSidebar"] [data-testid="stMetric"] [data-testid="stMetricLabel"] {
+    color: #CBD5E1 !important;
+}
+[data-testid="stSidebar"] [data-testid="stMetric"] [data-testid="stMetricValue"] {
+    color: #FFFFFF !important;
+}
 .main-title {
     font-size: 30px;
     line-height: 1.15;
     font-weight: 800;
-    color: #F8FAFC;
+    color: #0F172A;
     margin-bottom: 4px;
 }
 .main-subtitle {
     font-size: 14px;
-    color: #CBD5E1;
+    color: #475569;
     margin-bottom: 20px;
 }
 .demo-note {
-    border: 1px solid #334155;
-    background: #111827;
+    border: 1px solid #D8E0EA;
+    background: #FFFFFF;
     border-radius: 8px;
     padding: 12px 14px;
-    color: #CBD5E1;
+    color: #334155;
     font-size: 13px;
     margin-bottom: 16px;
 }
+.demo-mode-banner {
+    background: #ECFDF5;
+    border: 1px solid #A7F3D0;
+    border-left: 4px solid #059669;
+    border-radius: 8px;
+    color: #064E3B;
+    font-size: 13px;
+    line-height: 1.55;
+    margin-bottom: 16px;
+    padding: 12px 14px;
+}
+.demo-mode-banner b {
+    color: #064E3B;
+}
 .upload-panel {
     border: 1px dashed #60A5FA;
-    background: #111827;
+    background: #FFFFFF;
     border-radius: 8px;
     padding: 16px;
-    color: #E5E7EB;
+    color: #111827;
     margin-bottom: 12px;
 }
 .upload-panel span {
-    color: #9CA3AF;
+    color: #64748B;
     font-size: 13px;
+}
+
+[data-testid="stTabs"] button {
+    font-weight: 700;
+}
+[data-testid="stTabs"] button p {
+    color: #334155 !important;
+}
+[data-testid="stTabs"] button[aria-selected="true"] p {
+    color: #DC2626 !important;
+}
+
+[data-testid="stFileUploader"] section {
+    border-radius: 8px;
+    border: 1px solid #D8E0EA;
+    background: #FFFFFF;
+}
+[data-testid="stFileUploader"] section *,
+[data-testid="stFileUploader"] small {
+    color: #334155 !important;
+}
+[data-testid="stFileUploader"] button {
+    background: #111827 !important;
+    border: 1px solid #111827 !important;
+    color: #FFFFFF !important;
+}
+[data-testid="stFileUploader"] button *,
+[data-testid="stFileUploader"] button p,
+[data-testid="stFileUploader"] button span,
+[data-testid="stFileUploader"] button svg {
+    color: #FFFFFF !important;
+    fill: #FFFFFF !important;
+    stroke: #FFFFFF !important;
+}
+
+.block-container [data-testid="stMetric"] {
+    background: #FFFFFF;
+    border: 1px solid #E2E8F0;
+    border-radius: 8px;
+    padding: 10px 12px;
+}
+.block-container [data-testid="stMetric"] label,
+.block-container [data-testid="stMetric"] [data-testid="stMetricLabel"],
+.block-container [data-testid="stMetric"] [data-testid="stMetricValue"] {
+    color: #0F172A !important;
+}
+
+[data-testid="stAlert"] {
+    border-radius: 8px;
+}
+
+[data-testid="stExpander"] {
+    background: #FFFFFF;
+    border: 1px solid #E2E8F0;
+    border-radius: 8px;
+}
+[data-testid="stExpander"] summary,
+[data-testid="stExpander"] summary * {
+    color: #0F172A !important;
+}
+.block-container label,
+.block-container [data-testid="stWidgetLabel"],
+.block-container [data-testid="stCaptionContainer"],
+.block-container [data-testid="stSlider"] label {
+    color: #334155 !important;
+}
+.block-container div[data-baseweb="select"] > div,
+.block-container div[data-baseweb="select"] span {
+    background: #FFFFFF !important;
+    color: #111827 !important;
+}
+.demo-loader-label {
+    color: #475569;
+    font-size: 13px;
+    font-weight: 700;
+    margin: 10px 0 6px 0;
+}
+
+button[kind="primary"] {
+    border-radius: 8px !important;
+}
+
+@media (max-width: 900px) {
+    .block-container {
+        padding: 1rem 0.85rem 2rem 0.85rem;
+    }
+    .main-title {
+        font-size: 24px;
+    }
+    .main-subtitle,
+    .demo-note,
+    .upload-panel {
+        font-size: 12px;
+    }
+    [data-testid="stHorizontalBlock"] {
+        gap: 0.75rem;
+    }
+}
+
+@media (max-width: 640px) {
+    [data-testid="stSidebar"] {
+        display: none;
+    }
+    .main-title {
+        font-size: 22px;
+    }
+    [data-testid="stTabs"] button {
+        font-size: 12px;
+        padding-left: 8px;
+        padding-right: 8px;
+    }
 }
 #MainMenu {visibility: hidden;}
 footer {visibility: hidden;}
@@ -101,6 +261,16 @@ with st.sidebar:
         """,
         unsafe_allow_html=True,
     )
+    demo_mode = st.checkbox(
+        "Modo demo",
+        value=True,
+        help="Usa imagenes sinteticas precargadas para presentar el flujo sin archivos reales.",
+    )
+    technical_mode = st.checkbox(
+        "Modo tecnico",
+        value=False,
+        help="Muestra controles avanzados, comparacion, metricas y detalles de trazabilidad.",
+    )
     st.divider()
 
     checkpoint = model_info.get("checkpoint", "sprint3_model.pt")
@@ -112,6 +282,7 @@ with st.sidebar:
         st.caption(f"Cache API: {cache_entries} entradas")
     else:
         st.caption("Backend metadata: no disponible")
+    st.caption(f"Flujo activo: `{'demo sintetica' if demo_mode else 'carga manual'}`")
 
     st.divider()
     st.markdown("**Clases detectables**")
@@ -124,20 +295,27 @@ with st.sidebar:
     for cls, desc in classes_info.items():
         st.caption(f"{cls}: {desc}")
 
-    st.divider()
-    st.markdown("**Rendimiento reportado**")
-    st.metric("AUC Macro", f"{model_info.get('auc_macro', 0.865):.3f}")
-    metrics = model_info.get("metrics", {})
-    if metrics:
-        st.metric("Cardiomegaly AUC", f"{metrics.get('Cardiomegaly', {}).get('auc', 0):.3f}")
-        st.metric("Effusion AUC", f"{metrics.get('Effusion', {}).get('auc', 0):.3f}")
+    if technical_mode:
+        st.divider()
+        st.markdown("**Rendimiento reportado**")
+        st.metric("AUC Macro", f"{model_info.get('auc_macro', 0.865):.3f}")
+        metrics = model_info.get("metrics", {})
+        if metrics:
+            st.metric("Cardiomegaly AUC", f"{metrics.get('Cardiomegaly', {}).get('auc', 0):.3f}")
+            st.metric("Effusion AUC", f"{metrics.get('Effusion', {}).get('auc', 0):.3f}")
 
+    st.divider()
+    total = st.session_state.get("total_analyses", 0)
+    st.metric("Analisis (sesion)", total, help="Numero de analisis completados en esta sesion")
     st.divider()
     st.caption("Uso exclusivamente academico.")
     st.caption("No reemplaza el criterio del radiologo.")
 
 
-tab1, tab2, tab3 = st.tabs(["Analisis", "Historial", "Comparacion"])
+if technical_mode:
+    tab1, tab2, tab3, tab4 = st.tabs(["Analisis", "Historial", "Comparacion", "Metricas"])
+else:
+    tab1, tab2 = st.tabs(["Analisis", "Historial"])
 
 with tab1:
     st.markdown(
@@ -148,8 +326,8 @@ with tab1:
     st.markdown(
         """
         <div class="demo-note">
-            Flujo recomendado para demo: cargar imagen, analizar, revisar probabilidades,
-            ajustar opacidad del Grad-CAM y descargar el reporte PDF.
+            Flujo recomendado: cargar imagen, analizar, revisar el resultado principal,
+            validar el mapa de calor y descargar el reporte PDF.
         </div>
         """,
         unsafe_allow_html=True,
@@ -163,7 +341,20 @@ with tab1:
     elif model_info.get("startup_error"):
         st.warning(f"Backend en modo degradado: {model_info['startup_error']}")
 
-    file_bytes, filename = render_uploader()
+    if demo_mode:
+        st.markdown(
+            """
+            <div class="demo-mode-banner">
+                <b>Modo demo activo.</b> Selecciona un caso sintetico para mostrar el flujo completo:
+                inferencia, probabilidades, mapa de calor y reporte PDF. Las imagenes no son diagnosticas.
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+        file_bytes, filename = render_demo_loader()
+    else:
+        st.session_state.pop("demo_selection", None)
+        file_bytes, filename = render_uploader()
 
     if file_bytes and filename:
         upload_key = f"{filename}:{len(file_bytes)}"
@@ -175,20 +366,23 @@ with tab1:
             st.session_state.pop("last_analysis_key", None)
 
         st.markdown("---")
-        with st.expander("Opciones avanzadas", expanded=False):
-            gradcam_method = st.selectbox(
-                "Mapa de calor",
-                ["gradcam", "gradcam++", "scorecam"],
-                index=0,
-                help="Grad-CAM es rapido. Grad-CAM++ puede localizar mejor hallazgos pequenos. Score-CAM es mas lento.",
-            )
-            mc_passes = st.slider(
-                "MC Dropout",
-                1,
-                20,
-                1,
-                help="Use 1 para demo rapida. Use 8-10 si desea estimar incertidumbre.",
-            )
+        gradcam_method = "gradcam"
+        mc_passes = 1
+        if technical_mode:
+            with st.expander("Opciones avanzadas", expanded=False):
+                gradcam_method = st.selectbox(
+                    "Mapa de calor",
+                    ["gradcam", "gradcam++", "scorecam"],
+                    index=0,
+                    help="Grad-CAM es rapido. Grad-CAM++ puede localizar mejor hallazgos pequenos. Score-CAM es mas lento.",
+                )
+                mc_passes = st.slider(
+                    "MC Dropout",
+                    1,
+                    20,
+                    1,
+                    help="Use 1 para demo rapida. Use 8-10 si desea estimar incertidumbre.",
+                )
 
         analysis_key = f"{upload_key}:{gradcam_method}:{mc_passes}"
         previous_analysis_key = st.session_state.get("last_analysis_key")
@@ -215,6 +409,9 @@ with tab1:
                         expanded=False,
                     )
                     add_to_history(filename, response)
+                    st.session_state["total_analyses"] = (
+                        st.session_state.get("total_analyses", 0) + 1
+                    )
                 else:
                     status.update(label="No se pudo completar el analisis", state="error")
 
@@ -230,7 +427,7 @@ with tab1:
         if response and stored_bytes:
             col_results, col_gradcam = st.columns([1, 1])
             with col_results:
-                render_results(response, model_info)
+                render_results(response, model_info, show_technical=technical_mode)
                 if "error" not in response:
                     try:
                         pdf_bytes = build_prediction_pdf(stored_filename, stored_bytes, response)
@@ -248,11 +445,16 @@ with tab1:
 
 with tab2:
     st.markdown("## Historial de analisis")
-    render_history(model_info)
+    render_history(model_info, show_technical=technical_mode)
 
-with tab3:
-    st.markdown("## Comparacion de radiografias")
-    render_comparison(model_info)
+if technical_mode:
+    with tab3:
+        st.markdown("## Comparacion de radiografias")
+        render_comparison(model_info, show_technical=technical_mode)
+
+    with tab4:
+        st.markdown("## Rendimiento del modelo")
+        render_metrics(model_info)
 
 st.divider()
 st.caption("Uso academico. Este sistema no reemplaza el criterio clinico del radiologo.")

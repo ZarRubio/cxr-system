@@ -158,6 +158,7 @@ def test_predict_response_shape(client: TestClient):
         "cached",
         "image_warnings",
         "uncertainty_std",
+        "explanation",
     }
     assert data["gradcam_image"].startswith("data:image/png;base64,")
 

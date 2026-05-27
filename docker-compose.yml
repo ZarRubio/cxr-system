@@ -9,6 +9,8 @@ services:
       - ./backend/artifacts:/app/artifacts
     environment:
       - PYTHONUNBUFFERED=1
+      - DRIVE_FILE_ID=${DRIVE_FILE_ID:-}
+      - CXR_MODEL_CHECKPOINT=${CXR_MODEL_CHECKPOINT:-sprint3_model.pt}
       - CXR_CORS_ORIGINS=${CXR_CORS_ORIGINS:-*}
       - CXR_RATE_LIMIT_PREDICT=${CXR_RATE_LIMIT_PREDICT:-20/minute}
       - CXR_AUDIT_LOG_PATH=${CXR_AUDIT_LOG_PATH:-logs/audit.jsonl}

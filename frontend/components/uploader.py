@@ -36,7 +36,7 @@ def render_uploader() -> tuple[bytes | None, str | None]:
         """
         <div class="upload-panel">
             <b>Carga una radiografia de torax</b><br>
-            <span>Formatos admitidos: PNG, JPG, JPEG o DICOM. Tamano maximo: 15 MB.</span>
+            <span>PNG, JPG, JPEG o DICOM. Tamano maximo: 15 MB. No se almacena la imagen.</span>
         </div>
         """,
         unsafe_allow_html=True,

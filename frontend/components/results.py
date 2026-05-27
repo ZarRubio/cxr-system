@@ -15,10 +15,22 @@ BADGES = {
 }
 
 DESCRIPTIONS = {
-    "No Finding": "No se detectaron hallazgos patologicos significativos en la imagen analizada.",
-    "Cardiomegaly": "Posible aumento del tamano cardiaco. Correlacionar con criterio clinico.",
-    "Effusion": "Posible derrame pleural. Considerar evaluacion radiologica complementaria.",
-    "Infiltration": "Posible infiltrado pulmonar. En contexto HNAL, considerar tamizaje clinico de TB.",
+    "No Finding": (
+        "No se detectaron hallazgos patologicos significativos. "
+        "Campos pulmonares, silueta cardiaca y mediastino dentro de parametros normales para el modelo."
+    ),
+    "Cardiomegaly": (
+        "Posible aumento de la silueta cardiaca. Puede asociarse a insuficiencia cardiaca "
+        "o derrame pericardico. Correlacion clinica recomendada."
+    ),
+    "Effusion": (
+        "Posible derrame pleural con opacidad basal o borramiento del seno costodiafragmatico. "
+        "Se recomienda evaluacion radiologica complementaria."
+    ),
+    "Infiltration": (
+        "Posible infiltrado pulmonar compatible con consolidacion, neumonia o proceso inflamatorio. "
+        "En contexto HNAL Lima: considerar tamizaje de tuberculosis segun protocolo local."
+    ),
 }
 
 LABEL_TO_INDEX = {
@@ -27,6 +39,22 @@ LABEL_TO_INDEX = {
     "Effusion": "2",
     "Infiltration": "3",
 }
+
+
+def _confidence_signal(
+    confidence: float,
+    uncertainty_std: dict | None,
+    predicted: str,
+) -> tuple[str, str, str]:
+    high_uncertainty = False
+    if uncertainty_std and predicted in uncertainty_std:
+        high_uncertainty = uncertainty_std[predicted] > 0.10
+
+    if confidence >= 0.75 and not high_uncertainty:
+        return "[ALTA]", "Alta confianza", "#16A34A"
+    if confidence >= 0.50 and not high_uncertainty:
+        return "[MEDIA]", "Confianza moderada", "#D97706"
+    return "[BAJA]", "Confianza baja - revisar con radiologo", "#DC2626"
 
 
 def _threshold_for(class_name: str, thresholds: dict | None) -> float:
@@ -38,10 +66,14 @@ def _threshold_for(class_name: str, thresholds: dict | None) -> float:
 def render_main_finding(response: dict) -> None:
     predicted = response["predicted_class"]
     confidence = response["confidence"]
+    uncertainty_std = response.get("uncertainty_std")
 
     colors = COLOR_MAP.get(predicted, COLOR_MAP["No Finding"])
     badge = BADGES.get(predicted, "HALLAZGO")
     desc = DESCRIPTIONS.get(predicted, "")
+    signal_badge, signal_label, signal_color = _confidence_signal(
+        confidence, uncertainty_std, predicted
+    )
 
     st.markdown(
         f"""
@@ -72,8 +104,20 @@ def render_main_finding(response: dict) -> None:
                 font-size: 34px;
                 font-weight: 800;
                 color: {colors['border']};
-                margin-bottom: 8px;
+                margin-bottom: 6px;
             ">{confidence * 100:.1f}% confianza</div>
+            <div style="
+                display:inline-flex;
+                align-items:center;
+                gap:6px;
+                background:rgba(0,0,0,0.06);
+                border-radius:20px;
+                padding:4px 12px;
+                margin-bottom:12px;
+                font-size:13px;
+                font-weight:600;
+                color:{signal_color};
+            ">{signal_badge} {signal_label}</div>
             <div style="font-size:14px;color:#374151;">{desc}</div>
         </div>
         """,
@@ -170,21 +214,58 @@ def render_additional_findings(response: dict, thresholds: dict | None = None) -
             )
 
 
-def render_results(response: dict, model_info: dict | None = None) -> None:
+def render_explainability(response: dict, show_technical: bool = False) -> None:
+    explanation = response.get("explanation") or {}
+    if not explanation:
+        return
+
+    st.markdown("#### Por que el modelo pudo decidir esto")
+    st.markdown(
+        f"""
+        <div style="
+            background:#FFFFFF;
+            border:1px solid #E2E8F0;
+            border-radius:8px;
+            padding:14px 16px;
+            margin-bottom:12px;
+            color:#334155;
+            font-size:14px;
+        ">
+            <b>Lectura del modelo:</b> {explanation.get('summary', '')}<br>
+            <b>En el mapa de calor:</b> {explanation.get('visual', '')}<br>
+            <b>Nota clinica:</b> {explanation.get('clinical', '')}
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    if show_technical:
+        st.caption(
+            "Grad-CAM/Score-CAM indican regiones influyentes para la prediccion; "
+            "no son segmentaciones anatomicas ni localizaciones diagnosticas exactas."
+        )
+
+
+def render_results(
+    response: dict,
+    model_info: dict | None = None,
+    show_technical: bool = False,
+) -> None:
     if "error" in response:
         st.error(f"Error: {response['error']}")
         return
 
     thresholds = (model_info or {}).get("thresholds")
-    if response.get("cached"):
+    if show_technical and response.get("cached"):
         st.info("Resultado recuperado desde cache de inferencia.")
     for warning in response.get("image_warnings", []):
         st.warning(warning)
 
     render_main_finding(response)
+    render_explainability(response, show_technical=show_technical)
     render_probability_bars(response, thresholds)
 
-    if response.get("uncertainty_std"):
+    if show_technical and response.get("uncertainty_std"):
         st.markdown("#### Incertidumbre predictiva")
         st.caption("Desviacion estandar estimada con MC Dropout; valores altos sugieren menor estabilidad.")
         for label, std in response["uncertainty_std"].items():
@@ -193,7 +274,7 @@ def render_results(response: dict, model_info: dict | None = None) -> None:
     render_additional_findings(response, thresholds)
 
     image_hash = response.get("image_hash")
-    if image_hash:
+    if show_technical and image_hash:
         st.caption(f"Hash SHA256: `{image_hash[:12]}...`")
     st.caption(f"Tiempo de procesamiento: {response['processing_time_ms']:.0f} ms")
     st.caption(f"_{response.get('disclaimer', '')}_")

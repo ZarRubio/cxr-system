@@ -100,6 +100,17 @@ def build_prediction_pdf(filename: str, original_bytes: bytes, response: dict) -
         pdf.drawString(52, y, f"{label}: {prob * 100:.1f}%")
         y -= 14
 
+    explanation = response.get("explanation") or {}
+    if explanation:
+        y -= 10
+        pdf.setFont("Helvetica-Bold", 11)
+        pdf.drawString(42, y, "Explicabilidad del resultado")
+        y -= 14
+        pdf.setFont("Helvetica", 9)
+        y = _draw_wrapped(pdf, f"Lectura del modelo: {explanation.get('summary', '')}", 52, y, 92, leading=11)
+        y = _draw_wrapped(pdf, f"Mapa de calor: {explanation.get('visual', '')}", 52, y, 92, leading=11)
+        y = _draw_wrapped(pdf, f"Nota clinica: {explanation.get('clinical', '')}", 52, y, 92, leading=11)
+
     uncertainty = response.get("uncertainty_std")
     if uncertainty:
         y -= 10

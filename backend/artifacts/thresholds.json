@@ -3,9 +3,9 @@
     "0": 0.45,
     "1": 0.38,
     "2": 0.42,
-    "3": 0.2
+    "3": 0.35
   },
   "criterion": "youden_j",
   "calibrated_on": "val",
-  "note": "Infiltration usa 0.20 para maximizar sensibilidad (contexto TB HNAL)"
+  "note": "Infiltration subido de 0.20 a 0.35 para reducir falsos positivos en imágenes ambiguas"
 }

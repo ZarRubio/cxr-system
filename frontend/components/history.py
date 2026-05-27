@@ -25,7 +25,7 @@ def add_to_history(filename: str, response: dict) -> None:
     )
 
 
-def render_history(model_info: dict | None = None) -> None:
+def render_history(model_info: dict | None = None, show_technical: bool = False) -> None:
     """Renders the session analysis history as collapsible cards."""
     history = st.session_state.get("history", [])
 
@@ -59,4 +59,4 @@ def render_history(model_info: dict | None = None) -> None:
             f"-> {item['predicted']} ({item['confidence'] * 100:.0f}%)"
         )
         with st.expander(label):
-            render_results(item["response"], model_info)
+            render_results(item["response"], model_info, show_technical=show_technical)

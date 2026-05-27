@@ -15,6 +15,7 @@ class PredictionResponse(BaseModel):
     cached: bool = False
     image_warnings: list[str] = []
     uncertainty_std: dict[str, float] | None = None
+    explanation: dict[str, str] | None = None
 
 
 class BatchPredictionItem(BaseModel):

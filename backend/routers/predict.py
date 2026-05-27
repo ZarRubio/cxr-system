@@ -34,6 +34,29 @@ CLASS_DISCLAIMERS = {
     )
 }
 
+CLASS_EXPLANATIONS = {
+    "No Finding": {
+        "summary": "No se observaron patrones suficientes para superar los umbrales de hallazgo.",
+        "visual": "El mapa de calor puede mostrar atencion difusa o regiones anatomicas normales.",
+        "clinical": "Debe interpretarse como apoyo academico; no descarta patologia si la clinica sugiere lo contrario.",
+    },
+    "Cardiomegaly": {
+        "summary": "El modelo puede estar respondiendo a aumento aparente de la silueta cardiaca.",
+        "visual": "Revise si el mapa se concentra sobre mediastino y contorno cardiaco.",
+        "clinical": "Correlacionar con proyeccion, indice cardiotoracico y datos clinicos.",
+    },
+    "Effusion": {
+        "summary": "El modelo puede estar respondiendo a opacidades basales o borramiento del angulo costofrenico.",
+        "visual": "Revise si el mapa resalta bases pulmonares, regiones pleurales o senos costodiafragmaticos.",
+        "clinical": "Puede requerir proyeccion lateral, ecografia o correlacion con sintomas.",
+    },
+    "Infiltration": {
+        "summary": "El modelo puede estar respondiendo a opacidades pulmonares compatibles con infiltrado.",
+        "visual": "Revise si el mapa se concentra en campos pulmonares con aumento de densidad.",
+        "clinical": "En contexto HNAL, correlacionar con sospecha de neumonia o tuberculosis.",
+    },
+}
+
 _MAX_FILE_BYTES = 15 * 1024 * 1024
 _MIN_FILE_BYTES = 1 * 1024
 _MIN_DIM = 64
@@ -179,6 +202,7 @@ def _build_prediction(
         cached=False,
         image_warnings=_image_warnings(img_array),
         uncertainty_std=uncertainty_std,
+        explanation=CLASS_EXPLANATIONS.get(predicted_class),
     )
 
     if len(cache) >= _CACHE_MAX:

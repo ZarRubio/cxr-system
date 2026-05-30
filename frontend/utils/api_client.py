@@ -17,12 +17,12 @@ def call_predict_api(
             f"{BACKEND_URL}/predict",
             files={"file": (filename, file_bytes)},
             params={"gradcam_method": gradcam_method, "mc_passes": mc_passes},
-            timeout=30,
+            timeout=120,
         )
         response.raise_for_status()
         return response.json()
     except requests.exceptions.ConnectionError:
-        return {"error": "No se puede conectar al backend. ¿Está corriendo en http://localhost:8000?"}
+        return {"error": f"No se puede conectar al backend ({BACKEND_URL}). Verifica la variable BACKEND_URL."}
     except requests.exceptions.Timeout:
         return {"error": "El servidor tardó demasiado. Intenta de nuevo."}
     except requests.exceptions.HTTPError as e:
@@ -35,7 +35,7 @@ def call_predict_api(
 def get_model_info() -> dict:
     """Fetches centralized model metadata used by the UI."""
     try:
-        response = requests.get(f"{BACKEND_URL}/model-info", timeout=10)
+        response = requests.get(f"{BACKEND_URL}/model-info", timeout=20)
         response.raise_for_status()
         return response.json()
     except requests.exceptions.ConnectionError:

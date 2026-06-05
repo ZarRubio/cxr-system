@@ -10,14 +10,19 @@ def call_predict_api(
     filename: str,
     gradcam_method: str = "gradcam",
     mc_passes: int = 1,
+    include_gradcam: bool = False,
 ) -> dict:
     """Posts an image to the backend /predict endpoint and returns the JSON response."""
     try:
         response = requests.post(
             f"{BACKEND_URL}/predict",
             files={"file": (filename, file_bytes)},
-            params={"gradcam_method": gradcam_method, "mc_passes": mc_passes},
-            timeout=120,
+            params={
+                "gradcam_method": gradcam_method,
+                "mc_passes": mc_passes,
+                "include_gradcam": str(include_gradcam).lower(),
+            },
+            timeout=240,
         )
         response.raise_for_status()
         return response.json()

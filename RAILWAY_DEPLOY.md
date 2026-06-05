@@ -86,7 +86,7 @@ PORT=8501
    - **Start Command:** dejar vacio si Railway usa el Dockerfile, o usar:
 
    ```bash
-   streamlit run app.py --server.port $PORT --server.address 0.0.0.0 --server.headless true
+   streamlit run app.py --server.port $PORT --server.address 0.0.0.0 --server.headless true --server.enableCORS false --server.enableXsrfProtection false
    ```
 
 3. Agrega `BACKEND_URL` usando la URL publica del backend.

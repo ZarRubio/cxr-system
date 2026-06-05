@@ -1,0 +1,33 @@
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: cxr-backend
+spec:
+  template:
+    metadata:
+      annotations:
+        autoscaling.knative.dev/minScale: "1"
+        autoscaling.knative.dev/maxScale: "3"
+        run.googleapis.com/cpu-throttling: "false"
+    spec:
+      timeoutSeconds: 3600
+      containerConcurrency: 1
+      containers:
+        - image: REGION-docker.pkg.dev/PROJECT_ID/cxr/backend:latest
+          resources:
+            limits:
+              cpu: "2"
+              memory: "4Gi"
+          env:
+            - name: CXR_MODEL_CHECKPOINT
+              value: sprint3_model.pt
+            - name: CXR_CORS_ORIGINS
+              value: "*"
+            - name: CXR_RATE_LIMIT_PREDICT
+              value: 20/minute
+            - name: CXR_AUDIT_LOG_PATH
+              value: logs/audit.jsonl
+            - name: DRIVE_FILE_ID
+              value: ""
+          ports:
+            - containerPort: 8000

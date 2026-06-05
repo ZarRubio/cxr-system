@@ -334,9 +334,10 @@ with tab1:
     )
 
     if not model_info_available:
+        from utils.api_client import BACKEND_URL
         st.info(
-            "Metadatos del backend no disponibles. La demo puede continuar; "
-            "verifica que el backend actualizado este corriendo en http://localhost:8000."
+            f"Metadatos del backend no disponibles (BACKEND_URL={BACKEND_URL}). "
+            "La demo puede continuar; verifica que el backend este corriendo y accesible."
         )
     elif model_info.get("startup_error"):
         st.warning(f"Backend en modo degradado: {model_info['startup_error']}")
@@ -371,7 +372,7 @@ with tab1:
         if technical_mode:
             with st.expander("Opciones avanzadas", expanded=False):
                 gradcam_method = st.selectbox(
-                    "Mapa de calor",
+                    "Método de mapa de calor",
                     ["gradcam", "gradcam++", "scorecam"],
                     index=0,
                     help="Grad-CAM es rapido. Grad-CAM++ puede localizar mejor hallazgos pequenos. Score-CAM es mas lento.",
@@ -399,10 +400,9 @@ with tab1:
                 st.write("Validando archivo y formato...")
                 st.write("Preprocesando imagen...")
                 st.write("Ejecutando inferencia CNN-ViT...")
-                response = call_predict_api(file_bytes, filename, gradcam_method, mc_passes)
+                response = call_predict_api(file_bytes, filename, gradcam_method, mc_passes, False)
 
                 if "error" not in response:
-                    st.write("Generando mapa de calor...")
                     status.update(
                         label=f"Analisis completado en {response['processing_time_ms']:.0f} ms",
                         state="complete",

@@ -119,12 +119,13 @@ def _build_prediction(
     filename: str,
     gradcam_method: str = "gradcam",
     mc_passes: int = 1,
+    include_gradcam: bool = True,
 ) -> PredictionResponse:
     t0 = time.perf_counter()
     _validate_file_size(file_bytes)
 
     image_hash = hashlib.sha256(file_bytes).hexdigest()
-    cache_key = f"{image_hash}:{gradcam_method}:{mc_passes}"
+    cache_key = f"{image_hash}:{gradcam_method}:{mc_passes}:{include_gradcam}"
     cache: dict = request.app.state.prediction_cache
 
     if cache_key in cache:
@@ -181,11 +182,27 @@ def _build_prediction(
     uncertainty_std = None
     if "std" in result:
         uncertainty_std = {LABELS[i]: round(result["std"][i], 6) for i in range(4)}
+
+    # Multi-label: hallazgos positivos = todos los que superan su umbral individual
     positive_findings = [
         LABELS[i] for i in range(4) if probs[i] >= float(thresholds[str(i)])
     ]
 
-    gradcam_image = generate_gradcam(model, tensor, img_array, predicted_label, gradcam_method)
+    # Hallazgo primario: mayor probabilidad entre los positivos; si ninguno supera umbral,
+    # el de mayor probabilidad (modelo informa incertidumbre).
+    if positive_findings:
+        predicted_label = max(
+            (i for i in range(4) if probs[i] >= float(thresholds[str(i)])),
+            key=lambda i: probs[i],
+        )
+    else:
+        predicted_label = int(result["predicted_label"])
+    predicted_class = LABELS[predicted_label]
+
+    gradcam_image = (
+        generate_gradcam(model, tensor, img_array, predicted_label, gradcam_method)
+        if include_gradcam else ""
+    )
     elapsed_ms = round((time.perf_counter() - t0) * 1000, 1)
 
     response_data = dict(
@@ -238,7 +255,8 @@ async def predict(request: Request, file: UploadFile = File(...)):
     file_bytes = await file.read()
     gradcam_method = _parse_gradcam_method(request.query_params.get("gradcam_method", "gradcam"))
     mc_passes = _parse_mc_passes(request.query_params.get("mc_passes", "1"))
-    return _build_prediction(request, file_bytes, file.filename or "", gradcam_method, mc_passes)
+    include_gradcam = request.query_params.get("include_gradcam", "true").lower() != "false"
+    return _build_prediction(request, file_bytes, file.filename or "", gradcam_method, mc_passes, include_gradcam)
 
 
 @router.post("/predict-batch", response_model=BatchPredictionResponse)

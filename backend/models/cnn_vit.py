@@ -376,6 +376,5 @@ if __name__ == "__main__":
     with torch.no_grad():
         logits = model(x)
     print(f"\nForward OK: input={x.shape} → output={logits.shape}")
-    probs = torch.softmax(logits, dim=1)
-    print(f"Probs[0]: {probs[0].tolist()}")
-    print(f"Suma: {probs[0].sum().item():.3f}")
+    probs = torch.sigmoid(logits)
+    print(f"Probs[0] (sigmoid, multi-label): {probs[0].tolist()}")

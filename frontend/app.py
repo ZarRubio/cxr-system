@@ -83,6 +83,18 @@ html, body, [class*="css"] {
 [data-testid="stSidebar"] [data-testid="stMetric"] [data-testid="stMetricValue"] {
     color: #FFFFFF !important;
 }
+
+/* Sidebar: checkboxes mas grandes para touch */
+[data-testid="stSidebar"] [data-testid="stCheckbox"] {
+    padding: 6px 0;
+}
+[data-testid="stSidebar"] [data-testid="stCheckbox"] label {
+    font-size: 15px !important;
+    min-height: 36px;
+    display: flex;
+    align-items: center;
+}
+
 .main-title {
     font-size: 30px;
     line-height: 1.15;
@@ -115,9 +127,8 @@ html, body, [class*="css"] {
     margin-bottom: 16px;
     padding: 12px 14px;
 }
-.demo-mode-banner b {
-    color: #064E3B;
-}
+.demo-mode-banner b { color: #064E3B; }
+
 .upload-panel {
     border: 1px dashed #60A5FA;
     background: #FFFFFF;
@@ -126,10 +137,7 @@ html, body, [class*="css"] {
     color: #111827;
     margin-bottom: 12px;
 }
-.upload-panel span {
-    color: #64748B;
-    font-size: 13px;
-}
+.upload-panel span { color: #64748B; font-size: 13px; }
 
 [data-testid="stTabs"] button {
     font-weight: 700;
@@ -154,6 +162,7 @@ html, body, [class*="css"] {
     background: #111827 !important;
     border: 1px solid #111827 !important;
     color: #FFFFFF !important;
+    min-height: 44px;
 }
 [data-testid="stFileUploader"] button *,
 [data-testid="stFileUploader"] button p,
@@ -176,9 +185,7 @@ html, body, [class*="css"] {
     color: #0F172A !important;
 }
 
-[data-testid="stAlert"] {
-    border-radius: 8px;
-}
+[data-testid="stAlert"] { border-radius: 8px; }
 
 [data-testid="stExpander"] {
     background: #FFFFFF;
@@ -209,38 +216,130 @@ html, body, [class*="css"] {
 
 button[kind="primary"] {
     border-radius: 8px !important;
+    min-height: 44px;
+    touch-action: manipulation;
 }
 
+/* Barra de modo para mobile */
+.mobile-mode-bar {
+    display: none;
+    background: #1E293B;
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin-bottom: 14px;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+.mobile-mode-bar-label {
+    color: #94A3B8;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 2px;
+}
+.mobile-mode-chip {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 700;
+    margin-right: 6px;
+}
+.chip-active {
+    background: #059669;
+    color: #FFFFFF;
+}
+.chip-inactive {
+    background: #374151;
+    color: #9CA3AF;
+}
+.mobile-hint {
+    font-size: 11px;
+    color: #64748B;
+    margin-top: 4px;
+}
+
+/* Tablet: 641px - 900px */
 @media (max-width: 900px) {
     .block-container {
         padding: 1rem 0.85rem 2rem 0.85rem;
     }
-    .main-title {
-        font-size: 24px;
-    }
+    .main-title { font-size: 24px; }
     .main-subtitle,
     .demo-note,
-    .upload-panel {
-        font-size: 12px;
-    }
-    [data-testid="stHorizontalBlock"] {
-        gap: 0.75rem;
-    }
+    .upload-panel { font-size: 12px; }
+    [data-testid="stHorizontalBlock"] { gap: 0.75rem; }
 }
 
+/* Mobile: <= 640px */
 @media (max-width: 640px) {
-    [data-testid="stSidebar"] {
-        display: none;
+    /* NO ocultar el sidebar: el hamburger nativo de Streamlit funciona */
+    /* Solo ajustar estilos para que sea mejor en overlay */
+
+    .block-container {
+        padding: 0.75rem 0.65rem 3rem 0.65rem;
     }
-    .main-title {
-        font-size: 22px;
+    .main-title { font-size: 20px; }
+    .main-subtitle { font-size: 12px; margin-bottom: 10px; }
+    .demo-note { font-size: 12px; padding: 10px 12px; }
+    .demo-mode-banner { font-size: 12px; padding: 10px 12px; }
+
+    /* Mostrar barra de modo en mobile */
+    .mobile-mode-bar { display: flex; }
+
+    /* Tabs: scroll horizontal si no caben */
+    [data-testid="stTabs"] [data-baseweb="tab-list"] {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        flex-wrap: nowrap;
+        scrollbar-width: none;
+    }
+    [data-testid="stTabs"] [data-baseweb="tab-list"]::-webkit-scrollbar {
+        display: none;
     }
     [data-testid="stTabs"] button {
         font-size: 12px;
-        padding-left: 8px;
-        padding-right: 8px;
+        padding: 8px 10px;
+        white-space: nowrap;
+        min-height: 40px;
+    }
+
+    /* Columnas de resultados + gradcam: apilar verticalmente */
+    [data-testid="stHorizontalBlock"] {
+        flex-direction: column !important;
+    }
+    [data-testid="stHorizontalBlock"] > [data-testid="stColumn"] {
+        width: 100% !important;
+        flex: 1 1 100% !important;
+        min-width: 100% !important;
+    }
+
+    /* Botones primarios mas grandes para touch */
+    button[kind="primary"] {
+        min-height: 48px;
+        font-size: 15px !important;
+    }
+
+    /* Barras de probabilidad: texto mas pequeno */
+    .block-container [data-testid="stMarkdownContainer"] p {
+        font-size: 13px;
+    }
+
+    /* Metricas compactas */
+    .block-container [data-testid="stMetric"] {
+        padding: 8px 10px;
     }
 }
+
+/* Mobile XS: <= 400px */
+@media (max-width: 400px) {
+    .main-title { font-size: 18px; }
+    [data-testid="stTabs"] button { font-size: 11px; padding: 6px 8px; }
+    .block-container { padding: 0.5rem 0.5rem 3rem 0.5rem; }
+}
+
 #MainMenu {visibility: hidden;}
 footer {visibility: hidden;}
 </style>
@@ -264,11 +363,13 @@ with st.sidebar:
     demo_mode = st.checkbox(
         "Modo demo",
         value=True,
+        key="demo_mode",
         help="Usa imagenes sinteticas precargadas para presentar el flujo sin archivos reales.",
     )
     technical_mode = st.checkbox(
         "Modo tecnico",
         value=False,
+        key="technical_mode",
         help="Muestra controles avanzados, comparacion, metricas y detalles de trazabilidad.",
     )
     st.divider()
@@ -278,7 +379,7 @@ with st.sidebar:
     st.markdown("**Modelo**")
     st.caption("Ensemble CNN-ViT v1 (4 capas) + v2 (6 capas)")
     st.caption("Backbone: DenseNet121 pre-entrenado NIH")
-    st.caption(f"Pesos ensemble: 0.3 × v1 + 0.7 × v2")
+    st.caption("Pesos ensemble: 0.3 x v1 + 0.7 x v2")
     if model_info_available:
         st.caption(f"Cache API: {cache_entries} entradas")
     else:
@@ -324,6 +425,23 @@ with st.sidebar:
     st.divider()
     st.caption("Uso exclusivamente academico.")
     st.caption("No reemplaza el criterio del radiologo.")
+
+
+# Barra de modo visible solo en mobile (via CSS)
+_demo_chip = '<span class="mobile-mode-chip chip-active">Demo</span>' if demo_mode else '<span class="mobile-mode-chip chip-inactive">Manual</span>'
+_tech_chip = '<span class="mobile-mode-chip chip-active">Tecnico</span>' if technical_mode else '<span class="mobile-mode-chip chip-inactive">Estandar</span>'
+st.markdown(
+    f"""
+    <div class="mobile-mode-bar">
+        <div>
+            <div class="mobile-mode-bar-label">Modo activo</div>
+            {_demo_chip}{_tech_chip}
+            <div class="mobile-hint">Toca ☰ (arriba izq.) para cambiar modo</div>
+        </div>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
 
 
 if technical_mode:
@@ -386,7 +504,7 @@ with tab1:
         if technical_mode:
             with st.expander("Opciones avanzadas", expanded=False):
                 gradcam_method = st.selectbox(
-                    "Método de mapa de calor",
+                    "Metodo de mapa de calor",
                     ["gradcam", "gradcam++", "scorecam"],
                     index=0,
                     help="Grad-CAM es rapido. Grad-CAM++ puede localizar mejor hallazgos pequenos. Score-CAM es mas lento.",
@@ -402,7 +520,7 @@ with tab1:
         analysis_key = f"{upload_key}:{gradcam_method}:{mc_passes}"
         previous_analysis_key = st.session_state.get("last_analysis_key")
         has_prediction = st.session_state.get("last_prediction") is not None
-        should_analyze = st.button("Analizar radiografia", type="primary", width="stretch")
+        should_analyze = st.button("Analizar radiografia", type="primary", use_container_width=True)
 
         if has_prediction and previous_analysis_key and previous_analysis_key != analysis_key:
             should_analyze = True
@@ -413,7 +531,7 @@ with tab1:
             with st.status("Analizando radiografia...", expanded=True) as status:
                 st.write("Validando archivo y formato...")
                 st.write("Preprocesando imagen...")
-                st.write("Ejecutando inferencia CNN-ViT...")
+                st.write("Ejecutando inferencia CNN-ViT ensemble...")
                 response = call_predict_api(file_bytes, filename, gradcam_method, mc_passes, False)
 
                 if "error" not in response:
@@ -439,6 +557,7 @@ with tab1:
         stored_bytes = st.session_state.get("last_prediction_file_bytes")
         stored_filename = st.session_state.get("last_prediction_filename", filename)
         if response and stored_bytes:
+            # En mobile las columnas se apilan via CSS (flex-direction: column)
             col_results, col_gradcam = st.columns([1, 1])
             with col_results:
                 render_results(response, model_info, show_technical=technical_mode)
@@ -450,7 +569,7 @@ with tab1:
                             data=pdf_bytes,
                             file_name=f"{stored_filename.rsplit('.', 1)[0]}_reporte_cxr.pdf",
                             mime="application/pdf",
-                            width="stretch",
+                            use_container_width=True,
                         )
                     except Exception as exc:
                         st.warning(str(exc))

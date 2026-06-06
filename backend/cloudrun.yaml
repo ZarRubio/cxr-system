@@ -19,15 +19,11 @@ spec:
               cpu: "2"
               memory: "4Gi"
           env:
-            - name: CXR_MODEL_CHECKPOINT
-              value: sprint3_model.pt
             - name: CXR_CORS_ORIGINS
               value: "*"
             - name: CXR_RATE_LIMIT_PREDICT
               value: 20/minute
             - name: CXR_AUDIT_LOG_PATH
               value: logs/audit.jsonl
-            - name: DRIVE_FILE_ID
-              value: ""
           ports:
             - containerPort: 8000

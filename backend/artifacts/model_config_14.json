@@ -1,0 +1,10 @@
+{
+  "num_classes": 14,
+  "embedding_dim": 512,
+  "num_heads": 8,
+  "num_layers_v1": 4,
+  "num_layers_v2": 6,
+  "mlp_dim": 1024,
+  "dropout": 0.1,
+  "backbone": "densenet121-res224-nih"
+}

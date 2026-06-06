@@ -3,14 +3,15 @@ from pydantic import BaseModel
 
 class PredictionResponse(BaseModel):
     predicted_class: str
-    predicted_label: int
+    predicted_label: int              # -1 si No Finding
     confidence: float
-    probabilities: dict[str, float]
-    positive_findings: list[str]
+    probabilities: dict[str, float]   # 14 clases
+    positive_findings: list[str]      # clases sobre threshold
     gradcam_image: str
     gradcam_class: str
     processing_time_ms: float
     disclaimer: str
+    model_version: str = "ensemble-v1v2-14classes"
     image_hash: str | None = None
     cached: bool = False
     image_warnings: list[str] = []

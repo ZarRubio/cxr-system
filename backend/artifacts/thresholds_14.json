@@ -1,0 +1,19 @@
+{
+  "thresholds": {
+    "Atelectasis": 0.3,
+    "Cardiomegaly": 0.3,
+    "Consolidation": 0.3,
+    "Edema": 0.3,
+    "Effusion": 0.3,
+    "Emphysema": 0.3,
+    "Fibrosis": 0.3,
+    "Hernia": 0.3,
+    "Infiltration": 0.25,
+    "Mass": 0.3,
+    "Nodule": 0.3,
+    "Pleural_Thickening": 0.3,
+    "Pneumonia": 0.25,
+    "Pneumothorax": 0.3
+  },
+  "note": "Infiltration y Pneumonia usan threshold bajo por alta incidencia TB en HNAL"
+}

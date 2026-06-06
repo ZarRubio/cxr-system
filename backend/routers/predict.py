@@ -8,7 +8,7 @@ from rate_limit import limiter
 from schemas.prediction import BatchPredictionItem, BatchPredictionResponse, PredictionResponse
 from services.audit_service import write_audit_event
 from services.gradcam_service import generate_gradcam
-from services.model_service import run_inference, run_inference_mc_dropout
+from services.model_service import CLASSES_14, run_ensemble_inference
 from settings import settings
 from utils.image_utils import (
     detect_format,
@@ -20,8 +20,6 @@ from utils.image_utils import (
 router = APIRouter()
 logger = logging.getLogger("cxr.predict")
 
-LABELS = {0: "No Finding", 1: "Cardiomegaly", 2: "Effusion", 3: "Infiltration"}
-
 DISCLAIMER = (
     "Uso academico. Este sistema no reemplaza el criterio clinico del radiologo. "
     "Desarrollado para el Hospital Nacional Arzobispo Loayza (HNAL), Lima, Peru."
@@ -31,29 +29,87 @@ CLASS_DISCLAIMERS = {
     "Infiltration": (
         " Para Infiltration, considerar correlacion clinica y tamizaje de TB segun "
         "protocolo local HNAL."
-    )
+    ),
+    "Pneumonia": (
+        " Para Pneumonia, en contexto HNAL Lima, descartar tuberculosis segun protocolo local."
+    ),
 }
 
 CLASS_EXPLANATIONS = {
-    "No Finding": {
-        "summary": "No se observaron patrones suficientes para superar los umbrales de hallazgo.",
-        "visual": "El mapa de calor puede mostrar atencion difusa o regiones anatomicas normales.",
-        "clinical": "Debe interpretarse como apoyo academico; no descarta patologia si la clinica sugiere lo contrario.",
+    "Atelectasis": {
+        "summary": "El modelo puede estar respondiendo a colapso parcial o total de uno o mas lobulos.",
+        "visual": "Revise si el mapa se concentra en zonas de menor densidad o hacia las bases.",
+        "clinical": "Correlacionar con clinica; frecuente en postoperados o pacientes encamados.",
     },
     "Cardiomegaly": {
         "summary": "El modelo puede estar respondiendo a aumento aparente de la silueta cardiaca.",
         "visual": "Revise si el mapa se concentra sobre mediastino y contorno cardiaco.",
         "clinical": "Correlacionar con proyeccion, indice cardiotoracico y datos clinicos.",
     },
+    "Consolidation": {
+        "summary": "El modelo puede estar respondiendo a ocupacion alveolar por liquido o tejido.",
+        "visual": "Revise si el mapa resalta areas de aumento de densidad homogeneo.",
+        "clinical": "Considerar neumonia bacteriana; correlacionar con fiebre y clinica.",
+    },
+    "Edema": {
+        "summary": "El modelo puede estar respondiendo a patron de edema pulmonar bilateral.",
+        "visual": "Revise si el mapa resalta regiones perihiliares o basales bilaterales.",
+        "clinical": "Evaluar insuficiencia cardiaca o causas no cardiogenicas.",
+    },
     "Effusion": {
         "summary": "El modelo puede estar respondiendo a opacidades basales o borramiento del angulo costofrenico.",
-        "visual": "Revise si el mapa resalta bases pulmonares, regiones pleurales o senos costodiafragmaticos.",
+        "visual": "Revise si el mapa resalta bases pulmonares o senos costodiafragmaticos.",
         "clinical": "Puede requerir proyeccion lateral, ecografia o correlacion con sintomas.",
+    },
+    "Emphysema": {
+        "summary": "El modelo puede estar respondiendo a hiperinsuflacion y destruccion alveolar.",
+        "visual": "Revise si el mapa resalta campos pulmonares con mayor translucidez.",
+        "clinical": "Correlacionar con espirometria y antecedentes tabaquicos.",
+    },
+    "Fibrosis": {
+        "summary": "El modelo puede estar respondiendo a patron fibrotico pulmonar.",
+        "visual": "Revise si el mapa muestra patron reticular o zonas de distorsion arquitectural.",
+        "clinical": "Considerar fibrosis intersticial; correlacionar con antecedentes y TCAR.",
+    },
+    "Hernia": {
+        "summary": "El modelo puede estar respondiendo a hernia diafragmatica.",
+        "visual": "Revise si el mapa resalta region diafragmatica o base pulmonar.",
+        "clinical": "Confirmar con TC; evaluar contenido herniado.",
     },
     "Infiltration": {
         "summary": "El modelo puede estar respondiendo a opacidades pulmonares compatibles con infiltrado.",
         "visual": "Revise si el mapa se concentra en campos pulmonares con aumento de densidad.",
         "clinical": "En contexto HNAL, correlacionar con sospecha de neumonia o tuberculosis.",
+    },
+    "Mass": {
+        "summary": "El modelo puede estar respondiendo a lesion pulmonar mayor de 3 cm.",
+        "visual": "Revise si el mapa resalta lesion focal de gran tamano.",
+        "clinical": "Requiere estudio tomografico urgente para caracterizacion.",
+    },
+    "Nodule": {
+        "summary": "El modelo puede estar respondiendo a lesion focal menor de 3 cm.",
+        "visual": "Revise si el mapa resalta lesion nodular focal.",
+        "clinical": "Seguimiento segun protocolo de nodulo pulmonar; considerar TC.",
+    },
+    "Pleural_Thickening": {
+        "summary": "El modelo puede estar respondiendo a engrosamiento de la pleura.",
+        "visual": "Revise si el mapa resalta la interfaz pleural.",
+        "clinical": "Correlacionar con antecedentes de exposicion o derrame previo.",
+    },
+    "Pneumonia": {
+        "summary": "El modelo puede estar respondiendo a consolidacion neumofica.",
+        "visual": "Revise si el mapa resalta area de consolidacion lobar o segmentaria.",
+        "clinical": "En contexto HNAL Lima, considerar tamizaje de tuberculosis.",
+    },
+    "Pneumothorax": {
+        "summary": "El modelo puede estar respondiendo a linea pleural y ausencia de trama vascular.",
+        "visual": "Revise si el mapa resalta la periferia del campo pulmonar afectado.",
+        "clinical": "Verificar linea pleural en radiografia en espiracion; urgencia si es a tension.",
+    },
+    "No Finding": {
+        "summary": "No se observaron patrones suficientes para superar los umbrales de hallazgo.",
+        "visual": "El mapa de calor puede mostrar atencion difusa o regiones anatomicas normales.",
+        "clinical": "Interpretar como apoyo academico; no descarta patologia si la clinica sugiere lo contrario.",
     },
 }
 
@@ -70,13 +126,11 @@ def _client_ip(request: Request) -> str:
 def _validate_file_size(file_bytes: bytes) -> None:
     if not file_bytes:
         raise HTTPException(status_code=400, detail="El archivo esta vacio.")
-
     if len(file_bytes) < _MIN_FILE_BYTES:
         raise HTTPException(
             status_code=400,
             detail=f"Archivo demasiado pequeno ({len(file_bytes)} bytes). Es una imagen valida?",
         )
-
     if len(file_bytes) > _MAX_FILE_BYTES:
         size_mb = len(file_bytes) / 1024 / 1024
         raise HTTPException(
@@ -125,7 +179,7 @@ def _build_prediction(
     _validate_file_size(file_bytes)
 
     image_hash = hashlib.sha256(file_bytes).hexdigest()
-    cache_key = f"{image_hash}:{gradcam_method}:{mc_passes}:{include_gradcam}"
+    cache_key = f"{image_hash}:{gradcam_method}:{include_gradcam}"
     cache: dict = request.app.state.prediction_cache
 
     if cache_key in cache:
@@ -136,7 +190,6 @@ def _build_prediction(
         return PredictionResponse(**cached)
 
     fmt = detect_format(file_bytes, filename)
-
     try:
         validate_source_channels(file_bytes, fmt)
         img_array = load_image_as_array(file_bytes, fmt)
@@ -156,69 +209,43 @@ def _build_prediction(
             detail=f"Imagen demasiado pequena ({w}x{h} px). Minimo requerido: {_MIN_DIM}x{_MIN_DIM} px.",
         )
 
-    tensor = preprocess_for_model(img_array)
-    model = request.app.state.model
-    if model is None:
+    ensemble = getattr(request.app.state, "ensemble", None)
+    if ensemble is None:
         raise HTTPException(status_code=503, detail="Modelo no cargado.")
 
-    thresholds: dict = request.app.state.thresholds
-    model_config: dict = getattr(request.app.state, "model_config", {})
-    temperature = float(model_config.get("temperature", 1.0))
+    tensor = preprocess_for_model(img_array)
+    result = run_ensemble_inference(ensemble, tensor)
 
-    if mc_passes > 1:
-        result = run_inference_mc_dropout(
-            model,
-            tensor,
-            passes=min(mc_passes, 20),
-            temperature=temperature,
-        )
+    # Grad-CAM: usar v2; si No Finding, usar clase de mayor probabilidad
+    if result["predicted_class"] == "No Finding":
+        gradcam_cls = CLASSES_14[result["argmax_label"]]
     else:
-        result = run_inference(model, tensor, temperature=temperature)
-    probs: list[float] = result["probs"]
-    predicted_label: int = result["predicted_label"]
-    predicted_class: str = LABELS[predicted_label]
+        gradcam_cls = result["positive_findings"][0] if result["positive_findings"] else result["predicted_class"]
 
-    probabilities = {LABELS[i]: round(probs[i], 6) for i in range(4)}
-    uncertainty_std = None
-    if "std" in result:
-        uncertainty_std = {LABELS[i]: round(result["std"][i], 6) for i in range(4)}
-
-    # Multi-label: hallazgos positivos = todos los que superan su umbral individual
-    positive_findings = [
-        LABELS[i] for i in range(4) if probs[i] >= float(thresholds[str(i)])
-    ]
-
-    # Hallazgo primario: mayor probabilidad entre los positivos; si ninguno supera umbral,
-    # el de mayor probabilidad (modelo informa incertidumbre).
-    if positive_findings:
-        predicted_label = max(
-            (i for i in range(4) if probs[i] >= float(thresholds[str(i)])),
-            key=lambda i: probs[i],
-        )
-    else:
-        predicted_label = int(result["predicted_label"])
-    predicted_class = LABELS[predicted_label]
-
+    gradcam_label = CLASSES_14.index(gradcam_cls) if gradcam_cls in CLASSES_14 else 0
     gradcam_image = (
-        generate_gradcam(model, tensor, img_array, predicted_label, gradcam_method)
+        generate_gradcam(ensemble["model_v2"], tensor, img_array, gradcam_label, gradcam_method)
         if include_gradcam else ""
     )
+
     elapsed_ms = round((time.perf_counter() - t0) * 1000, 1)
+    predicted_class = result["predicted_class"]
 
     response_data = dict(
         predicted_class=predicted_class,
-        predicted_label=predicted_label,
-        confidence=round(probs[predicted_label], 6),
-        probabilities=probabilities,
-        positive_findings=positive_findings,
+        predicted_label=result["predicted_label"],
+        confidence=result["confidence"],
+        probabilities=result["probabilities"],
+        positive_findings=result["positive_findings"],
         gradcam_image=gradcam_image,
-        gradcam_class=predicted_class,
+        gradcam_class=gradcam_cls,
         processing_time_ms=elapsed_ms,
         disclaimer=DISCLAIMER + CLASS_DISCLAIMERS.get(predicted_class, ""),
+        model_version="ensemble-v1v2-14classes",
         image_hash=image_hash,
         cached=False,
         image_warnings=_image_warnings(img_array),
-        uncertainty_std=uncertainty_std,
+        uncertainty_std=None,
         explanation=CLASS_EXPLANATIONS.get(predicted_class),
     )
 
@@ -232,6 +259,7 @@ def _build_prediction(
         extra={
             "image_hash": image_hash,
             "predicted_class": predicted_class,
+            "positive_findings": result["positive_findings"],
             "processing_time_ms": elapsed_ms,
             "client_ip": _client_ip(request),
         },
@@ -242,7 +270,7 @@ def _build_prediction(
             "image_hash": image_hash,
             "predicted_class": predicted_class,
             "confidence": response_data["confidence"],
-            "positive_findings": positive_findings,
+            "positive_findings": result["positive_findings"],
         }
     )
 

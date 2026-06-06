@@ -1,43 +1,102 @@
 import streamlit as st
 
 COLOR_MAP = {
-    "No Finding": {"bg": "#E8F5E9", "border": "#2E7D32", "text": "#1B5E20", "bar": "#2E7D32"},
-    "Cardiomegaly": {"bg": "#FFEBEE", "border": "#C62828", "text": "#B71C1C", "bar": "#C62828"},
-    "Effusion": {"bg": "#E3F2FD", "border": "#1565C0", "text": "#0D47A1", "bar": "#1565C0"},
-    "Infiltration": {"bg": "#FFF3E0", "border": "#E65100", "text": "#BF360C", "bar": "#E65100"},
+    "Atelectasis":        {"bg": "#FFF3E0", "border": "#E65100", "text": "#BF360C", "bar": "#E65100"},
+    "Cardiomegaly":       {"bg": "#FFEBEE", "border": "#C62828", "text": "#B71C1C", "bar": "#C62828"},
+    "Consolidation":      {"bg": "#F3E5F5", "border": "#4A148C", "text": "#4A148C", "bar": "#6A1B9A"},
+    "Edema":              {"bg": "#E0F7FA", "border": "#006064", "text": "#004D40", "bar": "#00838F"},
+    "Effusion":           {"bg": "#E3F2FD", "border": "#1565C0", "text": "#0D47A1", "bar": "#1565C0"},
+    "Emphysema":          {"bg": "#F1F8E9", "border": "#558B2F", "text": "#33691E", "bar": "#558B2F"},
+    "Fibrosis":           {"bg": "#EFEBE9", "border": "#6D4C41", "text": "#4E342E", "bar": "#6D4C41"},
+    "Hernia":             {"bg": "#ECEFF1", "border": "#37474F", "text": "#263238", "bar": "#455A64"},
+    "Infiltration":       {"bg": "#FFF8E1", "border": "#FF6F00", "text": "#E65100", "bar": "#FF6F00"},
+    "Mass":               {"bg": "#FCE4EC", "border": "#880E4F", "text": "#880E4F", "bar": "#AD1457"},
+    "Nodule":             {"bg": "#F9FBE7", "border": "#827717", "text": "#558B2F", "bar": "#827717"},
+    "Pleural_Thickening": {"bg": "#E1F5FE", "border": "#01579B", "text": "#01579B", "bar": "#0277BD"},
+    "Pneumonia":          {"bg": "#FBE9E7", "border": "#BF360C", "text": "#BF360C", "bar": "#D84315"},
+    "Pneumothorax":       {"bg": "#E8EAF6", "border": "#1A237E", "text": "#1A237E", "bar": "#283593"},
+    "No Finding":         {"bg": "#E8F5E9", "border": "#2E7D32", "text": "#1B5E20", "bar": "#2E7D32"},
 }
 
 BADGES = {
-    "No Finding": "NORMAL",
-    "Cardiomegaly": "CARDIACO",
-    "Effusion": "PLEURAL",
-    "Infiltration": "PULMONAR",
+    "Atelectasis":        "ATELECTASIA",
+    "Cardiomegaly":       "CARDIACO",
+    "Consolidation":      "CONSOLIDACION",
+    "Edema":              "EDEMA",
+    "Effusion":           "PLEURAL",
+    "Emphysema":          "ENFISEMA",
+    "Fibrosis":           "FIBROSIS",
+    "Hernia":             "HERNIA",
+    "Infiltration":       "INFILTRADO",
+    "Mass":               "MASA",
+    "Nodule":             "NODULO",
+    "Pleural_Thickening": "ENGROS. PLEURAL",
+    "Pneumonia":          "NEUMONIA",
+    "Pneumothorax":       "NEUMOTORAX",
+    "No Finding":         "NORMAL",
 }
 
 DESCRIPTIONS = {
-    "No Finding": (
-        "No se detectaron hallazgos patologicos significativos. "
-        "Campos pulmonares, silueta cardiaca y mediastino dentro de parametros normales para el modelo."
+    "Atelectasis": (
+        "Colapso pulmonar parcial o total de uno o mas lobulos. "
+        "Frecuente en postoperados, pacientes encamados o con obstruccion bronquial."
     ),
     "Cardiomegaly": (
-        "Posible aumento de la silueta cardiaca. Puede asociarse a insuficiencia cardiaca "
-        "o derrame pericardico. Correlacion clinica recomendada."
+        "Posible aumento de la silueta cardiaca (ICT > 0.5). "
+        "Puede asociarse a insuficiencia cardiaca o derrame pericardico. Correlacion clinica recomendada."
+    ),
+    "Consolidation": (
+        "Ocupacion alveolar por liquido o tejido. "
+        "Considerar neumonia bacteriana; correlacionar con fiebre y clinica."
+    ),
+    "Edema": (
+        "Edema pulmonar. Evaluar insuficiencia cardiaca o causas no cardiogenicas. "
+        "Patron tipico: opacidades perihiliares bilaterales."
     ),
     "Effusion": (
         "Posible derrame pleural con opacidad basal o borramiento del seno costodiafragmatico. "
-        "Se recomienda evaluacion radiologica complementaria."
+        "Se recomienda proyeccion lateral o ecografia complementaria."
+    ),
+    "Emphysema": (
+        "Hiperinsuflacion y destruccion alveolar. "
+        "Correlacionar con espirometria y antecedentes tabaquicos o de exposicion."
+    ),
+    "Fibrosis": (
+        "Patron fibrotico pulmonar. Considerar fibrosis intersticial. "
+        "Correlacionar con antecedentes y TCAR de alta resolucion."
+    ),
+    "Hernia": (
+        "Posible hernia diafragmatica. "
+        "Confirmar con tomografia computada; evaluar contenido herniado."
     ),
     "Infiltration": (
         "Posible infiltrado pulmonar compatible con consolidacion, neumonia o proceso inflamatorio. "
         "En contexto HNAL Lima: considerar tamizaje de tuberculosis segun protocolo local."
     ),
-}
-
-LABEL_TO_INDEX = {
-    "No Finding": "0",
-    "Cardiomegaly": "1",
-    "Effusion": "2",
-    "Infiltration": "3",
+    "Mass": (
+        "Lesion mayor de 3 cm detectada. "
+        "Requiere estudio tomografico urgente para caracterizacion y estadificacion."
+    ),
+    "Nodule": (
+        "Lesion focal menor de 3 cm. "
+        "Seguimiento segun protocolo de nodulo pulmonar; considerar TC para caracterizacion."
+    ),
+    "Pleural_Thickening": (
+        "Engrosamiento pleural. "
+        "Correlacionar con antecedentes de exposicion, derrame previo o infeccion."
+    ),
+    "Pneumonia": (
+        "Compatible con consolidacion neumofica. Correlacion clinica recomendada. "
+        "En contexto HNAL Lima: descartar tuberculosis segun protocolo local."
+    ),
+    "Pneumothorax": (
+        "Posible neumotorax: ausencia de trama vascular en periferia del campo pulmonar. "
+        "Verificar linea pleural en radiografia en espiracion. Urgencia si es a tension."
+    ),
+    "No Finding": (
+        "No se detectaron hallazgos patologicos significativos. "
+        "Campos pulmonares, silueta cardiaca y mediastino dentro de parametros normales para el modelo."
+    ),
 }
 
 
@@ -59,8 +118,8 @@ def _confidence_signal(
 
 def _threshold_for(class_name: str, thresholds: dict | None) -> float:
     if not thresholds:
-        return 0.5
-    return float(thresholds.get(class_name, thresholds.get(LABEL_TO_INDEX.get(class_name, ""), 0.5)))
+        return 0.3
+    return float(thresholds.get(class_name, 0.3))
 
 
 def render_main_finding(response: dict) -> None:
@@ -125,6 +184,78 @@ def render_main_finding(response: dict) -> None:
     )
 
 
+def render_no_finding_card() -> None:
+    colors = COLOR_MAP["No Finding"]
+    st.markdown(
+        f"""
+        <div style="
+            background: {colors['bg']};
+            border-left: 6px solid {colors['border']};
+            border-radius: 8px;
+            padding: 20px 24px;
+            margin-bottom: 16px;
+        ">
+            <div style="
+                display:inline-block;
+                padding:3px 8px;
+                border-radius:4px;
+                background:{colors['border']};
+                color:white;
+                font-size:11px;
+                font-weight:800;
+                margin-bottom:10px;
+            ">NORMAL</div>
+            <div style="
+                font-size: 24px;
+                font-weight: 700;
+                color: {colors['text']};
+                margin-bottom: 8px;
+            ">No Finding</div>
+            <div style="font-size:14px;color:#374151;">{DESCRIPTIONS['No Finding']}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def render_finding_compact(class_name: str, response: dict) -> None:
+    prob = response["probabilities"].get(class_name, 0)
+    colors = COLOR_MAP.get(class_name, COLOR_MAP["No Finding"])
+    badge = BADGES.get(class_name, "HALLAZGO")
+    desc = DESCRIPTIONS.get(class_name, "")
+
+    st.markdown(
+        f"""
+        <div style="
+            background: {colors['bg']};
+            border-left: 4px solid {colors['border']};
+            border-radius: 6px;
+            padding: 12px 16px;
+            margin-bottom: 10px;
+        ">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+                <div>
+                    <span style="
+                        display:inline-block;
+                        padding:2px 6px;
+                        border-radius:3px;
+                        background:{colors['border']};
+                        color:white;
+                        font-size:10px;
+                        font-weight:800;
+                        margin-right:8px;
+                    ">{badge}</span>
+                    <span style="font-size:16px;font-weight:700;color:{colors['text']};">{class_name}</span>
+                </div>
+                <span style="font-size:20px;font-weight:800;color:{colors['border']};">{prob * 100:.1f}%</span>
+            </div>
+            <div style="font-size:13px;color:#374151;margin-top:6px;">{desc}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
 def render_probability_bars(response: dict, thresholds: dict | None = None) -> None:
     probs = response["probabilities"]
 
@@ -141,7 +272,7 @@ def render_probability_bars(response: dict, thresholds: dict | None = None) -> N
         col1, col2, col3 = st.columns([2, 5, 1])
         with col1:
             st.markdown(
-                f'<p style="margin:0;padding-top:8px;font-size:14px;'
+                f'<p style="margin:0;padding-top:8px;font-size:13px;'
                 f'font-weight:600;color:{color}">{class_name}</p>',
                 unsafe_allow_html=True,
             )
@@ -172,7 +303,7 @@ def render_probability_bars(response: dict, thresholds: dict | None = None) -> N
             )
         with col3:
             st.markdown(
-                f'<p style="margin:0;padding-top:8px;font-size:14px;'
+                f'<p style="margin:0;padding-top:8px;font-size:13px;'
                 f'font-weight:700;color:{color}">{pct:.1f}%</p>',
                 unsafe_allow_html=True,
             )
@@ -181,7 +312,7 @@ def render_probability_bars(response: dict, thresholds: dict | None = None) -> N
 def render_additional_findings(response: dict, thresholds: dict | None = None) -> None:
     predicted = response["predicted_class"]
     positive = response.get("positive_findings", [])
-    additional = [finding for finding in positive if finding != predicted]
+    additional = [f for f in positive if f != predicted]
 
     if not additional:
         return
@@ -212,6 +343,23 @@ def render_additional_findings(response: dict, thresholds: dict | None = None) -
                 delta=f"+{(prob - thr) * 100:.1f} pp",
                 label_visibility="collapsed",
             )
+
+
+def render_multilabel_findings(response: dict) -> None:
+    positive = response.get("positive_findings", [])
+
+    if not positive:
+        render_no_finding_card()
+        return
+
+    if len(positive) == 1:
+        render_main_finding(response)
+        return
+
+    # Multiples hallazgos
+    st.warning(f"Multiples hallazgos detectados: **{len(positive)} patologias**")
+    for finding in positive:
+        render_finding_compact(finding, response)
 
 
 def render_explainability(response: dict, show_technical: bool = False) -> None:
@@ -261,7 +409,7 @@ def render_results(
     for warning in response.get("image_warnings", []):
         st.warning(warning)
 
-    render_main_finding(response)
+    render_multilabel_findings(response)
     render_explainability(response, show_technical=show_technical)
     render_probability_bars(response, thresholds)
 
@@ -276,5 +424,6 @@ def render_results(
     image_hash = response.get("image_hash")
     if show_technical and image_hash:
         st.caption(f"Hash SHA256: `{image_hash[:12]}...`")
-    st.caption(f"Tiempo de procesamiento: {response['processing_time_ms']:.0f} ms")
+    mv = response.get("model_version", "ensemble-v1v2-14classes")
+    st.caption(f"Modelo: {mv} | Tiempo: {response['processing_time_ms']:.0f} ms")
     st.caption(f"_{response.get('disclaimer', '')}_")

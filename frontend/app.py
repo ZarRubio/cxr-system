@@ -273,11 +273,12 @@ with st.sidebar:
     )
     st.divider()
 
-    checkpoint = model_info.get("checkpoint", "sprint3_model.pt")
+    model_type = model_info.get("type", "ensemble")
     cache_entries = model_info.get("cache_entries", 0)
     st.markdown("**Modelo**")
-    st.caption("CNN-ViT (DenseNet121 + Vision Transformer)")
-    st.caption(f"Checkpoint: `{checkpoint}`")
+    st.caption("Ensemble CNN-ViT v1 (4 capas) + v2 (6 capas)")
+    st.caption("Backbone: DenseNet121 pre-entrenado NIH")
+    st.caption(f"Pesos ensemble: 0.3 × v1 + 0.7 × v2")
     if model_info_available:
         st.caption(f"Cache API: {cache_entries} entradas")
     else:
@@ -285,24 +286,37 @@ with st.sidebar:
     st.caption(f"Flujo activo: `{'demo sintetica' if demo_mode else 'carga manual'}`")
 
     st.divider()
-    st.markdown("**Clases detectables**")
+    st.markdown("**14 clases detectables**")
     classes_info = {
-        "No Finding": "Radiografia sin hallazgos relevantes",
+        "Atelectasis": "Colapso pulmonar parcial/total",
         "Cardiomegaly": "Posible cardiomegalia",
+        "Consolidation": "Ocupacion alveolar",
+        "Edema": "Edema pulmonar",
         "Effusion": "Posible derrame pleural",
-        "Infiltration": "Posible infiltrado / TB / neumonia",
+        "Emphysema": "Hiperinsuflacion alveolar",
+        "Fibrosis": "Patron fibrotico pulmonar",
+        "Hernia": "Hernia diafragmatica",
+        "Infiltration": "Infiltrado / TB / neumonia",
+        "Mass": "Lesion > 3 cm",
+        "Nodule": "Lesion focal < 3 cm",
+        "Pleural_Thickening": "Engrosamiento pleural",
+        "Pneumonia": "Consolidacion neumofica",
+        "Pneumothorax": "Posible neumotorax",
     }
     for cls, desc in classes_info.items():
-        st.caption(f"{cls}: {desc}")
+        st.caption(f"· {cls}: {desc}")
 
     if technical_mode:
         st.divider()
         st.markdown("**Rendimiento reportado**")
-        st.metric("AUC Macro", f"{model_info.get('auc_macro', 0.865):.3f}")
+        st.metric("AUC Macro (test)", f"{model_info.get('auc_macro', 0.8045):.4f}")
+        st.metric("AUC Macro (val)", f"{model_info.get('val_auc_macro', 0.7950):.4f}")
         metrics = model_info.get("metrics", {})
         if metrics:
-            st.metric("Cardiomegaly AUC", f"{metrics.get('Cardiomegaly', {}).get('auc', 0):.3f}")
-            st.metric("Effusion AUC", f"{metrics.get('Effusion', {}).get('auc', 0):.3f}")
+            for cls in ["Effusion", "Emphysema", "Cardiomegaly", "Hernia"]:
+                auc = metrics.get(cls, {}).get("auc", 0)
+                if auc:
+                    st.metric(f"{cls} AUC", f"{auc:.3f}")
 
     st.divider()
     total = st.session_state.get("total_analyses", 0)

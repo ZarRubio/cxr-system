@@ -1,0 +1,8 @@
+{
+  "weight_v1": 0.3,
+  "weight_v2": 0.7,
+  "checkpoint_v1": "sprint4ml_v1.pt",
+  "checkpoint_v2": "sprint4ml_v2.pt",
+  "val_auc_macro": 0.7950,
+  "test_auc_macro": 0.8045
+}

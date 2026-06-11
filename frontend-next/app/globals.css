@@ -1,0 +1,152 @@
+@import "tailwindcss";
+
+@theme inline {
+  /* Medical teal palette */
+  --color-primary:       #0891B2;
+  --color-primary-dark:  #0E7490;
+  --color-primary-light: #22D3EE;
+  --color-on-primary:    #FFFFFF;
+
+  /* Backgrounds */
+  --color-background:    #F0FDFA;
+  --color-surface:       #FFFFFF;
+  --color-muted:         #E8F1F6;
+  --color-border:        #CBD5E1;
+
+  /* Text */
+  --color-foreground:    #134E4A;
+  --color-muted-fg:      #475569;
+  --color-subtle:        #64748B;
+
+  /* Severity */
+  --color-critical:      #DC2626;
+  --color-high:          #D97706;
+  --color-moderate:      #0891B2;
+  --color-normal:        #16A34A;
+
+  /* Dark mode */
+  --color-dark-bg:       #0A0E1A;
+  --color-dark-surface:  #111827;
+  --color-dark-surface2: #1F2937;
+  --color-dark-border:   #374151;
+  --color-dark-fg:       #E5E7EB;
+  --color-dark-muted-fg: #9CA3AF;
+
+  /* Fonts */
+  --font-sans: 'Figtree', 'Noto Sans', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+
+  /* Radii */
+  --radius-sm: 6px;
+  --radius:    8px;
+  --radius-md: 10px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+}
+
+/* ── Light mode tokens ─────────────────────────────────────────── */
+:root {
+  --bg:          #F0FDFA;
+  --surface:     #FFFFFF;
+  --surface2:    #F8FAFC;
+  --border:      #CBD5E1;
+  --border-subtle: #E2E8F0;
+  --fg:          #134E4A;
+  --fg-muted:    #475569;
+  --fg-subtle:   #64748B;
+  --ring:        #0891B2;
+  --sidebar-bg:  #0F172A;
+  --sidebar-fg:  #E2E8F0;
+  --sidebar-muted: #94A3B8;
+  --sidebar-active-bg: rgba(8,145,178,0.15);
+  --sidebar-active-fg: #22D3EE;
+}
+
+/* ── Dark mode tokens ──────────────────────────────────────────── */
+.dark {
+  --bg:          #0A0E1A;
+  --surface:     #111827;
+  --surface2:    #1F2937;
+  --border:      #374151;
+  --border-subtle: #2D3748;
+  --fg:          #E5E7EB;
+  --fg-muted:    #9CA3AF;
+  --fg-subtle:   #6B7280;
+  --ring:        #0891B2;
+  --sidebar-bg:  #060B14;
+  --sidebar-fg:  #E2E8F0;
+  --sidebar-muted: #64748B;
+  --sidebar-active-bg: rgba(8,145,178,0.2);
+  --sidebar-active-fg: #22D3EE;
+}
+
+/* ── Base ──────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body {
+  height: 100%;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-sans);
+  font-size: 16px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--fg-subtle); }
+
+/* Focus ring */
+:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Transitions */
+.transition-base { transition: all 150ms ease; }
+
+/* Results panel entrance */
+@keyframes results-enter {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Scan-line animation for analyzing overlay */
+@keyframes scan-line {
+  0%   { top: 0%;   opacity: 0; }
+  10%  { opacity: 1; }
+  90%  { opacity: 1; }
+  100% { top: 100%; opacity: 0; }
+}
+.animate-scan-line {
+  animation: scan-line 2s linear infinite;
+}
+
+/* Card base */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+}
+
+/* Severity badges */
+.badge-critical  { background: #FEE2E2; color: #991B1B; border: 1px solid #FCA5A5; }
+.badge-high      { background: #FEF3C7; color: #92400E; border: 1px solid #FCD34D; }
+.badge-moderate  { background: #E0F2FE; color: #075985; border: 1px solid #BAE6FD; }
+.badge-normal    { background: #DCFCE7; color: #166534; border: 1px solid #86EFAC; }
+
+.dark .badge-critical  { background: #450A0A; color: #FCA5A5; border-color: #7F1D1D; }
+.dark .badge-high      { background: #451A03; color: #FCD34D; border-color: #78350F; }
+.dark .badge-moderate  { background: #082F49; color: #7DD3FC; border-color: #075985; }
+.dark .badge-normal    { background: #052E16; color: #86EFAC; border-color: #166534; }
+
+/* Sidebar stripe */
+.finding-stripe-critical { border-left: 5px solid #DC2626; }
+.finding-stripe-high     { border-left: 5px solid #D97706; }
+.finding-stripe-moderate { border-left: 5px solid #0891B2; }
+.finding-stripe-normal   { border-left: 5px solid #16A34A; }

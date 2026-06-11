@@ -9,7 +9,7 @@
 ## 1. Configurar proyecto y región
 
 ```bash
-gcloud config set project TU_PROJECT_ID
+gcloud config set project project-20fbf8b2-6971-4ef9-8b1
 gcloud config set run/region us-central1
 
 # Habilitar APIs necesarias
@@ -33,15 +33,15 @@ gcloud auth configure-docker us-central1-docker.pkg.dev
 ```bash
 cd backend
 
-docker build -t us-central1-docker.pkg.dev/TU_PROJECT_ID/cxr/backend:latest .
-docker push us-central1-docker.pkg.dev/TU_PROJECT_ID/cxr/backend:latest
+docker build -t us-central1-docker.pkg.dev/project-20fbf8b2-6971-4ef9-8b1/cxr/backend:latest .
+docker push us-central1-docker.pkg.dev/project-20fbf8b2-6971-4ef9-8b1/cxr/backend:latest
 ```
 
 ## 4. Desplegar backend en Cloud Run
 
 ```bash
 gcloud run deploy cxr-backend \
-  --image us-central1-docker.pkg.dev/TU_PROJECT_ID/cxr/backend:latest \
+  --image us-central1-docker.pkg.dev/project-20fbf8b2-6971-4ef9-8b1/cxr/backend:latest \
   --region us-central1 \
   --cpu 2 \
   --memory 4Gi \
@@ -54,48 +54,46 @@ gcloud run deploy cxr-backend \
   --set-env-vars "CXR_MODEL_CHECKPOINT=sprint3_model.pt,CXR_CORS_ORIGINS=*,DRIVE_FILE_ID=TU_DRIVE_FILE_ID"
 ```
 
-Copia la URL pública del backend que muestra el comando (formato: `https://cxr-backend-xxxx-uc.a.run.app`).
+Backend URL: `https://cxr-backend-55733445282.us-central1.run.app`
 
-Verifica:
-```bash
-curl https://cxr-backend-xxxx-uc.a.run.app/health
-```
+## 5. Build y push del frontend (Next.js)
 
-## 5. Build y push del frontend
+El `NEXT_PUBLIC_BACKEND_URL` se bake en el bundle en tiempo de build — pásalo como `--build-arg`:
 
 ```bash
-cd ../frontend
+cd ../frontend-next
 
-docker build -t us-central1-docker.pkg.dev/TU_PROJECT_ID/cxr/frontend:latest .
-docker push us-central1-docker.pkg.dev/TU_PROJECT_ID/cxr/frontend:latest
+docker build \
+  --build-arg NEXT_PUBLIC_BACKEND_URL=https://cxr-backend-55733445282.us-central1.run.app \
+  -t us-central1-docker.pkg.dev/project-20fbf8b2-6971-4ef9-8b1/cxr/frontend:latest \
+  .
+
+docker push us-central1-docker.pkg.dev/project-20fbf8b2-6971-4ef9-8b1/cxr/frontend:latest
 ```
 
 ## 6. Desplegar frontend en Cloud Run
 
-Reemplaza la URL del backend con la que obtuviste en el paso 4:
-
 ```bash
 gcloud run deploy cxr-frontend \
-  --image us-central1-docker.pkg.dev/TU_PROJECT_ID/cxr/frontend:latest \
+  --image us-central1-docker.pkg.dev/project-20fbf8b2-6971-4ef9-8b1/cxr/frontend:latest \
   --region us-central1 \
   --cpu 1 \
-  --memory 1Gi \
-  --timeout 3600 \
-  --min-instances 1 \
-  --max-instances 2 \
-  --session-affinity \
-  --allow-unauthenticated \
-  --set-env-vars "BACKEND_URL=https://cxr-backend-xxxx-uc.a.run.app"
+  --memory 512Mi \
+  --timeout 60 \
+  --concurrency 80 \
+  --min-instances 0 \
+  --max-instances 3 \
+  --allow-unauthenticated
 ```
 
 ## 7. Verificación final
 
 ```bash
 # Backend health
-curl https://cxr-backend-xxxx-uc.a.run.app/health
+curl https://cxr-backend-55733445282.us-central1.run.app/health
 
-# Frontend (abrir en navegador)
-echo "Frontend: $(gcloud run services describe cxr-frontend --region us-central1 --format='value(status.url)')"
+# Frontend URL
+gcloud run services describe cxr-frontend --region us-central1 --format='value(status.url)'
 ```
 
 ## Parámetros clave explicados
@@ -104,23 +102,9 @@ echo "Frontend: $(gcloud run services describe cxr-frontend --region us-central1
 |---|---|---|
 | `--cpu 2` | 2 vCPU backend | DenseNet121 + Grad-CAM necesitan CPU real |
 | `--memory 4Gi` | 4 GB backend | Modelo + activaciones Grad-CAM en CPU |
-| `--timeout 3600` | 1 hora | Grad-CAM puede tardar minutos en CPU |
-| `--concurrency 1` | 1 request a la vez | El modelo no es thread-safe con Grad-CAM |
-| `--min-instances 1` | Siempre activo | Evita cold start en la demo de tesis |
-| `--no-cpu-throttling` | CPU dedicada | Sin esto Cloud Run reduce CPU cuando idle |
-| `--session-affinity` | Frontend sticky | Streamlit necesita que el WebSocket vaya al mismo contenedor |
-
-## Actualizar BACKEND_URL en Railway (si quieres mantener Railway para frontend)
-
-Si prefieres mantener el frontend en Railway y solo mover el backend a Cloud Run:
-
-En Railway, servicio frontend → Variables:
-```
-BACKEND_URL=https://cxr-backend-xxxx-uc.a.run.app
-```
-
-## Costos estimados (Google Cloud)
-
-- Free tier: 2M requests/mes + 360,000 GB-seg de CPU
-- Con min-instances=1 (siempre activo): ~$8-15/mes dependiendo del uso
-- Para demo de tesis (uso bajo): probablemente dentro del free tier o mínimo costo
+| `--timeout 3600` | 1 hora backend | Grad-CAM puede tardar minutos en CPU |
+| `--concurrency 1` | 1 request backend | El modelo no es thread-safe con Grad-CAM |
+| `--min-instances 1` | Backend siempre activo | Evita cold start en la demo de tesis |
+| `--no-cpu-throttling` | CPU dedicada backend | Sin esto Cloud Run reduce CPU cuando idle |
+| `--memory 512Mi` | Frontend ligero | Next.js standalone no necesita más |
+| `--concurrency 80` | Frontend multi-request | Next.js maneja requests concurrentes sin problema |

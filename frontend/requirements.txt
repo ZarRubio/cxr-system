@@ -1,8 +1,0 @@
-streamlit>=1.40.0
-requests
-pydantic-settings
-Pillow
-pandas
-numpy
-pydicom
-reportlab

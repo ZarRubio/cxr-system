@@ -1,5 +1,32 @@
 import type { Severity } from './types'
 
+// Clases que requieren alerta STAT (modal bloqueante antes de mostrar resultados)
+export const STAT_CLASSES = new Set([
+  'Pneumothorax',
+  'Mass',
+  'Edema',
+  'Pneumonia',
+])
+
+// Diagnóstico diferencial clínico por clase (orden por frecuencia en contexto HNAL)
+export const DIFFERENTIALS: Record<string, string[]> = {
+  Atelectasis:        ['Obstrucción bronquial', 'Compresión extrínseca', 'Cicatriz post-TB', 'Post-quirúrgico'],
+  Cardiomegaly:       ['Insuficiencia cardíaca', 'Derrame pericárdico', 'Miocardiopatía', 'Proyección AP (pseudo)'],
+  Consolidation:      ['Neumonía bacteriana', 'Tuberculosis', 'Atelectasia lobar', 'Neoplasia', 'Edema focal'],
+  Edema:              ['ICC (edema cardiogénico)', 'SDRA', 'Neumonía bilateral', 'Hemorragia alveolar'],
+  Effusion:           ['Trasudado (ICC, cirrosis)', 'Exudado (infección, neoplasia)', 'Hemotórax', 'Empiema'],
+  Emphysema:          ['EPOC', 'Asma severa', 'Hiperinsuflación compensatoria', 'Déficit de alfa-1 antitripsina'],
+  Fibrosis:           ['Fibrosis pulmonar idiopática', 'Secuela de TB', 'Neumoconiosis', 'Sarcoidosis'],
+  Hernia:             ['Hernia de Bochdalek', 'Hernia de Morgagni', 'Eventración diafragmática'],
+  Infiltration:       ['Tuberculosis pulmonar', 'Neumonía atípica', 'Edema', 'Hemorragia alveolar'],
+  Mass:               ['Neoplasia primaria (CBP)', 'Metástasis', 'Granuloma (TB/histoplasma)', 'Hamartoma', 'Absceso'],
+  Nodule:             ['Granuloma calcificado (TB)', 'CBP temprano', 'Linfonodo intrapulmonar', 'Artefacto'],
+  Pleural_Thickening: ['Secuela de derrame/empiema', 'Mesotelioma', 'Asbestosis', 'Tuberculosis pleural'],
+  Pneumonia:          ['Neumonía bacteriana típica', 'Tuberculosis', 'Neumonía atípica (Mycoplasma)', 'Edema focal'],
+  Pneumothorax:       ['Neumotórax espontáneo primario', 'Neumotórax a tensión (urgencia)', 'Neumotórax traumático'],
+  'No Finding':       [],
+}
+
 export const SEVERITY_MAP: Record<string, Severity> = {
   Pneumothorax:       'critical',
   Mass:               'critical',

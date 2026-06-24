@@ -1,7 +1,7 @@
 import { cn } from '@/lib/utils'
 import { getSeverity } from '@/lib/utils'
-import { BADGES, DESCRIPTIONS, SEVERITY_COLORS, SEVERITY_LABELS } from '@/lib/constants'
-import { AlertTriangle, CheckCircle2, AlertCircle, Info } from 'lucide-react'
+import { BADGES, DESCRIPTIONS, DIFFERENTIALS, SEVERITY_COLORS, SEVERITY_LABELS } from '@/lib/constants'
+import { AlertTriangle, CheckCircle2, AlertCircle, Info, GitBranch } from 'lucide-react'
 import type { Prediction } from '@/lib/types'
 
 const SEVERITY_ICONS = {
@@ -75,9 +75,6 @@ export function FindingCard({ prediction, compact = false }: FindingCardProps) {
             {(prediction.confidence * 100).toFixed(1)}%
           </span>
         </div>
-        {!compact && desc && (
-          <p className="text-xs text-[var(--fg-muted)] mt-2 leading-5">{desc}</p>
-        )}
       </div>
     )
   }
@@ -118,6 +115,28 @@ export function FindingCard({ prediction, compact = false }: FindingCardProps) {
         {/* Description */}
         {desc && (
           <p className="text-sm text-[var(--fg-muted)] leading-6">{desc}</p>
+        )}
+
+        {/* Diagnóstico diferencial */}
+        {DIFFERENTIALS[cls] && DIFFERENTIALS[cls].length > 0 && (
+          <div className="mt-4 pt-3 border-t border-[var(--border-subtle)]">
+            <div className="flex items-center gap-1.5 mb-2">
+              <GitBranch size={13} className="text-[var(--fg-subtle)]" />
+              <span className="text-[11px] font-bold text-[var(--fg-subtle)] uppercase tracking-wider">
+                Diagnóstico diferencial
+              </span>
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {DIFFERENTIALS[cls].map((d) => (
+                <span
+                  key={d}
+                  className="text-[11px] px-2 py-0.5 rounded-full border border-[var(--border-subtle)] text-[var(--fg-muted)] bg-[var(--surface2)]"
+                >
+                  {d}
+                </span>
+              ))}
+            </div>
+          </div>
         )}
       </div>
 

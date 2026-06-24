@@ -10,6 +10,7 @@ export interface Prediction {
   model_version?: string
   disclaimer?: string
   cached?: boolean
+  sub_threshold_findings?: Array<{ class: string; probability: number }>
   uncertainty_std?: Record<string, number>
   image_warnings?: string[]
   explanation?: {
@@ -42,6 +43,18 @@ export interface ClassMetrics {
 }
 
 export type Severity = 'critical' | 'high' | 'moderate' | 'normal'
+
+export interface CXRUser {
+  id:        string
+  name:      string
+  username:  string
+  password:  string
+  role:      'admin' | 'radiologist'
+  cmp:       string | null
+  specialty?: string
+  active:    boolean
+  createdAt: string
+}
 
 export interface HistoryEntry {
   id: string

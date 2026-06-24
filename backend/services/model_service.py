@@ -95,9 +95,10 @@ def run_ensemble_inference(ensemble: dict, tensor: torch.Tensor) -> dict:
     w1 = ensemble["weight_v1"]
     w2 = ensemble["weight_v2"]
 
+    T = ensemble.get("temperature", 1.0)
     with torch.no_grad():
-        probs_v1 = torch.sigmoid(ensemble["model_v1"](tensor)).cpu().numpy()[0]
-        probs_v2 = torch.sigmoid(ensemble["model_v2"](tensor)).cpu().numpy()[0]
+        probs_v1 = torch.sigmoid(ensemble["model_v1"](tensor) / T).cpu().numpy()[0]
+        probs_v2 = torch.sigmoid(ensemble["model_v2"](tensor) / T).cpu().numpy()[0]
 
     probs = w1 * probs_v1 + w2 * probs_v2  # (14,)
 
@@ -106,9 +107,17 @@ def run_ensemble_inference(ensemble: dict, tensor: torch.Tensor) -> dict:
     argmax_idx   = int(np.argmax(probs))
     thresholds   = ensemble["thresholds"]
 
+    _SUB_MIN = 0.10  # mínimo para hallazgo sub-umbral (vigilancia)
+
     positive_findings = [
         cls for cls in CLASSES_14
         if probs_dict[cls] >= thresholds.get(cls, 0.3)
+    ]
+
+    sub_threshold_findings = [
+        {"class": cls, "probability": round(float(probs_dict[cls]), 4)}
+        for cls in CLASSES_14
+        if _SUB_MIN <= probs_dict[cls] < thresholds.get(cls, 0.3)
     ]
 
     if positive_findings:
@@ -121,10 +130,11 @@ def run_ensemble_inference(ensemble: dict, tensor: torch.Tensor) -> dict:
         confidence      = round(float(1.0 - np.max(probs)), 6)
 
     return {
-        "predicted_class":   predicted_class,
-        "predicted_label":   predicted_label,
-        "confidence":        confidence,
-        "probabilities":     probs_dict,
-        "positive_findings": positive_findings,
-        "argmax_label":      argmax_idx,
+        "predicted_class":       predicted_class,
+        "predicted_label":       predicted_label,
+        "confidence":            confidence,
+        "probabilities":         probs_dict,
+        "positive_findings":     positive_findings,
+        "sub_threshold_findings": sub_threshold_findings,
+        "argmax_label":          argmax_idx,
     }

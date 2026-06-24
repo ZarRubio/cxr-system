@@ -1,0 +1,22 @@
+[
+  {
+    "id": "1",
+    "name": "Admin HNAL",
+    "username": "admin",
+    "password": "$2a$12$S/aXAjZgGZ4z8c2.FWuDVeA4VgsWgGvc7MplUj9zZKG9uZKd1PHU.",
+    "role": "admin",
+    "cmp": null,
+    "active": true,
+    "createdAt": "2026-06-24T00:00:00.000Z"
+  },
+  {
+    "id": "2",
+    "name": "Dr. Radiólogo Demo",
+    "username": "radio",
+    "password": "$2a$12$S/aXAjZgGZ4z8c2.FWuDVeA4VgsWgGvc7MplUj9zZKG9uZKd1PHU.",
+    "role": "radiologist",
+    "cmp": "12345",
+    "active": true,
+    "createdAt": "2026-06-24T00:00:00.000Z"
+  }
+]

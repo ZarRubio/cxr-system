@@ -10,7 +10,9 @@ import { SecondaryFindings } from '@/components/analyze/SecondaryFindings'
 import { Button } from '@/components/ui/button'
 import { SuccessToast } from '@/components/ui/toast'
 import { AnalyzingOverlay } from '@/components/analyze/AnalyzingOverlay'
+import { StatAlert } from '@/components/analyze/StatAlert'
 import { fetchModelInfo, predict } from '@/lib/api'
+import { STAT_CLASSES } from '@/lib/constants'
 import { useSessionStore } from '@/store/session'
 import { buildPdf } from '@/lib/pdf'
 import { downloadBlob } from '@/lib/utils'
@@ -26,6 +28,7 @@ export default function AnalyzePage() {
   const [notes, setNotes]           = useState<string>('')
   const [showToast, setShowToast]   = useState(false)
   const [loadingDemo, setLoadingDemo] = useState(false)
+  const [statDismissed, setStatDismissed] = useState(false)
 
   const resultsRef = useRef<HTMLDivElement>(null)
   const addEntry   = useSessionStore((s) => s.addEntry)
@@ -65,6 +68,7 @@ export default function AnalyzePage() {
     try {
       const result = await predict(fileBytes, filename, 'gradcam', 1, true)
       setPrediction(result)
+      setStatDismissed(false)
       addEntry(filename, result, fileBytes)
       setShowToast(true)
       setTimeout(() => {
@@ -96,6 +100,14 @@ export default function AnalyzePage() {
   return (
     <>
       {analyzing && <AnalyzingOverlay fileBytes={fileBytes ?? undefined} filename={filename} />}
+
+      {prediction && STAT_CLASSES.has(prediction.predicted_class) && !statDismissed && (
+        <StatAlert
+          predictedClass={prediction.predicted_class}
+          confidence={prediction.confidence}
+          onDismiss={() => setStatDismissed(true)}
+        />
+      )}
 
       {showToast && prediction && (
         <SuccessToast

@@ -4,9 +4,11 @@ import { usePathname } from 'next/navigation'
 import {
   Microscope, ClipboardList, GitCompare, BarChart3,
   Sun, Moon, ChevronLeft, ChevronRight, Activity,
+  LogOut, Shield, Settings,
 } from 'lucide-react'
-import { useTheme } from 'next-themes'
-import { cn } from '@/lib/utils'
+import { useTheme }    from 'next-themes'
+import { useSession, signOut } from 'next-auth/react'
+import { cn }          from '@/lib/utils'
 import { useSessionStore } from '@/store/session'
 import { CLASSES_INFO } from '@/lib/constants'
 import { useState } from 'react'
@@ -18,11 +20,18 @@ const NAV = [
   { href: '/model',    label: 'Modelo',    icon: BarChart3   },
 ]
 
+const NAV_ADMIN = { href: '/admin', label: 'Admin', icon: Settings }
+
 export function Sidebar() {
   const pathname  = usePathname()
   const { theme, setTheme } = useTheme()
+  const { data: session }   = useSession()
   const total     = useSessionStore((s) => s.totalAnalyses)
   const [collapsed, setCollapsed] = useState(false)
+
+  const user     = session?.user
+  const initials = user?.name?.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() ?? '??'
+  const isAdmin  = (user as Record<string,unknown>)?.role === 'admin'
 
   return (
     <aside
@@ -52,7 +61,7 @@ export function Sidebar() {
       {/* Navigation */}
       <nav className="flex-1 py-4 overflow-y-auto">
         <ul className="space-y-1 px-2">
-          {NAV.map(({ href, label, icon: Icon }) => {
+          {[...NAV, ...(isAdmin ? [NAV_ADMIN] : [])].map(({ href, label, icon: Icon }) => {
             const active = pathname.startsWith(href)
             return (
               <li key={href}>
@@ -67,6 +76,11 @@ export function Sidebar() {
                 >
                   <Icon size={18} className="shrink-0" />
                   {!collapsed && <span>{label}</span>}
+                  {href === '/admin' && !collapsed && (
+                    <span className="ml-auto text-[9px] font-bold px-1.5 py-0.5 rounded bg-[rgba(220,38,38,0.2)] text-[#FCA5A5]">
+                      ADMIN
+                    </span>
+                  )}
                 </Link>
               </li>
             )
@@ -120,6 +134,48 @@ export function Sidebar() {
           {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
           {!collapsed && <span>{theme === 'dark' ? 'Modo claro' : 'Modo oscuro'}</span>}
         </button>
+
+        {/* User card + logout */}
+        {user && (
+          <div className={cn('border-t border-[#1F2937] pt-2', collapsed ? 'flex justify-center' : '')}>
+            {collapsed ? (
+              <button
+                onClick={() => signOut({ callbackUrl: '/login' })}
+                className="p-2 rounded-lg text-[#6B7280] hover:text-white hover:bg-[rgba(255,255,255,0.06)] transition-all cursor-pointer"
+                title="Cerrar sesión"
+              >
+                <LogOut size={16} />
+              </button>
+            ) : (
+              <div className="px-2 py-2 rounded-lg bg-[rgba(255,255,255,0.04)]">
+                <div className="flex items-center gap-2.5 mb-2">
+                  <div
+                    className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0"
+                    style={{ background: isAdmin ? 'rgba(220,38,38,0.2)' : 'rgba(8,145,178,0.2)', color: isAdmin ? '#FCA5A5' : '#22D3EE' }}
+                  >
+                    {initials}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[12px] font-semibold text-white truncate">{user.name}</p>
+                    <div className="flex items-center gap-1">
+                      {isAdmin && <Shield size={9} className="text-[#FCA5A5]" />}
+                      <p className="text-[10px] text-[#6B7280] truncate">
+                        {isAdmin ? 'Administrador' : `CMP ${(user as Record<string,unknown>).cmp ?? '—'}`}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                <button
+                  onClick={() => signOut({ callbackUrl: '/login' })}
+                  className="flex items-center gap-2 w-full px-2 py-1.5 rounded-lg text-[12px] text-[#6B7280] hover:text-white hover:bg-[rgba(255,255,255,0.06)] transition-all cursor-pointer"
+                >
+                  <LogOut size={14} />
+                  Cerrar sesión
+                </button>
+              </div>
+            )}
+          </div>
+        )}
 
         {!collapsed && (
           <p className="text-[10px] text-[#4B5563] text-center px-2 leading-4">

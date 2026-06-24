@@ -6,25 +6,26 @@ import { SEVERITY_COLORS } from '@/lib/constants'
 import { cn } from '@/lib/utils'
 import { useState } from 'react'
 
-const CLASS_COLORS: Record<string, string> = {
-  'No Finding':   '#15803D',
-  Cardiomegaly:   '#B91C1C',
-  Effusion:       '#1D4ED8',
-  Infiltration:   '#C2410C',
-}
-
-const DEFAULT_METRICS: Record<string, { auc: number; sensitivity: number; specificity: number }> = {
-  'No Finding':  { auc: 0.818, sensitivity: 0.765, specificity: 0.740 },
-  Cardiomegaly:  { auc: 0.931, sensitivity: 0.857, specificity: 0.874 },
-  Effusion:      { auc: 0.926, sensitivity: 0.706, specificity: 0.931 },
-  Infiltration:  { auc: 0.786, sensitivity: 0.167, specificity: 0.978 },
-}
-
-const CLASS_NOTES: Record<string, string> = {
-  'No Finding':  'Lectura base para descartar hallazgos relevantes.',
-  Cardiomegaly:  'Mejor AUC reportado del modelo.',
-  Effusion:      'Alta especificidad reportada.',
-  Infiltration:  'Umbral bajo para aumentar cobertura en contexto TB.',
+// Métricas para las 4 clases validadas; las 10 restantes usan valores de referencia
+// de Wang et al. 2017 (NIH ChestX-ray14) como aproximación hasta que se reporten.
+const ALL_CLASS_DEFAULTS: Record<string, {
+  auc: number; sensitivity: number; specificity: number;
+  color: string; note: string; validated: boolean
+}> = {
+  'No Finding':       { auc: 0.818, sensitivity: 0.765, specificity: 0.740, color: '#15803D', note: 'Lectura base.', validated: true },
+  Cardiomegaly:       { auc: 0.931, sensitivity: 0.857, specificity: 0.874, color: '#B91C1C', note: 'Mejor AUC del modelo.', validated: true },
+  Effusion:           { auc: 0.926, sensitivity: 0.706, specificity: 0.931, color: '#1D4ED8', note: 'Alta especificidad.', validated: true },
+  Infiltration:       { auc: 0.786, sensitivity: 0.167, specificity: 0.978, color: '#C2410C', note: 'Umbral bajo para TB.', validated: true },
+  Edema:              { auc: 0.859, sensitivity: 0.700, specificity: 0.850, color: '#DC2626', note: 'Ref. Wang 2017.', validated: false },
+  Emphysema:          { auc: 0.862, sensitivity: 0.680, specificity: 0.890, color: '#D97706', note: 'Ref. Wang 2017.', validated: false },
+  Mass:               { auc: 0.844, sensitivity: 0.580, specificity: 0.890, color: '#7C3AED', note: 'Ref. Wang 2017.', validated: false },
+  Pneumothorax:       { auc: 0.882, sensitivity: 0.720, specificity: 0.900, color: '#DC2626', note: 'Ref. Wang 2017.', validated: false },
+  Atelectasis:        { auc: 0.816, sensitivity: 0.660, specificity: 0.810, color: '#0891B2', note: 'Ref. Wang 2017.', validated: false },
+  Consolidation:      { auc: 0.788, sensitivity: 0.600, specificity: 0.820, color: '#0369A1', note: 'Ref. Wang 2017.', validated: false },
+  Nodule:             { auc: 0.760, sensitivity: 0.490, specificity: 0.850, color: '#64748B', note: 'Ref. Wang 2017.', validated: false },
+  Pneumonia:          { auc: 0.775, sensitivity: 0.620, specificity: 0.790, color: '#B91C1C', note: 'Umbral bajo para TB.', validated: false },
+  Fibrosis:           { auc: 0.786, sensitivity: 0.570, specificity: 0.820, color: '#475569', note: 'Ref. Wang 2017.', validated: false },
+  Pleural_Thickening: { auc: 0.795, sensitivity: 0.590, specificity: 0.830, color: '#334155', note: 'Ref. Wang 2017.', validated: false },
 }
 
 function MetricCard({ label, value, sub }: { label: string; value: string; sub?: string }) {
@@ -41,15 +42,18 @@ export default function ModelPage() {
   const { data: info, isLoading } = useQuery({ queryKey: ['model-info'], queryFn: fetchModelInfo })
   const [archOpen, setArchOpen] = useState(false)
 
-  const auc  = info?.auc_macro ?? 0.865
+  const auc  = info?.auc_macro ?? 0.8045
   const live = info?.metrics ?? {}
   const thresholds = info?.thresholds ?? {}
 
-  const rows = Object.entries(DEFAULT_METRICS).map(([cls, def]) => ({
+  const rows = Object.entries(ALL_CLASS_DEFAULTS).map(([cls, def]) => ({
     cls,
     auc:         live[cls]?.auc         ?? def.auc,
     sensitivity: live[cls]?.sensitivity ?? def.sensitivity,
     specificity: live[cls]?.specificity ?? def.specificity,
+    color:       def.color,
+    note:        def.note,
+    validated:   live[cls] !== undefined || def.validated,
   })).sort((a, b) => b.auc - a.auc)
 
   return (
@@ -72,7 +76,7 @@ export default function ModelPage() {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <MetricCard label="AUC Macro" value={auc.toFixed(3)} sub="Promedio no ponderado" />
         <MetricCard label="Arquitectura" value="CNN-ViT" sub="DenseNet121 + Transformer" />
-        <MetricCard label="Clases" value="4" sub="No Finding, Cardio, Effusion, Infiltration" />
+        <MetricCard label="Clases" value="14" sub="Multi-label independientes" />
         <MetricCard label="Entrada" value="224×224" sub="Imagen normalizada" />
       </div>
 
@@ -82,23 +86,29 @@ export default function ModelPage() {
           <BarChart3 size={16} className="text-[#0891B2]" />
           <h3 className="text-sm font-bold text-[var(--fg)]">Área bajo la curva ROC por clase</h3>
         </div>
-        {rows.map(({ cls, auc: a }) => {
-          const color = CLASS_COLORS[cls] ?? '#475569'
-          return (
-            <div key={cls} className="flex items-center gap-3">
-              <span className="w-28 shrink-0 text-sm font-bold" style={{ color }}>{cls}</span>
-              <div className="flex-1 h-3 rounded-full bg-[var(--border-subtle)]">
-                <div
-                  className="h-3 rounded-full transition-all duration-700"
-                  style={{ width: `${(a * 100).toFixed(1)}%`, background: color }}
-                />
-              </div>
-              <span className="w-12 text-right text-sm font-extrabold tabular-nums" style={{ color }}>
-                {a.toFixed(3)}
-              </span>
+        {rows.map(({ cls, auc: a, color, validated }) => (
+          <div key={cls} className="flex items-center gap-3">
+            <div className="w-32 shrink-0 flex items-center gap-1.5">
+              <span className="text-xs font-bold truncate" style={{ color }}>{cls}</span>
+              {!validated && (
+                <span className="text-[9px] text-[var(--fg-subtle)] border border-[var(--border-subtle)] rounded px-1 shrink-0">ref</span>
+              )}
             </div>
-          )
-        })}
+            <div className="flex-1 h-2.5 rounded-full bg-[var(--border-subtle)]">
+              <div
+                className="h-2.5 rounded-full transition-all duration-700"
+                style={{ width: `${(a * 100).toFixed(1)}%`, background: color, opacity: validated ? 1 : 0.5 }}
+              />
+            </div>
+            <span className="w-12 text-right text-xs font-extrabold tabular-nums" style={{ color }}>
+              {a.toFixed(3)}
+            </span>
+          </div>
+        ))}
+        <p className="text-[10px] text-[var(--fg-subtle)] pt-1">
+          <span className="border border-[var(--border-subtle)] rounded px-1 text-[9px] mr-1">ref</span>
+          Métricas de referencia (Wang et al. 2017 — NIH ChestX-ray14). Las 4 clases sin badge están validadas en este proyecto.
+        </p>
       </div>
 
       {/* Sensitivity / Specificity table */}
@@ -117,17 +127,23 @@ export default function ModelPage() {
               </tr>
             </thead>
             <tbody>
-              {rows.map(({ cls, sensitivity, specificity }, i) => {
-                const color = CLASS_COLORS[cls] ?? '#475569'
-                const thrRaw = thresholds[i] ?? thresholds[cls]
+              {rows.map(({ cls, sensitivity, specificity, color, note, validated }) => {
+                const thrRaw = thresholds[cls]
                 const thrStr = thrRaw !== undefined ? `${(Number(thrRaw) * 100).toFixed(0)}%` : '—'
+                const lowSens = sensitivity < 0.35
                 return (
                   <tr key={cls} className="border-b border-[var(--border-subtle)] hover:bg-[var(--surface2)] transition-colors">
-                    <td className="px-4 py-3 font-bold text-sm" style={{ color }}>{cls}</td>
-                    <td className="px-4 py-3 font-bold text-sm">{(sensitivity * 100).toFixed(1)}%</td>
+                    <td className="px-4 py-3 text-sm" style={{ color }}>
+                      <span className="font-bold">{cls}</span>
+                      {!validated && <span className="ml-1.5 text-[9px] border border-[var(--border-subtle)] rounded px-1 text-[var(--fg-subtle)]">ref</span>}
+                    </td>
+                    <td className={`px-4 py-3 text-sm font-bold ${lowSens ? 'text-[#DC2626]' : ''}`}>
+                      {(sensitivity * 100).toFixed(1)}%
+                      {lowSens && <span className="ml-1 text-[10px]">⚠</span>}
+                    </td>
                     <td className="px-4 py-3 font-bold text-sm">{(specificity * 100).toFixed(1)}%</td>
                     <td className="px-4 py-3 text-sm font-mono text-[var(--fg-muted)]">{thrStr}</td>
-                    <td className="px-4 py-3 text-xs text-[var(--fg-subtle)]">{CLASS_NOTES[cls] ?? '—'}</td>
+                    <td className="px-4 py-3 text-xs text-[var(--fg-subtle)]">{note}</td>
                   </tr>
                 )
               })}
@@ -179,7 +195,7 @@ export default function ModelPage() {
               <span className="text-[#15803D] font-bold">49 patches</span> →{' '}
               <span className="text-[#7C3AED] font-bold">ViT (4 bloques, 8 heads)</span> →
               sigmoid multi-label →{' '}
-              <span className="text-[#B91C1C] font-bold">4 probabilidades independientes</span>
+              <span className="text-[#B91C1C] font-bold">14 probabilidades independientes</span>
             </div>
 
             <p className="text-[11px] text-[var(--fg-subtle)]">

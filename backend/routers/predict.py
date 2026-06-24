@@ -142,11 +142,49 @@ def _validate_file_size(file_bytes: bytes) -> None:
 def _image_warnings(img_array) -> list[str]:
     warnings = []
     h, w = img_array.shape[:2]
+
+    # Aspecto no típico de CXR (PA/AP ~1:1 a 1:1.4)
     aspect = max(h, w) / max(min(h, w), 1)
-    if aspect > 2.2:
-        warnings.append("La relacion de aspecto no parece tipica de una radiografia de torax.")
-    if float(img_array.std()) < 8.0:
-        warnings.append("La imagen tiene muy bajo contraste; verificar que sea una CXR valida.")
+    if aspect > 2.0:
+        warnings.append("Relacion de aspecto inusual para CXR PA/AP. Verificar recorte o proyeccion.")
+
+    # Contraste muy bajo → imagen sobreexpuesta o invalida
+    std = float(img_array.std())
+    if std < 8.0:
+        warnings.append("Imagen con muy bajo contraste. Verificar exposicion o que sea una CXR valida.")
+
+    # Contraste muy alto → posible artefacto o imagen sintética
+    if std > 115.0:
+        warnings.append("Contraste excesivamente alto. Verificar artefactos o procesamiento previo.")
+
+    # Hipoinspiración: si la imagen es >224px, revisar la proporción vertical
+    # de la zona oscura (pulmones). Heurística simple: si el centil 5 es muy alto,
+    # la imagen puede ser de espiración (campos pequeños).
+    try:
+        img_f = img_array.astype("float32")
+        # Dividir en tercio superior vs inferior; si el superior es más brillante puede
+        # indicar hipoinspiración (diafragma alto).
+        top_third = img_f[: h // 3, :]
+        bot_third = img_f[2 * h // 3 :, :]
+        if top_third.mean() > bot_third.mean() * 1.5:
+            warnings.append(
+                "Posible hipoinspiración o proyeccion inusual: zona superior más densa que la inferior."
+            )
+    except Exception:
+        pass
+
+    # Rotación: verificar si los hemicampos tienen luminosidades muy asimétricas
+    try:
+        left_half  = float(img_array[:, : w // 2].mean())
+        right_half = float(img_array[:, w // 2 :].mean())
+        ratio = max(left_half, right_half) / max(min(left_half, right_half), 1)
+        if ratio > 1.6:
+            warnings.append(
+                "Posible rotacion del paciente: asimetria significativa entre hemicampos."
+            )
+    except Exception:
+        pass
+
     return warnings
 
 
@@ -237,6 +275,7 @@ def _build_prediction(
         confidence=result["confidence"],
         probabilities=result["probabilities"],
         positive_findings=result["positive_findings"],
+        sub_threshold_findings=result["sub_threshold_findings"],
         gradcam_image=gradcam_image,
         gradcam_class=gradcam_cls,
         processing_time_ms=elapsed_ms,

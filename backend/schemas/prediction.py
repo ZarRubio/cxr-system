@@ -7,6 +7,7 @@ class PredictionResponse(BaseModel):
     confidence: float
     probabilities: dict[str, float]   # 14 clases
     positive_findings: list[str]      # clases sobre threshold
+    sub_threshold_findings: list[dict[str, float]] = []  # clases entre 0.10 y threshold
     gradcam_image: str
     gradcam_class: str
     processing_time_ms: float

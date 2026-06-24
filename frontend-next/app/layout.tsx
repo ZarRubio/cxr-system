@@ -2,9 +2,7 @@ import type { Metadata } from 'next'
 import { Figtree, Noto_Sans } from 'next/font/google'
 import './globals.css'
 import { Providers } from '@/components/layout/Providers'
-import { Sidebar } from '@/components/layout/Sidebar'
-import { BottomNav } from '@/components/layout/BottomNav'
-import { Header } from '@/components/layout/Header'
+import { AppShell }  from '@/components/layout/AppShell'
 
 const figtree = Figtree({
   subsets: ['latin'],
@@ -34,16 +32,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     >
       <body className="h-full flex antialiased" style={{ fontFamily: "'Figtree', 'Noto Sans', system-ui, sans-serif" }}>
         <Providers>
-          <Sidebar />
-          <div className="flex flex-col flex-1 min-w-0 h-full overflow-hidden">
-            <Header />
-            <main className="flex-1 overflow-y-auto pb-16 lg:pb-0">
-              <div className="max-w-[1280px] mx-auto px-4 sm:px-6 py-6">
-                {children}
-              </div>
-            </main>
-          </div>
-          <BottomNav />
+          <AppShell>{children}</AppShell>
         </Providers>
       </body>
     </html>

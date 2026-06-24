@@ -79,6 +79,10 @@ async def lifespan(app: FastAPI):
     else:
         try:
             app.state.ensemble = load_ensemble(str(_ARTIFACTS_DIR))
+            thr_config = json.loads(
+                (_ARTIFACTS_DIR / "thresholds_14.json").read_text(encoding="utf-8")
+            )
+            app.state.ensemble["temperature"] = thr_config.get("temperature", 1.0)
         except Exception as exc:
             app.state.ensemble = None
             app.state.startup_error = f"No se pudo cargar el ensemble: {exc}"

@@ -15,6 +15,7 @@ env:
   REGISTRY: us-central1-docker.pkg.dev
   AR_REPO: cxr
   BACKEND_URL: https://cxr-backend-55733445282.us-central1.run.app
+  GCS_MODELS_BUCKET: TU_BUCKET_CXR
 
 jobs:
   deploy-backend:
@@ -34,6 +35,16 @@ jobs:
 
       - name: Configure Docker for Artifact Registry
         run: gcloud auth configure-docker ${{ env.REGISTRY }} --quiet
+
+      - name: Download model artifacts
+        run: |
+          mkdir -p backend/artifacts
+          gcloud storage cp gs://${{ env.GCS_MODELS_BUCKET }}/artifacts/sprint4ml_v1.pt backend/artifacts/sprint4ml_v1.pt
+          gcloud storage cp gs://${{ env.GCS_MODELS_BUCKET }}/artifacts/sprint4ml_v2.pt backend/artifacts/sprint4ml_v2.pt
+          gcloud storage cp gs://${{ env.GCS_MODELS_BUCKET }}/artifacts/ensemble_config.json backend/artifacts/ensemble_config.json
+          gcloud storage cp gs://${{ env.GCS_MODELS_BUCKET }}/artifacts/model_config_14.json backend/artifacts/model_config_14.json
+          gcloud storage cp gs://${{ env.GCS_MODELS_BUCKET }}/artifacts/thresholds_14.json backend/artifacts/thresholds_14.json
+          gcloud storage cp gs://${{ env.GCS_MODELS_BUCKET }}/artifacts/labels_14.json backend/artifacts/labels_14.json
 
       - name: Build and push backend image
         run: |

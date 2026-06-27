@@ -26,9 +26,9 @@ function ConfidenceSignal({ confidence, uncertainty }: { confidence: number; unc
   else level = 'low'
 
   const config = {
-    high:   { label: 'Alta confianza',    color: '#16A34A', bg: '#DCFCE7' },
-    medium: { label: 'Confianza moderada', color: '#D97706', bg: '#FEF3C7' },
-    low:    { label: 'Confianza baja — revisar con radiólogo', color: '#DC2626', bg: '#FEE2E2' },
+    high:   { label: 'Probabilidad alta',                          color: '#16A34A', bg: '#DCFCE7' },
+    medium: { label: 'Probabilidad moderada',                      color: '#D97706', bg: '#FEF3C7' },
+    low:    { label: 'Probabilidad baja · confirmar con criterio clínico', color: '#DC2626', bg: '#FEE2E2' },
   }[level]
 
   return (
@@ -72,7 +72,7 @@ export function FindingCard({ prediction, compact = false }: FindingCardProps) {
             <span className="text-sm font-bold text-[var(--fg)] truncate">{cls}</span>
           </div>
           <span className="text-lg font-extrabold shrink-0" style={{ color: colors.bar }}>
-            {(prediction.confidence * 100).toFixed(1)}%
+            {((prediction.probabilities?.[cls] ?? prediction.confidence) * 100).toFixed(1)}%
           </span>
         </div>
       </div>
@@ -103,8 +103,11 @@ export function FindingCard({ prediction, compact = false }: FindingCardProps) {
 
         {/* Class name + confidence */}
         <h2 className="text-2xl font-bold mb-1" style={{ color: colors.text }}>{cls}</h2>
-        <div className="text-4xl font-extrabold mb-3" style={{ color: colors.bar }}>
-          {(prediction.confidence * 100).toFixed(1)}%
+        <div className="flex items-baseline gap-2 mb-3">
+          <span className="text-4xl font-extrabold" style={{ color: colors.bar }}>
+            {(prediction.confidence * 100).toFixed(1)}%
+          </span>
+          <span className="text-xs font-semibold text-[var(--fg-subtle)] uppercase tracking-wider">Score IA</span>
         </div>
 
         {/* Confidence signal */}
@@ -165,7 +168,7 @@ export function NoFindingCard() {
             NORMAL
           </span>
         </div>
-        <h2 className="text-2xl font-bold text-[#166534] dark:text-[#86EFAC] mb-2">No Finding</h2>
+        <h2 className="text-2xl font-bold text-[#166534] dark:text-[#86EFAC] mb-2">Sin hallazgos patológicos</h2>
         <p className="text-sm text-[var(--fg-muted)] leading-6">{DESCRIPTIONS['No Finding']}</p>
       </div>
     </div>
@@ -178,21 +181,43 @@ export function MultipleFindingsCard({ prediction }: { prediction: Prediction })
   if (positive.length === 0) return <NoFindingCard />
   if (positive.length === 1) return <FindingCard prediction={prediction} />
 
+  const primary    = prediction.predicted_class
+  const secondary  = positive.filter((c) => c !== primary)
+
   return (
     <div className="space-y-3">
       <div className="flex items-center gap-2 px-1">
         <AlertTriangle size={16} className="text-[#D97706]" />
         <span className="text-sm font-bold text-[var(--fg)]">
-          {positive.length} hallazgos detectados
+          {positive.length} hallazgos sobre umbral diagnóstico
         </span>
       </div>
-      {positive.map((cls) => (
-        <FindingCard
-          key={cls}
-          compact
-          prediction={{ ...prediction, predicted_class: cls }}
-        />
-      ))}
+
+      {/* Primary finding — full card */}
+      <div>
+        <p className="text-[10px] font-bold text-[var(--fg-subtle)] uppercase tracking-widest px-1 mb-1.5">
+          Hallazgo principal
+        </p>
+        <FindingCard prediction={prediction} />
+      </div>
+
+      {/* Secondary findings — compact */}
+      {secondary.length > 0 && (
+        <div>
+          <p className="text-[10px] font-bold text-[var(--fg-subtle)] uppercase tracking-widest px-1 mb-1.5">
+            Hallazgos adicionales
+          </p>
+          <div className="space-y-2">
+            {secondary.map((cls) => (
+              <FindingCard
+                key={cls}
+                compact
+                prediction={{ ...prediction, predicted_class: cls }}
+              />
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

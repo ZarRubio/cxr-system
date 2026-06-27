@@ -1,13 +1,12 @@
 'use client'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Microscope, ClipboardList, GitCompare, BarChart3 } from 'lucide-react'
+import { Microscope, ClipboardList, BarChart3 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const NAV = [
   { href: '/analyze',  label: 'Analizar',  icon: Microscope   },
   { href: '/history',  label: 'Historial', icon: ClipboardList },
-  { href: '/compare',  label: 'Comparar',  icon: GitCompare   },
   { href: '/model',    label: 'Modelo',    icon: BarChart3    },
 ]
 

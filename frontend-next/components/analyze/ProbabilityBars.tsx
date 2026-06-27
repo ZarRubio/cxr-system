@@ -18,9 +18,12 @@ export function ProbabilityBars({ prediction, thresholds }: ProbabilityBarsProps
 
   return (
     <div className="space-y-2">
-      <h4 className="text-xs font-bold text-[var(--fg-subtle)] uppercase tracking-wider mb-3">
-        Probabilidades por clase
+      <h4 className="text-xs font-bold text-[var(--fg-subtle)] uppercase tracking-wider mb-1">
+        Score IA por clase
       </h4>
+      <p className="text-[10px] text-[var(--fg-subtle)] mb-3">
+        La línea vertical indica el umbral diagnóstico por clase. Las barras que la superan son hallazgos positivos.
+      </p>
       {visible.map(([cls, prob]) => {
         const severity = getSeverity(cls)
         const colors   = SEVERITY_COLORS[severity]
@@ -70,9 +73,9 @@ export function ProbabilityBars({ prediction, thresholds }: ProbabilityBarsProps
       )}
 
       <p className="text-[10px] text-[var(--fg-subtle)] pt-1">
-        La línea vertical indica el umbral de decisión por clase.
-        Tiempo: {prediction.processing_time_ms.toFixed(0)} ms
+        Procesado en {prediction.processing_time_ms.toFixed(0)} ms
         {prediction.model_version && ` · ${prediction.model_version}`}
+        {prediction.cached && ' · resultado en caché'}
       </p>
     </div>
   )

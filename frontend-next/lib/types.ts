@@ -66,4 +66,11 @@ export interface HistoryEntry {
   imageHash?: string
   prediction: Prediction
   fileBytes?: Uint8Array
+  studyMeta?: {
+    studyId: string
+    projection: string
+    clinicalIndication: string
+    radiologistName?: string
+    radiologistCmp?: string
+  }
 }

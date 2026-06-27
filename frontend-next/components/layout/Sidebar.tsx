@@ -2,7 +2,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
-  Microscope, ClipboardList, GitCompare, BarChart3,
+  Microscope, ClipboardList, BarChart3,
   Sun, Moon, ChevronLeft, ChevronRight, Activity,
   LogOut, Shield, Settings,
 } from 'lucide-react'
@@ -16,7 +16,6 @@ import { useState } from 'react'
 const NAV = [
   { href: '/analyze',  label: 'Analizar',  icon: Microscope  },
   { href: '/history',  label: 'Historial', icon: ClipboardList },
-  { href: '/compare',  label: 'Comparar',  icon: GitCompare  },
   { href: '/model',    label: 'Modelo',    icon: BarChart3   },
 ]
 

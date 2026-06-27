@@ -7,7 +7,12 @@ import type { Prediction } from '@/lib/types'
 interface SessionState {
   history: HistoryEntry[]
   totalAnalyses: number
-  addEntry: (filename: string, prediction: Prediction, fileBytes?: Uint8Array) => void
+  addEntry: (
+    filename: string,
+    prediction: Prediction,
+    fileBytes?: Uint8Array,
+    studyMeta?: HistoryEntry['studyMeta'],
+  ) => void
   clearHistory: () => void
 }
 
@@ -15,7 +20,7 @@ export const useSessionStore = create<SessionState>((set) => ({
   history: [],
   totalAnalyses: 0,
 
-  addEntry(filename, prediction, fileBytes) {
+  addEntry(filename, prediction, fileBytes, studyMeta) {
     const entry: HistoryEntry = {
       id: crypto.randomUUID(),
       timestamp: new Date().toISOString(),
@@ -26,6 +31,7 @@ export const useSessionStore = create<SessionState>((set) => ({
       imageHash: prediction.image_hash,
       prediction,
       fileBytes,
+      studyMeta,
     }
     set((s) => ({
       history: [entry, ...s.history],

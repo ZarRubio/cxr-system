@@ -110,6 +110,160 @@ export const DESCRIPTIONS: Record<string, string> = {
     'No se detectaron hallazgos patológicos significativos. Campos pulmonares, silueta cardíaca y mediastino dentro de parámetros normales para el modelo.',
 }
 
+// Recomendaciones clínicas por hallazgo — para mostrar en la UI y el PDF
+export type Urgency = 'stat' | 'urgente' | 'electivo' | 'rutina'
+
+export const URGENCY_LABELS: Record<Urgency, string> = {
+  stat:     'STAT — Atención inmediata',
+  urgente:  'Urgente — Evaluación < 24 h',
+  electivo: 'Electivo — Evaluación dentro de la semana',
+  rutina:   'Rutina — Seguimiento programado',
+}
+
+export const URGENCY_COLORS: Record<Urgency, { bg: string; text: string; border: string }> = {
+  stat:     { bg: '#FEE2E2', text: '#991B1B', border: '#FCA5A5' },
+  urgente:  { bg: '#FEF3C7', text: '#92400E', border: '#FCD34D' },
+  electivo: { bg: '#E0F2FE', text: '#075985', border: '#BAE6FD' },
+  rutina:   { bg: '#F0FDF4', text: '#166534', border: '#86EFAC' },
+}
+
+export const RECOMMENDATIONS: Record<string, { urgency: Urgency; actions: string[] }> = {
+  Pneumothorax: {
+    urgency: 'stat',
+    actions: [
+      'Evaluar clínicamente de inmediato — auscultar ambos campos pulmonares',
+      'Si sospecha de neumotórax a tensión: descompresión emergente con aguja',
+      'Solicitar Rx en espiración para confirmar y medir tamaño',
+      'Interconsulta urgente a cirugía torácica o neumología',
+      'Preparar equipo para colocación de tubo de tórax si es indicado',
+    ],
+  },
+  Edema: {
+    urgency: 'stat',
+    actions: [
+      'Evaluar signos de insuficiencia cardíaca descompensada',
+      'Solicitar BNP/NT-proBNP, ECG y ecocardiografía de urgencia',
+      'Interconsulta a cardiología de guardia',
+      'Iniciar manejo según protocolo de edema pulmonar agudo si aplica',
+    ],
+  },
+  Pneumonia: {
+    urgency: 'urgente',
+    actions: [
+      'Solicitar hemograma, PCR, hemocultivos y cultivo de esputo',
+      'Descartar tuberculosis pulmonar según protocolo HNAL (BK en esputo)',
+      'Calcular índice de gravedad (PSI/CURB-65)',
+      'Iniciar antibioticoterapia empírica según guía institucional',
+      'Evaluar necesidad de hospitalización vs manejo ambulatorio',
+    ],
+  },
+  Mass: {
+    urgency: 'urgente',
+    actions: [
+      'Solicitar TAC de tórax con contraste (prioridad < 1 semana)',
+      'Completar anamnesis: tabaquismo, pérdida de peso, hemoptisis, exposiciones',
+      'Interconsulta a neumología u oncología torácica',
+      'No diferir — lesiones > 3 cm requieren caracterización urgente',
+    ],
+  },
+  Effusion: {
+    urgency: 'urgente',
+    actions: [
+      'Solicitar proyección lateral y ecografía pleural para cuantificar',
+      'Evaluar causas: ICC, hepatopatía, neoplasia, infección, TB pleural',
+      'Si derrame significativo: considerar toracocentesis diagnóstica',
+      'Interconsulta a neumología',
+    ],
+  },
+  Consolidation: {
+    urgency: 'urgente',
+    actions: [
+      'Correlacionar con cuadro clínico y fiebre',
+      'Solicitar hemograma, PCR y cultivos',
+      'Descartar tuberculosis (BK en esputo) si clínica compatible',
+      'Iniciar tratamiento si cuadro clínico confirma neumonía',
+    ],
+  },
+  Nodule: {
+    urgency: 'electivo',
+    actions: [
+      'Solicitar TAC de tórax de alta resolución para caracterización',
+      'Aplicar criterios de Fleischner para seguimiento según tamaño y riesgo',
+      'Revisar radiografías previas para evaluar crecimiento',
+      'Interconsulta a neumología en < 7 días si nódulo > 8 mm',
+    ],
+  },
+  Cardiomegaly: {
+    urgency: 'electivo',
+    actions: [
+      'Solicitar ecocardiograma transtorácico',
+      'Evaluar signos de ICC: ortopnea, edema de miembros, ingurgitación yugular',
+      'Verificar proyección — AP puede sobreestimar el tamaño cardíaco',
+      'Interconsulta a cardiología',
+    ],
+  },
+  Atelectasis: {
+    urgency: 'electivo',
+    actions: [
+      'Evaluar causa: obstrucción bronquial, cuerpo extraño, compresión extrínseca',
+      'Kinesioterapia respiratoria y cambios posturales si postoperado',
+      'Solicitar broncoscopía si atelectasia persistente sin causa clara',
+      'Seguimiento con Rx control en 4-6 semanas',
+    ],
+  },
+  Infiltration: {
+    urgency: 'electivo',
+    actions: [
+      'Descartar tuberculosis activa según protocolo HNAL (BK × 3)',
+      'Correlacionar con síntomas: tos, fiebre, sudoración nocturna',
+      'Solicitar hemograma y prueba de tuberculina si aplica',
+      'Seguimiento en 2-4 semanas con Rx de control',
+    ],
+  },
+  Emphysema: {
+    urgency: 'rutina',
+    actions: [
+      'Solicitar espirometría con prueba broncodilatadora',
+      'Confirmar antecedente de tabaquismo u otras exposiciones',
+      'Interconsulta a neumología para estadificación GOLD',
+      'Programa de cesación tabáquica si fumador activo',
+    ],
+  },
+  Fibrosis: {
+    urgency: 'rutina',
+    actions: [
+      'Solicitar TCAR (tomografía de alta resolución) para patrón fibrótico',
+      'Descartar exposición ocupacional (sílice, asbestos)',
+      'Interconsulta a neumología para diagnóstico diferencial de EPI',
+      'Pruebas de función pulmonar completas',
+    ],
+  },
+  Pleural_Thickening: {
+    urgency: 'rutina',
+    actions: [
+      'Revisar antecedentes: exposición a asbesto, empiema previo, TB pleural',
+      'Ecografía pleural para descartar derrame asociado',
+      'Seguimiento en 6 meses con Rx si hallazgo incidental',
+    ],
+  },
+  Hernia: {
+    urgency: 'rutina',
+    actions: [
+      'Confirmar con TAC de tórax para caracterizar contenido herniado',
+      'Evaluar síntomas gastrointestinales asociados',
+      'Interconsulta a cirugía general o torácica',
+    ],
+  },
+  'No Finding': {
+    urgency: 'rutina',
+    actions: [
+      'No se requieren acciones basadas en este estudio de imagen',
+      'Continuar manejo clínico según cuadro del paciente',
+      'Repetir estudio si la clínica evoluciona o aparecen nuevos síntomas',
+    ],
+  },
+}
+
 export const CLASSES_INFO: Record<string, string> = {
   Atelectasis:        'Colapso pulmonar parcial/total',
   Cardiomegaly:       'Posible cardiomegalia',

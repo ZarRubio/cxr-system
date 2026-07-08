@@ -35,7 +35,6 @@ Referencias:
 """
 from __future__ import annotations
 
-
 import math
 
 import torch
@@ -360,7 +359,7 @@ if __name__ == "__main__":
     model = CNNViT(num_classes=4).to(device)
     model.set_phase(1)
     summary = model.param_summary()
-    print(f"Modelo CNN-ViT (fase 1):")
+    print("Modelo CNN-ViT (fase 1):")
     print(f"  CNN params:      {summary['cnn_total']:>12,}")
     print(f"  ViT params:      {summary['vit_total']:>12,}")
     print(f"  Total:           {summary['total']:>12,}")

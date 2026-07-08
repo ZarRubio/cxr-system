@@ -5,6 +5,10 @@ import numpy as np
 import torch
 from PIL import Image
 
+# Limite explicito contra bombas de descompresion: PIL lanza DecompressionBombError
+# antes de materializar imagenes absurdamente grandes en memoria.
+Image.MAX_IMAGE_PIXELS = 8192 * 8192
+
 
 def detect_format(file_bytes: bytes, filename: str) -> str:
     """Detects PNG, JPG, or DICOM by magic bytes, falling back to filename extension."""

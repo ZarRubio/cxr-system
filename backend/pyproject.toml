@@ -1,0 +1,24 @@
+[tool.ruff]
+line-length = 110
+target-version = "py312"
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "B",   # flake8-bugbear
+    "UP",  # pyupgrade
+]
+ignore = [
+    "E501",  # líneas largas: el formateo se mantiene manual en textos clínicos
+    "B008",  # Depends()/File() en defaults es el patrón idiomático de FastAPI
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Los tests configuran env vars y sys.path antes de importar la app
+"tests/*" = ["E402"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

@@ -1,6 +1,6 @@
 import json
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -12,7 +12,7 @@ logger = logging.getLogger("cxr.audit")
 def write_audit_event(event: dict[str, Any]) -> None:
     """Append a patient-safe audit event without image bytes or DICOM metadata."""
     payload = {
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
         **event,
     }
     path = Path(settings.audit_log_path)

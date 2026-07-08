@@ -2,10 +2,10 @@
 Carga dos modelos CNN-ViT y realiza inferencia en ensemble.
 """
 import json
+from pathlib import Path
+
 import numpy as np
 import torch
-import cv2
-from pathlib import Path
 
 from models.cnn_vit import CNNViT
 
@@ -47,7 +47,7 @@ def load_ensemble(artifacts_dir: str) -> dict:
         num_layers=cfg_mod["num_layers_v1"],
         mlp_dim=cfg_mod["mlp_dim"],
     ).to(device)
-    ckpt_v1 = torch.load(artifacts / cfg_ens["checkpoint_v1"], map_location=device)
+    ckpt_v1 = torch.load(artifacts / cfg_ens["checkpoint_v1"], map_location=device, weights_only=True)
     model_v1.load_state_dict(ckpt_v1["model_state_dict"])
     model_v1.eval()
 
@@ -59,7 +59,7 @@ def load_ensemble(artifacts_dir: str) -> dict:
         num_layers=cfg_mod["num_layers_v2"],
         mlp_dim=cfg_mod["mlp_dim"],
     ).to(device)
-    ckpt_v2 = torch.load(artifacts / cfg_ens["checkpoint_v2"], map_location=device)
+    ckpt_v2 = torch.load(artifacts / cfg_ens["checkpoint_v2"], map_location=device, weights_only=True)
     model_v2.load_state_dict(ckpt_v2["model_state_dict"])
     model_v2.eval()
 
@@ -71,17 +71,6 @@ def load_ensemble(artifacts_dir: str) -> dict:
         "thresholds": thr,
         "device": device,
     }
-
-
-def preprocess_image(img_array: np.ndarray, image_size: int = 224) -> torch.Tensor:
-    """
-    (H,W) uint8 -> (1,1,224,224) float32 en [-1024,1024].
-    CRITICO: normalizacion xrv, NO ImageNet.
-    """
-    img = img_array.astype(np.float32)
-    img = (img / 255.0) * 2048.0 - 1024.0
-    img = cv2.resize(img, (image_size, image_size))
-    return torch.from_numpy(img).unsqueeze(0).unsqueeze(0)  # (1,1,224,224)
 
 
 def run_ensemble_inference(ensemble: dict, tensor: torch.Tensor) -> dict:

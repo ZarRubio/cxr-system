@@ -4,12 +4,17 @@ import time
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, Request
+from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
+from auth import require_api_key
+from middleware import RequestContextMiddleware
 from rate_limit import RATE_LIMITING_AVAILABLE, limiter
 from routers import predict
 from settings import settings
+from utils.cache import LRUCache
+
+__version__ = "2.1.0"
 
 if RATE_LIMITING_AVAILABLE:
     from slowapi import _rate_limit_exceeded_handler
@@ -117,7 +122,7 @@ async def lifespan(app: FastAPI):
     except Exception:
         app.state.ensemble_config = {}
 
-    app.state.prediction_cache = {}
+    app.state.prediction_cache = LRUCache(maxsize=settings.cache_max_entries)
 
     yield
 
@@ -139,6 +144,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(RequestContextMiddleware)
 
 app.include_router(predict.router)
 
@@ -151,9 +157,11 @@ async def health(request: Request):
     )
     return {
         "status": "ok" if ensemble_loaded else "degraded",
+        "version": __version__,
         "ensemble_loaded": ensemble_loaded,
         "num_classes": 14,
         "model_type": "ensemble",
+        "cache_entries": len(getattr(request.app.state, "prediction_cache", {})),
         "model_load_seconds": _MODEL_LOAD_SECONDS,
         "uptime_seconds": round(time.time() - _START_TIME, 1),
         "rate_limiting": RATE_LIMITING_AVAILABLE,
@@ -161,7 +169,7 @@ async def health(request: Request):
     }
 
 
-@app.get("/model-info", tags=["ops"])
+@app.get("/model-info", tags=["ops"], dependencies=[Depends(require_api_key)])
 async def model_info(request: Request):
     cfg = getattr(request.app.state, "model_config", {})
     ens_cfg = getattr(request.app.state, "ensemble_config", {})

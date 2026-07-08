@@ -5,8 +5,8 @@ Coverage:
   - utils.image_utils  : detect_format, preprocess_for_model, validate_source_channels
   - services.dicom_service  : extract_pixels_from_dicom
   - services.model_service  : run_ensemble_inference (14-class ensemble)
-  - routers.predict helpers : _validate_file_size, _parse_mc_passes,
-                              _parse_gradcam_method, _image_warnings
+  - services.prediction_service : validate_file_size, image_warnings
+  - routers.predict helpers : _parse_gradcam_method
   - API endpoints           : /health, /model-info, /predict, /predict-batch
 """
 
@@ -31,14 +31,11 @@ from pydicom.dataset import FileDataset, FileMetaDataset
 from pydicom.uid import ExplicitVRLittleEndian, SecondaryCaptureImageStorage, generate_uid
 
 from main import app
-from routers.predict import (
-    _image_warnings,
-    _parse_gradcam_method,
-    _parse_mc_passes,
-    _validate_file_size,
-)
+from routers.predict import _parse_gradcam_method
 from services.dicom_service import extract_pixels_from_dicom
 from services.model_service import CLASSES_14, run_ensemble_inference
+from services.prediction_service import image_warnings, validate_file_size
+from utils.cache import LRUCache
 from utils.image_utils import detect_format, preprocess_for_model, validate_source_channels
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -147,12 +144,12 @@ def _make_dicom_bytes(photometric: str = "MONOCHROME2") -> bytes:
 @pytest.fixture()
 def client(monkeypatch):
     monkeypatch.setattr(
-        "routers.predict.generate_gradcam",
+        "services.prediction_service.generate_gradcam",
         lambda model, tensor, img_array, label, method="gradcam": "data:image/png;base64,ZmFrZQ==",
     )
     with TestClient(app) as c:
         app.state.ensemble = _make_ensemble(_effusion_logits(), _effusion_logits())
-        app.state.prediction_cache = {}
+        app.state.prediction_cache = LRUCache(maxsize=20)
         yield c
 
 
@@ -302,47 +299,21 @@ class TestRunEnsembleInference:
 class TestValidateFileSize:
     def test_empty_bytes_raises_400(self):
         with pytest.raises(HTTPException) as exc:
-            _validate_file_size(b"")
+            validate_file_size(b"")
         assert exc.value.status_code == 400
 
     def test_below_minimum_raises_400(self):
         with pytest.raises(HTTPException) as exc:
-            _validate_file_size(b"x" * 500)
+            validate_file_size(b"x" * 500)
         assert exc.value.status_code == 400
 
     def test_above_maximum_raises_413(self):
         with pytest.raises(HTTPException) as exc:
-            _validate_file_size(b"x" * (15 * 1024 * 1024 + 1))
+            validate_file_size(b"x" * (15 * 1024 * 1024 + 1))
         assert exc.value.status_code == 413
 
     def test_valid_size_passes(self):
-        _validate_file_size(b"x" * 5000)
-
-
-class TestParseMcPasses:
-    def test_valid_value_returns_integer(self):
-        assert _parse_mc_passes("5") == 5
-
-    def test_minimum_boundary_accepted(self):
-        assert _parse_mc_passes("1") == 1
-
-    def test_maximum_boundary_accepted(self):
-        assert _parse_mc_passes("20") == 20
-
-    def test_zero_raises_400(self):
-        with pytest.raises(HTTPException) as exc:
-            _parse_mc_passes("0")
-        assert exc.value.status_code == 400
-
-    def test_above_maximum_raises_400(self):
-        with pytest.raises(HTTPException) as exc:
-            _parse_mc_passes("21")
-        assert exc.value.status_code == 400
-
-    def test_non_integer_string_raises_400(self):
-        with pytest.raises(HTTPException) as exc:
-            _parse_mc_passes("abc")
-        assert exc.value.status_code == 400
+        validate_file_size(b"x" * 5000)
 
 
 class TestParseGradcamMethod:
@@ -365,23 +336,23 @@ class TestParseGradcamMethod:
 class TestImageWarnings:
     def test_returns_list(self):
         arr = np.random.randint(30, 200, (224, 224), dtype=np.uint8)
-        assert isinstance(_image_warnings(arr), list)
+        assert isinstance(image_warnings(arr), list)
 
     def test_extreme_aspect_ratio_triggers_warning(self):
         arr = np.random.randint(30, 200, (224, 50), dtype=np.uint8)
-        warnings = _image_warnings(arr)
+        warnings = image_warnings(arr)
         assert any("aspecto" in w.lower() for w in warnings)
 
     def test_flat_image_triggers_low_contrast_warning(self):
         arr = np.full((224, 224), 128, dtype=np.uint8)
-        warnings = _image_warnings(arr)
+        warnings = image_warnings(arr)
         assert any("contraste" in w.lower() for w in warnings)
 
     def test_checkerboard_triggers_high_contrast_warning(self):
         arr = np.zeros((224, 224), dtype=np.uint8)
         arr[::2, ::2] = 255
         arr[1::2, 1::2] = 255
-        warnings = _image_warnings(arr)
+        warnings = image_warnings(arr)
         assert any("contraste" in w.lower() for w in warnings)
 
 
@@ -399,10 +370,10 @@ class TestHealthEndpoint:
         assert data["num_classes"] == 14
 
     def test_degraded_when_no_ensemble(self, monkeypatch):
-        monkeypatch.setattr("routers.predict.generate_gradcam", lambda *a, **kw: "")
+        monkeypatch.setattr("services.prediction_service.generate_gradcam", lambda *a, **kw: "")
         with TestClient(app) as c:
             app.state.ensemble = None
-            app.state.prediction_cache = {}
+            app.state.prediction_cache = LRUCache(maxsize=20)
             resp = c.get("/health")
             assert resp.json()["status"] == "degraded"
             assert resp.json()["ensemble_loaded"] is False
@@ -443,7 +414,7 @@ class TestPredictEndpoint:
             "predicted_class", "predicted_label", "confidence", "probabilities",
             "positive_findings", "gradcam_image", "gradcam_class",
             "processing_time_ms", "disclaimer", "image_hash", "cached",
-            "image_warnings", "uncertainty_std", "explanation",
+            "image_warnings", "explanation",
         }
         assert required.issubset(set(data))
 
@@ -503,10 +474,10 @@ class TestPredictEndpoint:
         assert resp2.json()["cached"] is True
 
     def test_no_ensemble_returns_503(self, monkeypatch):
-        monkeypatch.setattr("routers.predict.generate_gradcam", lambda *a, **kw: "")
+        monkeypatch.setattr("services.prediction_service.generate_gradcam", lambda *a, **kw: "")
         with TestClient(app) as c:
             app.state.ensemble = None
-            app.state.prediction_cache = {}
+            app.state.prediction_cache = LRUCache(maxsize=20)
             resp = c.post("/predict", files={"file": ("test.png", _make_png_bytes(), "image/png")})
             assert resp.status_code == 503
 
@@ -520,13 +491,6 @@ class TestPredictEndpoint:
     def test_invalid_gradcam_method_returns_400(self, client: TestClient):
         resp = client.post(
             "/predict?gradcam_method=invalid",
-            files={"file": ("test.png", _make_png_bytes(), "image/png")},
-        )
-        assert resp.status_code == 400
-
-    def test_out_of_range_mc_passes_returns_400(self, client: TestClient):
-        resp = client.post(
-            "/predict?mc_passes=99",
             files={"file": ("test.png", _make_png_bytes(), "image/png")},
         )
         assert resp.status_code == 400

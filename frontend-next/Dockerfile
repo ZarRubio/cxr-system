@@ -2,6 +2,8 @@ FROM node:20-alpine AS base
 WORKDIR /app
 
 FROM base AS deps
+# better-sqlite3 compila nativo con node-gyp: alpine (musl) no tiene prebuilds.
+RUN apk add --no-cache python3 make g++
 COPY package.json package-lock.json* ./
 RUN npm ci
 

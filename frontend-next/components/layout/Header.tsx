@@ -42,7 +42,7 @@ export function Header() {
               {initials}
             </div>
             <button
-              onClick={() => signOut({ callbackUrl: '/login' })}
+              onClick={() => signOut({ redirectTo: '/login' })}
               className="text-[#6B7280] hover:text-white transition-colors p-1 rounded cursor-pointer"
               aria-label="Cerrar sesión"
               title="Cerrar sesión"

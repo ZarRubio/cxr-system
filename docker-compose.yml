@@ -30,6 +30,9 @@ services:
       - BACKEND_API_KEY=${CXR_API_KEY:-dev-local-key}
       - AUTH_SECRET=${AUTH_SECRET:-dev-secret-cambiar-en-produccion}
       - AUTH_TRUST_HOST=true
+      # Sin AUTH_URL, el server standalone detecta el host como 0.0.0.0:3000
+      # y los redirects de auth (p.ej. signout -> /login) apuntan a una URL muerta.
+      - AUTH_URL=${AUTH_URL:-http://localhost:3000}
       - NODE_ENV=production
     depends_on:
       backend:

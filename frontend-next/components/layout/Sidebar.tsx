@@ -139,7 +139,7 @@ export function Sidebar() {
           <div className={cn('border-t border-[#1F2937] pt-2', collapsed ? 'flex justify-center' : '')}>
             {collapsed ? (
               <button
-                onClick={() => signOut({ callbackUrl: '/login' })}
+                onClick={() => signOut({ redirectTo: '/login' })}
                 className="p-2 rounded-lg text-[#6B7280] hover:text-white hover:bg-[rgba(255,255,255,0.06)] transition-all cursor-pointer"
                 title="Cerrar sesión"
               >
@@ -165,7 +165,7 @@ export function Sidebar() {
                   </div>
                 </div>
                 <button
-                  onClick={() => signOut({ callbackUrl: '/login' })}
+                  onClick={() => signOut({ redirectTo: '/login' })}
                   className="flex items-center gap-2 w-full px-2 py-1.5 rounded-lg text-[12px] text-[#6B7280] hover:text-white hover:bg-[rgba(255,255,255,0.06)] transition-all cursor-pointer"
                 >
                   <LogOut size={14} />

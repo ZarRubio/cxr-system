@@ -1,26 +1,35 @@
 # CXR Classifier — Sistema de clasificación de radiografías de tórax
 
+[![Deploy to Cloud Run](https://github.com/ZarRubio/cxr-system/actions/workflows/deploy.yml/badge.svg)](https://github.com/ZarRubio/cxr-system/actions/workflows/deploy.yml)
+![Python 3.12](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)
+![Next.js 16](https://img.shields.io/badge/Next.js-16-000000?logo=nextdotjs&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)
+
 **Hospital Nacional Arzobispo Loayza (HNAL) — Lima, Perú**
 Tesis de Ingeniería de Software · 2026
 
 ## Descripción
 
 Sistema de apoyo diagnóstico que clasifica radiografías de tórax en **14 patologías** usando
-un ensemble de dos modelos híbridos CNN-ViT entrenados sobre el dataset NIH ChestX-ray14.
+un ensemble de dos modelos híbridos CNN-ViT entrenados sobre el dataset NIH ChestX-ray14,
+con mapas de calor explicativos (Grad-CAM) y reportes PDF.
 
-| Clase | Clase |
-|---|---|
-| Atelectasis | Mass |
-| Cardiomegaly | Nodule |
-| Consolidation | Pleural Thickening |
-| Edema | Pneumonia |
-| Effusion | Pneumothorax |
-| Emphysema | — |
-| Fibrosis | — |
-| Hernia | — |
-| Infiltration | — |
+| | | |
+|---|---|---|
+| Atelectasis | Effusion | Mass |
+| Cardiomegaly | Emphysema | Nodule |
+| Consolidation | Fibrosis | Pleural Thickening |
+| Edema | Hernia | Pneumonia |
+| Infiltration | | Pneumothorax |
 
 Cuando ninguna clase supera su umbral, el sistema reporta **No Finding**.
+
+## Producción
+
+| Servicio | URL |
+|---|---|
+| Frontend | <https://cxr-frontend-55733445282.us-central1.run.app> |
+| Backend (health) | <https://cxr-backend-55733445282.us-central1.run.app/health> |
 
 ## Arquitectura
 
@@ -127,6 +136,8 @@ docker compose up --build
 | `BACKEND_URL` | URL del backend (server-side; el navegador no la ve) |
 | `BACKEND_API_KEY` | Key enviada al backend como `X-API-Key` |
 | `AUTH_SECRET` | Secreto NextAuth — **obligatorio en producción** (`openssl rand -base64 32`) |
+| `AUTH_URL` | URL pública de la app — **obligatoria en el server standalone** (Docker/Cloud Run); sin ella los redirects de auth apuntan a `0.0.0.0:3000` |
+| `AUTH_TRUST_HOST` | `true` detrás de un proxy (Cloud Run/Docker); sin ella NextAuth v5 lanza `UntrustedHost` |
 | `SEED_ADMIN_PASSWORD` | Contraseña del admin sembrado (default `hnal2026`) |
 | `CXR_DATA_DIR` | Directorio de la BD SQLite (default `./data`) |
 
@@ -170,16 +181,16 @@ Secrets requeridos en el repositorio de GitHub:
 | `CXR_API_KEY` | `openssl rand -hex 32` |
 | `AUTH_SECRET` | `openssl rand -base64 32` |
 
-Además, los artefactos del modelo deben existir en el bucket:
+Además, los artefactos del modelo deben existir en el bucket y la cuenta de servicio
+del deploy necesita permiso de lectura sobre él:
 
 ```bash
 gcloud storage cp backend/artifacts/{sprint4ml_v1.pt,sprint4ml_v2.pt,ensemble_config.json,model_config_14.json,thresholds_14.json,labels_14.json} \
   gs://cxr-model-artifacts-55733445282/artifacts/
-```
 
-```
-Backend:  https://cxr-backend-55733445282.us-central1.run.app
-Frontend: https://cxr-frontend-55733445282.us-central1.run.app
+gcloud storage buckets add-iam-policy-binding gs://cxr-model-artifacts-55733445282 \
+  --member="serviceAccount:github-actions@project-20fbf8b2-6971-4ef9-8b1.iam.gserviceaccount.com" \
+  --role="roles/storage.objectViewer"
 ```
 
 ## Estructura del proyecto

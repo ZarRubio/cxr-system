@@ -12,6 +12,15 @@ __pycache__/
 .venv/
 venv/
 *.egg-info/
+.pytest_cache/
+.ruff_cache/
+
+# Logs (auditoría y runtime — nunca commitear)
+backend/logs/
+logs/
+
+# Base de datos local del frontend
+frontend-next/data/*.db
 
 # Streamlit
 .streamlit/

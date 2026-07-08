@@ -12,7 +12,7 @@ export async function PATCH(
   }
 
   const { id } = await params
-  const existing = getUserById(id)
+  const existing = await getUserById(id)
 
   if (!existing) return NextResponse.json({ error: 'Usuario no encontrado.' }, { status: 404 })
   if (existing.role === 'admin') {
@@ -21,7 +21,7 @@ export async function PATCH(
 
   const body = await req.json()
   const { name, cmp, specialty, active } = body
-  const updated = updateUser(id, {
+  const updated = await updateUser(id, {
     ...(name !== undefined ? { name } : {}),
     ...(cmp !== undefined ? { cmp } : {}),
     ...(specialty !== undefined ? { specialty } : {}),

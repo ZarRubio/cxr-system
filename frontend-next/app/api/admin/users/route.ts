@@ -16,7 +16,7 @@ export async function GET() {
   if (!(await requireAdmin())) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   }
-  const users = getUsers().map(({ password: _p, ...u }) => u)
+  const users = (await getUsers()).map(({ password: _p, ...u }) => u)
   return NextResponse.json(users)
 }
 
@@ -34,7 +34,7 @@ export async function POST(req: Request) {
   if (String(password).length < 6) {
     return NextResponse.json({ error: 'La contraseña debe tener al menos 6 caracteres.' }, { status: 400 })
   }
-  if (getUserByUsername(username)) {
+  if (await getUserByUsername(username)) {
     return NextResponse.json({ error: 'El nombre de usuario ya existe.' }, { status: 409 })
   }
 
@@ -50,7 +50,7 @@ export async function POST(req: Request) {
     createdAt: new Date().toISOString(),
   }
 
-  createUser(user)
+  await createUser(user)
   const { password: _p, ...safe } = user
   return NextResponse.json(safe, { status: 201 })
 }

@@ -1,0 +1,58 @@
+import { describe, it, expect } from 'vitest'
+import { filterAnalyses, type AnalysisRecord } from './analysis'
+
+function mk(partial: Partial<AnalysisRecord>): AnalysisRecord {
+  return {
+    id: crypto.randomUUID(),
+    userId: 'u1',
+    userName: 'Dra. Pérez',
+    createdAt: '2026-07-08T12:00:00.000Z',
+    filename: 'torax.png',
+    studyId: 'EST-20260708-001',
+    projection: 'PA',
+    clinicalIndication: null,
+    predictedClass: 'Pneumonia',
+    confidence: 0.82,
+    severity: 'critical',
+    probabilities: { Pneumonia: 0.82 },
+    positiveFindings: ['Pneumonia'],
+    imageHash: null,
+    modelVersion: 'ensemble-v1',
+    processingTimeMs: 1200,
+    feedback: null,
+    ...partial,
+  }
+}
+
+describe('filterAnalyses', () => {
+  const records = [
+    mk({ id: 'a', predictedClass: 'Pneumonia', severity: 'critical', feedback: null }),
+    mk({ id: 'b', predictedClass: 'No Finding', severity: 'normal', feedback: { agrees: true, actualFinding: null, comment: null, createdAt: '2026-07-08T13:00:00.000Z' } }),
+    mk({ id: 'c', predictedClass: 'Effusion', severity: 'high', studyId: 'EST-XYZ', feedback: { agrees: false, actualFinding: 'Atelectasis', comment: 'límite', createdAt: '2026-07-08T14:00:00.000Z' } }),
+  ]
+
+  it('sin filtros devuelve todo', () => {
+    expect(filterAnalyses(records, {})).toHaveLength(3)
+  })
+
+  it('filtra por severidad', () => {
+    expect(filterAnalyses(records, { severity: 'high' }).map((r) => r.id)).toEqual(['c'])
+  })
+
+  it('filtra por estado de validación', () => {
+    expect(filterAnalyses(records, { feedback: 'pending' }).map((r) => r.id)).toEqual(['a'])
+    expect(filterAnalyses(records, { feedback: 'agree' }).map((r) => r.id)).toEqual(['b'])
+    expect(filterAnalyses(records, { feedback: 'disagree' }).map((r) => r.id)).toEqual(['c'])
+  })
+
+  it('busca por texto en studyId, filename, clase y radiólogo (case-insensitive)', () => {
+    expect(filterAnalyses(records, { q: 'est-xyz' }).map((r) => r.id)).toEqual(['c'])
+    expect(filterAnalyses(records, { q: 'pneumonia' }).map((r) => r.id)).toEqual(['a'])
+    expect(filterAnalyses(records, { q: 'pérez' })).toHaveLength(3)
+    expect(filterAnalyses(records, { q: 'inexistente' })).toHaveLength(0)
+  })
+
+  it('combina filtros', () => {
+    expect(filterAnalyses(records, { severity: 'critical', feedback: 'agree' })).toHaveLength(0)
+  })
+})

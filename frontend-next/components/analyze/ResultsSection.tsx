@@ -2,6 +2,7 @@
 import type { RefObject } from 'react'
 import { Microscope, Download, FileText } from 'lucide-react'
 import { MultipleFindingsCard } from '@/components/analyze/FindingCard'
+import { FeedbackCard } from '@/components/analyze/FeedbackCard'
 import { ClinicalRecommendations } from '@/components/analyze/ClinicalRecommendations'
 import { ProbabilityBars } from '@/components/analyze/ProbabilityBars'
 import { GradCamView } from '@/components/analyze/GradCamView'
@@ -71,7 +72,15 @@ export function ResultsSection({
         />
       </div>
 
-      {/* Row 2: Notes + PDF */}
+      {/* Row 2: Validación del radiólogo (solo si el análisis quedó persistido) */}
+      {prediction.analysis_id && (
+        <FeedbackCard
+          analysisId={prediction.analysis_id}
+          predictedClass={prediction.predicted_class}
+        />
+      )}
+
+      {/* Row 3: Notes + PDF */}
       <div className="card p-4 space-y-3">
         <label
           htmlFor="clinical-notes"

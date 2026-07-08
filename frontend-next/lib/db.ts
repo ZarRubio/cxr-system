@@ -74,6 +74,13 @@ export function getDb(): Database.Database {
       createdAt TEXT NOT NULL
     );
     CREATE INDEX IF NOT EXISTS idx_users_username ON users (username);
+    CREATE TABLE IF NOT EXISTS analyses (
+      id        TEXT PRIMARY KEY,
+      userId    TEXT NOT NULL,
+      createdAt TEXT NOT NULL,
+      data      TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_analyses_user ON analyses (userId, createdAt DESC);
   `)
   seedFromLegacyJson(db)
   seedDefaultAdmin(db)

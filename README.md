@@ -47,11 +47,15 @@ Cuando ninguna clase supera su umbral, el sistema reporta **No Finding**.
   la sesión y reenvían al backend con el header `X-API-Key`.
 - El backend rechaza con 401 cualquier request sin la key cuando `CXR_API_KEY` está configurada
   (`/health` queda abierto para monitoreo).
-- Usuarios en **SQLite** (`data/cxr.db`), sembrados automáticamente al arrancar: si existe el
-  `data/users.json` legacy se migra; si la tabla queda vacía se crea `admin` (contraseña
-  `SEED_ADMIN_PASSWORD`, default `hnal2026`). En Cloud Run el filesystem es efímero: los usuarios
-  creados en `/admin` viven hasta el reinicio de la instancia (el seed garantiza siempre un admin).
-  Para persistencia real, migrar a Cloud SQL o Firestore.
+- **Persistencia** (`DATA_BACKEND`): en desarrollo y docker-compose, SQLite (`data/cxr.db`);
+  en Cloud Run, **Firestore** (colecciones `users` y `analyses`) — los usuarios creados en
+  `/admin`, el historial clínico y las validaciones sobreviven reinicios. El admin se siembra
+  automáticamente (`SEED_ADMIN_PASSWORD`, default `hnal2026` — cambiarla en producción).
+- **Historial clínico**: cada análisis se persiste server-side (metadatos del estudio, scores
+  y severidad; nunca la imagen ni el Grad-CAM). Cada radiólogo ve los suyos; el admin ve todos.
+- **Validación del radiólogo**: sobre cada análisis se registra concordancia o discrepancia
+  (con el hallazgo real) — la métrica de concordancia clínica del sistema. Exportable a CSV/JSON
+  desde el historial.
 
 ## Stack
 
@@ -59,7 +63,7 @@ Cuando ninguna clase supera su umbral, el sistema reporta **No Finding**.
 |---|---|
 | Backend | FastAPI · Python 3.12 |
 | Frontend | Next.js 16 · React 19 · Tailwind 4 · NextAuth v5 (puerto 3000) |
-| Usuarios | SQLite (better-sqlite3) |
+| Persistencia | SQLite (dev/compose) · Firestore vía REST (Cloud Run) |
 | Modelo | Ensemble CNN-ViT: DenseNet121 backbone + Vision Transformer propio |
 | Formatos de imagen | PNG, JPG, DICOM |
 | Visualización | Grad-CAM / Grad-CAM++ / Score-CAM |
@@ -139,6 +143,8 @@ docker compose up --build
 | `AUTH_URL` | URL pública de la app — **obligatoria en el server standalone** (Docker/Cloud Run); sin ella los redirects de auth apuntan a `0.0.0.0:3000` |
 | `AUTH_TRUST_HOST` | `true` detrás de un proxy (Cloud Run/Docker); sin ella NextAuth v5 lanza `UntrustedHost` |
 | `SEED_ADMIN_PASSWORD` | Contraseña del admin sembrado (default `hnal2026`) |
+| `DATA_BACKEND` | `sqlite` (default) o `firestore` (producción, requiere correr en GCP) |
+| `GOOGLE_CLOUD_PROJECT` | Proyecto GCP para Firestore (en Cloud Run se autodetecta) |
 | `CXR_DATA_DIR` | Directorio de la BD SQLite (default `./data`) |
 
 ## Endpoints del backend

@@ -78,7 +78,11 @@ export function useAnalyze() {
     setAnalyzing(true)
     setError(null)
     try {
-      const result = await predict(fileBytes, filename, 'gradcam', true)
+      const result = await predict(fileBytes, filename, 'gradcam', true, {
+        studyId:            studyMeta.studyId,
+        projection:         studyMeta.projection,
+        clinicalIndication: studyMeta.clinicalIndication,
+      })
       setPrediction(result)
       setStatDismissed(false)
       addEntry(filename, result, fileBytes, {

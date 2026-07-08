@@ -1,4 +1,6 @@
 export interface Prediction {
+  /** ID del registro persistido en el historial (lo añade /api/predict) */
+  analysis_id?: string
   predicted_class: string
   confidence: number
   probabilities: Record<string, number>

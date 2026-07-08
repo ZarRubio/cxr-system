@@ -9,11 +9,10 @@ services:
       - ./backend/artifacts:/app/artifacts
     environment:
       - PYTHONUNBUFFERED=1
-      - DRIVE_FILE_ID=${DRIVE_FILE_ID:-}
-      - CXR_MODEL_CHECKPOINT=${CXR_MODEL_CHECKPOINT:-sprint3_model.pt}
-      - CXR_CORS_ORIGINS=${CXR_CORS_ORIGINS:-*}
+      - CXR_CORS_ORIGINS=${CXR_CORS_ORIGINS:-http://localhost:3000}
       - CXR_RATE_LIMIT_PREDICT=${CXR_RATE_LIMIT_PREDICT:-20/minute}
       - CXR_AUDIT_LOG_PATH=${CXR_AUDIT_LOG_PATH:-logs/audit.jsonl}
+      - CXR_API_KEY=${CXR_API_KEY:-dev-local-key}
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
@@ -24,9 +23,17 @@ services:
     build: ./frontend-next
     ports:
       - "3000:3000"
+    volumes:
+      - frontend-data:/app/data
     environment:
-      - NEXT_PUBLIC_BACKEND_URL=http://backend:8000
+      - BACKEND_URL=http://backend:8000
+      - BACKEND_API_KEY=${CXR_API_KEY:-dev-local-key}
+      - AUTH_SECRET=${AUTH_SECRET:-dev-secret-cambiar-en-produccion}
+      - AUTH_TRUST_HOST=true
       - NODE_ENV=production
     depends_on:
       backend:
         condition: service_healthy
+
+volumes:
+  frontend-data:

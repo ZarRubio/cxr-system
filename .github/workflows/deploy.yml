@@ -15,12 +15,18 @@ env:
   REGISTRY: us-central1-docker.pkg.dev
   AR_REPO: cxr
   BACKEND_URL: https://cxr-backend-55733445282.us-central1.run.app
-  GCS_MODELS_BUCKET: TU_BUCKET_CXR
+  FRONTEND_URL: https://cxr-frontend-55733445282.us-central1.run.app
+  GCS_MODELS_BUCKET: cxr-model-artifacts-55733445282
 
 jobs:
+  test:
+    name: Tests + lint (gate)
+    uses: ./.github/workflows/ci.yml
+
   deploy-backend:
     name: Deploy Backend
     runs-on: ubuntu-latest
+    needs: test
 
     steps:
       - uses: actions/checkout@v4
@@ -68,7 +74,7 @@ jobs:
             --min-instances 1 \
             --max-instances 3 \
             --port 8000 \
-            --set-env-vars "CXR_CORS_ORIGINS=*,CXR_RATE_LIMIT_PREDICT=20/minute,CXR_AUDIT_LOG_PATH=logs/audit.jsonl"
+            --set-env-vars "CXR_CORS_ORIGINS=${{ env.FRONTEND_URL }},CXR_RATE_LIMIT_PREDICT=20/minute,CXR_AUDIT_LOG_PATH=logs/audit.jsonl,CXR_API_KEY=${{ secrets.CXR_API_KEY }}"
 
   deploy-frontend:
     name: Deploy Frontend
@@ -93,7 +99,6 @@ jobs:
         run: |
           IMAGE=${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.AR_REPO }}/frontend
           docker build \
-            --build-arg NEXT_PUBLIC_BACKEND_URL=${{ env.BACKEND_URL }} \
             -t "$IMAGE:${{ github.sha }}" \
             -t "$IMAGE:latest" \
             ./frontend-next
@@ -112,4 +117,4 @@ jobs:
             --min-instances 0 \
             --max-instances 3 \
             --port 3000 \
-            --set-env-vars "HOSTNAME=0.0.0.0"
+            --set-env-vars "HOSTNAME=0.0.0.0,BACKEND_URL=${{ env.BACKEND_URL }},AUTH_TRUST_HOST=true,BACKEND_API_KEY=${{ secrets.CXR_API_KEY }},AUTH_SECRET=${{ secrets.AUTH_SECRET }}"

@@ -1,5 +1,9 @@
 # Deploy en Google Cloud Run - CXR Classifier
 
+> **Nota:** el deploy normal ocurre automáticamente vía `.github/workflows/deploy.yml`
+> (con tests como gate) en cada push a `master`. Esta guía documenta el proceso manual
+> equivalente, útil para debugging o el primer despliegue.
+
 ## Requisitos previos
 
 1. Cuenta Google Cloud con proyecto creado
@@ -51,20 +55,20 @@ gcloud run deploy cxr-backend \
   --max-instances 3 \
   --no-cpu-throttling \
   --allow-unauthenticated \
-  --set-env-vars "CXR_MODEL_CHECKPOINT=sprint3_model.pt,CXR_CORS_ORIGINS=*,DRIVE_FILE_ID=TU_DRIVE_FILE_ID"
+  --set-env-vars "CXR_CORS_ORIGINS=https://cxr-frontend-55733445282.us-central1.run.app,CXR_API_KEY=<la-misma-key-que-el-frontend>"
 ```
 
 Backend URL: `https://cxr-backend-55733445282.us-central1.run.app`
 
 ## 5. Build y push del frontend (Next.js)
 
-El `NEXT_PUBLIC_BACKEND_URL` se bake en el bundle en tiempo de build — pásalo como `--build-arg`:
+La URL del backend ya no se hornea en el bundle: se pasa como env var de runtime
+(`BACKEND_URL`) porque el navegador solo habla con las rutas `/api` del propio frontend.
 
 ```bash
 cd ../frontend-next
 
 docker build \
-  --build-arg NEXT_PUBLIC_BACKEND_URL=https://cxr-backend-55733445282.us-central1.run.app \
   -t us-central1-docker.pkg.dev/project-20fbf8b2-6971-4ef9-8b1/cxr/frontend:latest \
   .
 
@@ -83,7 +87,8 @@ gcloud run deploy cxr-frontend \
   --concurrency 80 \
   --min-instances 0 \
   --max-instances 3 \
-  --allow-unauthenticated
+  --allow-unauthenticated \
+  --set-env-vars "HOSTNAME=0.0.0.0,BACKEND_URL=https://cxr-backend-55733445282.us-central1.run.app,BACKEND_API_KEY=<la-misma-key-que-el-backend>,AUTH_SECRET=<openssl rand -base64 32>,AUTH_TRUST_HOST=true"
 ```
 
 ## 7. Verificación final

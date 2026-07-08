@@ -55,7 +55,7 @@ export const SEVERITY_LABELS: Record<Severity, string> = {
 export const SEVERITY_COLORS: Record<Severity, { bar: string; text: string; bg: string; border: string }> = {
   critical: { bar: '#DC2626', text: '#991B1B', bg: '#FEE2E2', border: '#FCA5A5' },
   high:     { bar: '#D97706', text: '#92400E', bg: '#FEF3C7', border: '#FCD34D' },
-  moderate: { bar: '#0891B2', text: '#075985', bg: '#E0F2FE', border: '#BAE6FD' },
+  moderate: { bar: '#0E7490', text: '#075985', bg: '#E0F2FE', border: '#BAE6FD' },
   normal:   { bar: '#16A34A', text: '#166534', bg: '#DCFCE7', border: '#86EFAC' },
 }
 

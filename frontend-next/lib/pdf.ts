@@ -287,19 +287,6 @@ export async function buildPdf(
   drawLines(interpLines, M + 6, y, LH[9])
   y += interpLines.length * LH[9] + 10
 
-  if (prediction.uncertainty_std) {
-    const top = Object.entries(prediction.uncertainty_std).sort(([, a], [, b]) => b - a).slice(0, 4)
-    if (top.length > 0) {
-      y = pb(y, 20)
-      doc.setFont('helvetica', 'italic')
-      doc.setFontSize(8)
-      doc.setTextColor(107, 114, 128)
-      const unc     = top.map(([c, s]) => `${BADGES[c] ?? c}: ±${(s * 100).toFixed(1)}%`).join(' · ')
-      const uncLines = doc.splitTextToSize(`Incertidumbre (MC Dropout): ${unc}`, W - M * 2 - 12)
-      drawLines(uncLines, M + 6, y, LH[8])
-      y += uncLines.length * LH[8]
-    }
-  }
   y += 12
 
   // ── 6. Images ──────────────────────────────────────────────────────────────

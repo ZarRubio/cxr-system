@@ -103,7 +103,7 @@ export function ImageLightbox({
           <p className="text-sm font-bold text-white">Mapa de activación — Grad-CAM</p>
           {gradcamClass && (
             <p className="text-xs text-white/50 mt-0.5">
-              Región activada para: <span className="text-[#22D3EE] font-semibold">{gradcamClass}</span>
+              Región activada para: <span className="text-[var(--primary-light)] font-semibold">{gradcamClass}</span>
             </p>
           )}
         </div>
@@ -117,7 +117,7 @@ export function ImageLightbox({
           >
             <ZoomOut size={18} />
           </button>
-          <span className="text-xs text-white/60 tabular-nums w-10 text-center">
+          <span className="readout text-xs text-white/60 w-10 text-center">
             {Math.round(zoom * 100)}%
           </span>
           <button
@@ -147,7 +147,7 @@ export function ImageLightbox({
           </button>
           <button
             onClick={() => download(blendedSrc, 'gradcam')}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#0891B2] text-white hover:bg-[#0E7490] transition-colors cursor-pointer"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-[var(--primary)] text-white hover:opacity-90 transition-all cursor-pointer"
           >
             <Download size={13} />
             Grad-CAM
@@ -187,17 +187,19 @@ export function ImageLightbox({
           <div className="flex gap-6 items-start">
             {/* Original */}
             <div className="flex flex-col items-center gap-2">
-              <p className="text-xs font-semibold text-white/60 uppercase tracking-wider">
+              <p className="tech-label text-white/60">
                 Radiografía original
               </p>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={originalSrc}
-                alt="Radiografía original"
-                className="rounded-lg"
-                style={{ maxHeight: '62vh', maxWidth: '42vw', objectFit: 'contain' }}
-                draggable={false}
-              />
+              <div className="viewport-frame">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={originalSrc}
+                  alt="Radiografía original"
+                  className="rounded-lg"
+                  style={{ maxHeight: '62vh', maxWidth: '42vw', objectFit: 'contain' }}
+                  draggable={false}
+                />
+              </div>
             </div>
 
             {/* Divider */}
@@ -205,17 +207,19 @@ export function ImageLightbox({
 
             {/* Grad-CAM blended */}
             <div className="flex flex-col items-center gap-2">
-              <p className="text-xs font-semibold text-[#22D3EE] uppercase tracking-wider">
+              <p className="tech-label text-[var(--primary-light)]">
                 Mapa Grad-CAM
               </p>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={blendedSrc}
-                alt="Mapa de calor Grad-CAM"
-                className="rounded-lg"
-                style={{ maxHeight: '62vh', maxWidth: '42vw', objectFit: 'contain' }}
-                draggable={false}
-              />
+              <div className="viewport-frame">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={blendedSrc}
+                  alt="Mapa de calor Grad-CAM"
+                  className="rounded-lg"
+                  style={{ maxHeight: '62vh', maxWidth: '42vw', objectFit: 'contain' }}
+                  draggable={false}
+                />
+              </div>
             </div>
           </div>
         </div>
@@ -229,9 +233,9 @@ export function ImageLightbox({
           min={0} max={100} step={5}
           value={Math.round(opacity * 100)}
           onChange={(e) => onOpacityChange(Number(e.target.value) / 100)}
-          className="flex-1 h-1.5 appearance-none rounded-full cursor-pointer accent-[#0891B2]"
+          className="flex-1 h-1.5 appearance-none rounded-full cursor-pointer accent-[var(--primary)]"
         />
-        <span className="text-xs font-bold text-white/70 tabular-nums w-10 text-right">
+        <span className="readout text-xs font-bold text-white/70 w-10 text-right">
           {Math.round(opacity * 100)}%
         </span>
         <p className="text-[10px] text-white/30 ml-2 shrink-0">

@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { Loader2, Thermometer, Maximize2 } from 'lucide-react'
 import { blendImagesOnCanvas, decodeDataUri } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -16,7 +16,6 @@ interface GradCamViewProps {
 export function GradCamView({ prediction, originalBytes, onPredictionUpdate }: GradCamViewProps) {
   const [opacity, setOpacity]       = useState(0.65)
   const [blended, setBlended]       = useState<string | null>(null)
-  const [originalSrc, setOriginalSrc] = useState<string | null>(null)
   const [loading, setLoading]       = useState(false)
   const [generating, setGenerating] = useState(false)
   const [lightbox, setLightbox]     = useState(false)
@@ -24,14 +23,16 @@ export function GradCamView({ prediction, originalBytes, onPredictionUpdate }: G
 
   const gradcamUri = prediction.gradcam_image
 
-  // Build original data URL once
-  useEffect(() => {
-    if (!originalBytes) return
-    const blob = new Blob([originalBytes.buffer as ArrayBuffer])
-    const url  = URL.createObjectURL(blob)
-    setOriginalSrc(url)
-    return () => URL.revokeObjectURL(url)
+  // URL de objeto para la imagen original; el effect solo revoca al desmontar
+  const originalSrc = useMemo(() => {
+    if (!originalBytes) return null
+    return URL.createObjectURL(new Blob([originalBytes.buffer as ArrayBuffer]))
   }, [originalBytes])
+
+  useEffect(() => {
+    if (!originalSrc) return
+    return () => URL.revokeObjectURL(originalSrc)
+  }, [originalSrc])
 
   // Blend original + Grad-CAM whenever opacity or gradcam changes
   useEffect(() => {
@@ -50,7 +51,7 @@ export function GradCamView({ prediction, originalBytes, onPredictionUpdate }: G
   const handleGenerate = async () => {
     setGenerating(true)
     try {
-      const updated = await predict(originalBytes, prediction.gradcam_class ?? 'image.png', 'gradcam', 1, true)
+      const updated = await predict(originalBytes, prediction.gradcam_class ?? 'image.png', 'gradcam', true)
       onPredictionUpdate?.(updated)
     } catch {
       // silently fail — user can retry
@@ -65,13 +66,13 @@ export function GradCamView({ prediction, originalBytes, onPredictionUpdate }: G
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Thermometer size={16} className="text-[#0891B2]" />
+            <Thermometer size={16} className="text-[var(--primary)]" />
             <h4 className="text-sm font-semibold text-[var(--fg)]">Mapa de calor (Grad-CAM)</h4>
           </div>
           {blended && (
             <button
               onClick={() => setLightbox(true)}
-              className="flex items-center gap-1.5 text-xs font-semibold text-[#0891B2] hover:text-[#0E7490] transition-colors cursor-pointer"
+              className="flex items-center gap-1.5 text-xs font-semibold text-[var(--primary)] hover:opacity-80 transition-all cursor-pointer"
               title="Ver en pantalla completa"
             >
               <Maximize2 size={14} />
@@ -102,12 +103,12 @@ export function GradCamView({ prediction, originalBytes, onPredictionUpdate }: G
         {gradcamUri && (
           <>
             <div
-              className="relative w-full aspect-square rounded-lg overflow-hidden bg-gray-900 flex items-center justify-center cursor-zoom-in"
+              className="viewport-frame relative w-full aspect-square rounded-lg overflow-hidden bg-gray-900 flex items-center justify-center cursor-zoom-in"
               onClick={() => blended && setLightbox(true)}
               title="Click para ampliar"
             >
               {(loading || !blended) ? (
-                <Loader2 size={28} className="text-[#0891B2] animate-spin" />
+                <Loader2 size={28} className="text-[var(--primary)] animate-spin" />
               ) : (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
@@ -130,7 +131,7 @@ export function GradCamView({ prediction, originalBytes, onPredictionUpdate }: G
                 <label className="text-xs font-medium text-[var(--fg-muted)]">
                   Opacidad del mapa
                 </label>
-                <span className="text-xs font-bold text-[var(--fg)] tabular-nums">
+                <span className="readout text-xs font-bold text-[var(--fg)]">
                   {Math.round(opacity * 100)}%
                 </span>
               </div>
@@ -139,7 +140,7 @@ export function GradCamView({ prediction, originalBytes, onPredictionUpdate }: G
                 min={0} max={100} step={5}
                 value={Math.round(opacity * 100)}
                 onChange={(e) => setOpacity(Number(e.target.value) / 100)}
-                className="w-full h-2 appearance-none rounded-full cursor-pointer accent-[#0891B2]"
+                className="w-full h-2 appearance-none rounded-full cursor-pointer accent-[var(--primary)]"
                 aria-label="Opacidad del mapa de calor"
               />
               <p className="text-[10px] text-[var(--fg-subtle)]">

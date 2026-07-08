@@ -19,8 +19,8 @@ function InitialsAvatar({ name, role }: { name: string; role: string }) {
     <div
       className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
       style={{
-        background: role === 'admin' ? 'rgba(220,38,38,0.12)' : 'rgba(8,145,178,0.12)',
-        color:      role === 'admin' ? '#B91C1C' : '#0E7490',
+        background: role === 'admin' ? 'rgba(220,38,38,0.12)' : 'color-mix(in srgb, var(--primary) 12%, transparent)',
+        color:      role === 'admin' ? '#B91C1C' : 'var(--primary)',
       }}
     >
       {initials}
@@ -40,7 +40,6 @@ export default function AdminPage() {
   const [formErr, setFormErr] = useState('')
 
   const fetchUsers = useCallback(async () => {
-    setLoading(true)
     try {
       const res  = await fetch('/api/admin/users')
       const data = await res.json()
@@ -128,7 +127,7 @@ export default function AdminPage() {
         <button
           onClick={() => setShowForm(true)}
           className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold text-white shrink-0"
-          style={{ background: '#0891B2' }}
+          style={{ background: 'var(--primary)' }}
         >
           <UserPlus size={16} />
           Nuevo radiólogo
@@ -157,7 +156,7 @@ export default function AdminPage() {
 
         {loading ? (
           <div className="flex items-center justify-center py-12 gap-2 text-[var(--fg-subtle)] text-sm">
-            <div className="animate-spin h-4 w-4 rounded-full border-2 border-[#0891B2] border-t-transparent" />
+            <div className="animate-spin h-4 w-4 rounded-full border-2 border-[var(--primary)] border-t-transparent" />
             Cargando usuarios…
           </div>
         ) : (
@@ -255,7 +254,7 @@ export default function AdminPage() {
                     value={(form as Record<string,string>)[id]}
                     onChange={e => setForm(f => ({ ...f, [id]: e.target.value }))}
                     placeholder={placeholder}
-                    className="w-full px-3 py-2.5 rounded-xl border border-[var(--border)] bg-[var(--surface2)] text-sm text-[var(--fg)] placeholder:text-[var(--fg-subtle)] outline-none focus:ring-2 focus:ring-[#0891B2] transition"
+                    className="w-full px-3 py-2.5 rounded-xl border border-[var(--border)] bg-[var(--surface2)] text-sm text-[var(--fg)] placeholder:text-[var(--fg-subtle)] outline-none focus:ring-2 focus:ring-[var(--ring)] transition"
                   />
                 </div>
               ))}
@@ -274,7 +273,7 @@ export default function AdminPage() {
                       value={form[field]}
                       onChange={e => { setForm(f => ({ ...f, [field]: e.target.value })); setFormErr('') }}
                       placeholder="••••••••"
-                      className="w-full px-3 pr-9 py-2.5 rounded-xl border border-[var(--border)] bg-[var(--surface2)] text-sm text-[var(--fg)] placeholder:text-[var(--fg-subtle)] outline-none focus:ring-2 focus:ring-[#0891B2] transition"
+                      className="w-full px-3 pr-9 py-2.5 rounded-xl border border-[var(--border)] bg-[var(--surface2)] text-sm text-[var(--fg)] placeholder:text-[var(--fg-subtle)] outline-none focus:ring-2 focus:ring-[var(--ring)] transition"
                     />
                     {field === 'confirm' && (
                       <button type="button" onClick={() => setShowPwd(!showPwd)} className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--fg-subtle)]">
@@ -299,7 +298,7 @@ export default function AdminPage() {
                 </button>
                 <button type="submit" disabled={saving}
                   className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white transition disabled:opacity-60"
-                  style={{ background: '#0891B2' }}>
+                  style={{ background: 'var(--primary)' }}>
                   {saving ? 'Creando…' : 'Crear cuenta'}
                 </button>
               </div>

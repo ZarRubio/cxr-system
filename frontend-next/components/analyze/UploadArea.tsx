@@ -42,7 +42,7 @@ export function UploadArea({ onFile, currentFilename, onClear }: UploadAreaProps
   if (currentFilename) {
     return (
       <div className="card flex items-center gap-3 px-4 py-3">
-        <FileImage size={20} className="text-[#0891B2] shrink-0" />
+        <FileImage size={20} className="text-[var(--primary)] shrink-0" />
         <span className="text-sm text-[var(--fg)] font-medium flex-1 truncate">{currentFilename}</span>
         <button
           onClick={onClear}
@@ -59,17 +59,18 @@ export function UploadArea({ onFile, currentFilename, onClear }: UploadAreaProps
     <div className="space-y-2">
       <div
         {...getRootProps()}
+        aria-label="Zona de carga: arrastra una radiografía de tórax o haz clic para seleccionar"
         className={cn(
           'card flex flex-col items-center justify-center gap-3 py-10 px-6 cursor-pointer transition-all duration-150',
-          'border-2 border-dashed hover:border-[#0891B2] hover:bg-[#F0FDFA]',
-          isDragActive && 'border-[#0891B2] bg-[#E0F7FA] scale-[1.01]',
-          'dark:hover:bg-[rgba(8,145,178,0.05)] dark:border-dashed',
+          'border-2 border-dashed hover:border-[var(--primary)] hover:bg-[#F0FDFA]',
+          isDragActive && 'border-[var(--primary)] bg-[#E0F7FA] scale-[1.01]',
+          'dark:hover:bg-[color-mix(in_srgb,var(--primary)_5%,transparent)] dark:border-dashed',
         )}
       >
         <input {...getInputProps()} aria-label="Cargar radiografía de tórax" />
         <div className={cn(
           'w-12 h-12 rounded-full flex items-center justify-center transition-colors',
-          isDragActive ? 'bg-[#0891B2] text-white' : 'bg-[var(--muted,#E8F1F6)] text-[#0891B2]',
+          isDragActive ? 'bg-[var(--primary)] text-white' : 'bg-[var(--muted,#E8F1F6)] text-[var(--primary)]',
         )}>
           <Upload size={22} />
         </div>

@@ -70,7 +70,7 @@ export function StatAlert({ predictedClass, confidence, onDismiss }: StatAlertPr
             <span className="bg-[#DC2626] text-white px-3 py-1.5 rounded text-xs font-extrabold uppercase tracking-widest">
               {badge}
             </span>
-            <span className="text-3xl font-extrabold text-[#DC2626]" aria-label={`Probabilidad ${pct} por ciento`}>
+            <span className="readout text-3xl font-extrabold text-[#DC2626]" aria-label={`Probabilidad ${pct} por ciento`}>
               {pct}%
             </span>
           </div>

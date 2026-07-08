@@ -20,9 +20,9 @@ export function Header() {
       </div>
       <div className="flex items-center gap-2">
         {total > 0 && (
-          <div className="flex items-center gap-1 text-[#22D3EE] text-xs font-bold">
+          <div className="flex items-center gap-1 text-[var(--sidebar-active-fg)] text-xs font-bold">
             <Activity size={13} />
-            {total}
+            <span className="readout">{total}</span>
           </div>
         )}
         <button
@@ -36,7 +36,7 @@ export function Header() {
           <>
             <div
               className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold"
-              style={{ background: 'rgba(8,145,178,0.25)', color: '#22D3EE' }}
+              style={{ background: 'var(--sidebar-active-bg)', color: 'var(--sidebar-active-fg)' }}
               title={user.name}
             >
               {initials}

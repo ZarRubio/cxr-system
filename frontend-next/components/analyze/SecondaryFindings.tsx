@@ -44,10 +44,10 @@ export function SecondaryFindings({ prediction, thresholds }: SecondaryFindingsP
                   <div className="flex-1 min-w-0">
                     <span className="text-xs font-semibold" style={{ color: c.bar }}>{cls}</span>
                   </div>
-                  <span className="text-xs tabular-nums font-bold" style={{ color: c.bar }}>
+                  <span className="readout text-xs font-bold" style={{ color: c.bar }}>
                     {(prob * 100).toFixed(1)}%
                   </span>
-                  <span className="text-[10px] text-[var(--fg-subtle)] tabular-nums">
+                  <span className="readout text-[10px] text-[var(--fg-subtle)]">
                     (umbral {(thr * 100).toFixed(0)}%)
                   </span>
                 </div>
@@ -62,7 +62,7 @@ export function SecondaryFindings({ prediction, thresholds }: SecondaryFindingsP
         <div className={additional.length > 0 ? 'border-t border-[var(--border-subtle)] pt-4' : ''}>
           <div className="flex items-center gap-2 mb-2">
             <Eye size={14} className="text-[var(--fg-subtle)]" />
-            <h4 className="text-xs font-bold text-[var(--fg-subtle)] uppercase tracking-wider">
+            <h4 className="tech-label">
               Hallazgos sub-umbral a vigilar
             </h4>
           </div>
@@ -81,7 +81,7 @@ export function SecondaryFindings({ prediction, thresholds }: SecondaryFindingsP
                     <span className="text-[11px] text-[var(--fg-muted)] flex-1">
                       {BADGES[item.class] ?? item.class}
                     </span>
-                    <span className="text-[11px] tabular-nums text-[var(--fg-subtle)]">
+                    <span className="readout text-[11px] text-[var(--fg-subtle)]">
                       {(item.probability * 100).toFixed(1)}%
                     </span>
                   </div>

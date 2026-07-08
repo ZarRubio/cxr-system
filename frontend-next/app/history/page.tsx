@@ -64,7 +64,7 @@ export default function HistoryPage() {
                 placeholder="Filtrar por ID estudio, hallazgo o archivo…"
                 value={filter}
                 onChange={(e) => setFilter(e.target.value)}
-                className="w-full h-9 pl-9 pr-3 text-sm rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--fg)] placeholder:text-[var(--fg-subtle)] focus:outline-none focus:ring-2 focus:ring-[#0891B2]"
+                className="w-full h-9 pl-9 pr-3 text-sm rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--fg)] placeholder:text-[var(--fg-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]"
               />
             </div>
             <Button variant="secondary" size="sm" onClick={exportCSV}>
@@ -78,18 +78,18 @@ export default function HistoryPage() {
             </Button>
           </div>
 
-          <p className="text-xs text-[var(--fg-subtle)]">{filtered.length} análisis</p>
+          <p className="text-xs text-[var(--fg-subtle)]"><span className="readout">{filtered.length}</span> análisis</p>
 
           {/* Table - desktop */}
           <div className="hidden sm:block card overflow-hidden p-0">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-[var(--border-subtle)] bg-[var(--surface2)]">
-                  <th className="text-left text-xs font-bold text-[var(--fg-subtle)] uppercase tracking-wider px-4 py-3">Fecha</th>
-                  <th className="text-left text-xs font-bold text-[var(--fg-subtle)] uppercase tracking-wider px-4 py-3">Estudio</th>
-                  <th className="text-left text-xs font-bold text-[var(--fg-subtle)] uppercase tracking-wider px-4 py-3">Hallazgo</th>
-                  <th className="text-left text-xs font-bold text-[var(--fg-subtle)] uppercase tracking-wider px-4 py-3">Severidad</th>
-                  <th className="text-right text-xs font-bold text-[var(--fg-subtle)] uppercase tracking-wider px-4 py-3">Confianza</th>
+                  <th className="tech-label text-left px-4 py-3">Fecha</th>
+                  <th className="tech-label text-left px-4 py-3">Estudio</th>
+                  <th className="tech-label text-left px-4 py-3">Hallazgo</th>
+                  <th className="tech-label text-left px-4 py-3">Severidad</th>
+                  <th className="tech-label text-right px-4 py-3">Confianza</th>
                   <th className="px-4 py-3" />
                 </tr>
               </thead>
@@ -135,9 +135,9 @@ function HistoryRow({ entry, expanded, onToggle }: { entry: HistoryEntry; expand
         )}
         onClick={onToggle}
       >
-        <td className="px-4 py-3 text-xs text-[var(--fg-muted)] whitespace-nowrap">{formatTimestamp(entry.timestamp)}</td>
+        <td className="readout px-4 py-3 text-xs text-[var(--fg-muted)] whitespace-nowrap">{formatTimestamp(entry.timestamp)}</td>
         <td className="px-4 py-3 max-w-[200px]">
-          <div className="text-xs font-bold font-mono text-[#0891B2] truncate">
+          <div className="readout text-xs font-bold text-[var(--primary)] truncate">
             {entry.studyMeta?.studyId ?? '—'}
           </div>
           <div className="text-[10px] text-[var(--fg-subtle)] truncate mt-0.5">{entry.filename}</div>
@@ -158,7 +158,7 @@ function HistoryRow({ entry, expanded, onToggle }: { entry: HistoryEntry; expand
             {SEVERITY_LABELS[sv]}
           </span>
         </td>
-        <td className="px-4 py-3 text-right font-bold tabular-nums text-sm" style={{ color: c.bar }}>
+        <td className="readout px-4 py-3 text-right font-bold text-sm" style={{ color: c.bar }}>
           {formatConfidence(entry.confidence)}
         </td>
         <td className="px-4 py-3 text-[var(--fg-subtle)]">
@@ -189,12 +189,12 @@ function HistoryCard({ entry, expanded, onToggle }: { entry: HistoryEntry; expan
           {BADGES[entry.predicted] ?? entry.predicted}
         </span>
         <div className="flex-1 min-w-0">
-          <div className="text-xs font-bold font-mono text-[#0891B2] truncate">
+          <div className="readout text-xs font-bold text-[var(--primary)] truncate">
             {entry.studyMeta?.studyId ?? entry.filename}
           </div>
-          <div className="text-[10px] text-[var(--fg-subtle)] truncate">{formatTimestamp(entry.timestamp)}</div>
+          <div className="readout text-[10px] text-[var(--fg-subtle)] truncate">{formatTimestamp(entry.timestamp)}</div>
         </div>
-        <span className="text-sm font-extrabold tabular-nums" style={{ color: c.bar }}>
+        <span className="readout text-sm font-extrabold" style={{ color: c.bar }}>
           {formatConfidence(entry.confidence)}
         </span>
         {expanded ? <ChevronUp size={14} className="text-[var(--fg-subtle)]" /> : <ChevronDown size={14} className="text-[var(--fg-subtle)]" />}
@@ -236,7 +236,7 @@ function HistoryDetail({ entry }: { entry: HistoryEntry }) {
         <div className="flex items-center gap-2 text-xs text-[var(--fg-subtle)]">
           <FileText size={13} />
           {entry.studyMeta?.studyId
-            ? <span>Estudio <span className="font-mono font-bold text-[var(--fg)]">{entry.studyMeta.studyId}</span></span>
+            ? <span>Estudio <span className="readout font-bold text-[var(--fg)]">{entry.studyMeta.studyId}</span></span>
             : <span className="italic">Sin ID de estudio</span>
           }
           {entry.studyMeta?.radiologistName && (

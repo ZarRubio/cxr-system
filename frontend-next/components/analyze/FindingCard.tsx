@@ -18,11 +18,10 @@ const STRIPE_CLASSES = {
   normal:   'finding-stripe-normal',
 }
 
-function ConfidenceSignal({ confidence, uncertainty }: { confidence: number; uncertainty?: number }) {
-  const highUncertainty = uncertainty !== undefined && uncertainty > 0.10
+function ConfidenceSignal({ confidence }: { confidence: number }) {
   let level: 'high' | 'medium' | 'low'
-  if (confidence >= 0.75 && !highUncertainty) level = 'high'
-  else if (confidence >= 0.50 && !highUncertainty) level = 'medium'
+  if (confidence >= 0.75) level = 'high'
+  else if (confidence >= 0.50) level = 'medium'
   else level = 'low'
 
   const config = {
@@ -53,7 +52,6 @@ export function FindingCard({ prediction, compact = false }: FindingCardProps) {
   const badge = BADGES[cls] ?? cls.toUpperCase()
   const desc = DESCRIPTIONS[cls] ?? ''
   const Icon = SEVERITY_ICONS[severity]
-  const uncert = prediction.uncertainty_std?.[cls]
 
   if (compact) {
     return (
@@ -71,7 +69,7 @@ export function FindingCard({ prediction, compact = false }: FindingCardProps) {
             </span>
             <span className="text-sm font-bold text-[var(--fg)] truncate">{cls}</span>
           </div>
-          <span className="text-lg font-extrabold shrink-0" style={{ color: colors.bar }}>
+          <span className="readout text-lg font-extrabold shrink-0" style={{ color: colors.bar }}>
             {((prediction.probabilities?.[cls] ?? prediction.confidence) * 100).toFixed(1)}%
           </span>
         </div>
@@ -104,15 +102,15 @@ export function FindingCard({ prediction, compact = false }: FindingCardProps) {
         {/* Class name + confidence */}
         <h2 className="text-2xl font-bold mb-1" style={{ color: colors.text }}>{cls}</h2>
         <div className="flex items-baseline gap-2 mb-3">
-          <span className="text-4xl font-extrabold" style={{ color: colors.bar }}>
+          <span className="readout text-4xl font-extrabold" style={{ color: colors.bar }}>
             {(prediction.confidence * 100).toFixed(1)}%
           </span>
-          <span className="text-xs font-semibold text-[var(--fg-subtle)] uppercase tracking-wider">Score IA</span>
+          <span className="tech-label">Score IA</span>
         </div>
 
         {/* Confidence signal */}
         <div className="mb-4">
-          <ConfidenceSignal confidence={prediction.confidence} uncertainty={uncert} />
+          <ConfidenceSignal confidence={prediction.confidence} />
         </div>
 
         {/* Description */}
@@ -125,7 +123,7 @@ export function FindingCard({ prediction, compact = false }: FindingCardProps) {
           <div className="mt-4 pt-3 border-t border-[var(--border-subtle)]">
             <div className="flex items-center gap-1.5 mb-2">
               <GitBranch size={13} className="text-[var(--fg-subtle)]" />
-              <span className="text-[11px] font-bold text-[var(--fg-subtle)] uppercase tracking-wider">
+              <span className="tech-label">
                 Diagnóstico diferencial
               </span>
             </div>
@@ -195,7 +193,7 @@ export function MultipleFindingsCard({ prediction }: { prediction: Prediction })
 
       {/* Primary finding — full card */}
       <div>
-        <p className="text-[10px] font-bold text-[var(--fg-subtle)] uppercase tracking-widest px-1 mb-1.5">
+        <p className="tech-label px-1 mb-1.5">
           Hallazgo principal
         </p>
         <FindingCard prediction={prediction} />
@@ -204,7 +202,7 @@ export function MultipleFindingsCard({ prediction }: { prediction: Prediction })
       {/* Secondary findings — compact */}
       {secondary.length > 0 && (
         <div>
-          <p className="text-[10px] font-bold text-[var(--fg-subtle)] uppercase tracking-widest px-1 mb-1.5">
+          <p className="tech-label px-1 mb-1.5">
             Hallazgos adicionales
           </p>
           <div className="space-y-2">

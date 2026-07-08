@@ -11,7 +11,6 @@ export interface Prediction {
   disclaimer?: string
   cached?: boolean
   sub_threshold_findings?: Array<{ class: string; probability: number }>
-  uncertainty_std?: Record<string, number>
   image_warnings?: string[]
   explanation?: {
     summary?: string

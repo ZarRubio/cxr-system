@@ -41,5 +41,7 @@ export default auth((req) => {
 })
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|demo).*)'],
+  // api/predict* se excluye: sus route handlers validan la sesión por sí mismos
+  // y así el proxy no bufferiza en memoria los uploads de hasta 15 MB.
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|demo|api/predict).*)'],
 }

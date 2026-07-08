@@ -38,8 +38,8 @@ export default function ComparePage() {
     setSlotB((s) => ({ ...s, loading: true, error: null }))
 
     const [ra, rb] = await Promise.allSettled([
-      predict(slotA.bytes, slotA.name, 'gradcam', 1, true),
-      predict(slotB.bytes, slotB.name, 'gradcam', 1, true),
+      predict(slotA.bytes, slotA.name, 'gradcam', true),
+      predict(slotB.bytes, slotB.name, 'gradcam', true),
     ])
 
     setSlotA((s) => ({
@@ -69,7 +69,7 @@ export default function ComparePage() {
       {/* Upload row */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="card p-4 space-y-2">
-          <p className="text-xs font-bold text-[var(--fg-subtle)] uppercase tracking-wider">Imagen A</p>
+          <p className="tech-label">Imagen A</p>
           <UploadArea
             onFile={(b, n) => setSlotA({ ...emptySlot(), bytes: b, name: n })}
             currentFilename={slotA.name || undefined}
@@ -77,7 +77,7 @@ export default function ComparePage() {
           />
         </div>
         <div className="card p-4 space-y-2">
-          <p className="text-xs font-bold text-[var(--fg-subtle)] uppercase tracking-wider">Imagen B</p>
+          <p className="tech-label">Imagen B</p>
           <UploadArea
             onFile={(b, n) => setSlotB({ ...emptySlot(), bytes: b, name: n })}
             currentFilename={slotB.name || undefined}
@@ -113,17 +113,17 @@ export default function ComparePage() {
           ].map(({ slot, label }) => (
             <div key={label} className="space-y-4">
               <div className="flex items-center gap-2">
-                <span className="text-xs font-extrabold text-[var(--fg-subtle)] uppercase tracking-wider">
+                <span className="tech-label">
                   Imagen {label}
                 </span>
                 {slot.name && (
-                  <span className="text-xs text-[var(--fg-subtle)] font-mono truncate">{slot.name}</span>
+                  <span className="readout text-xs text-[var(--fg-subtle)] truncate">{slot.name}</span>
                 )}
               </div>
 
               {slot.loading && (
                 <div className="card p-8 flex items-center justify-center">
-                  <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-[#0891B2]" />
+                  <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-[var(--primary)]" />
                 </div>
               )}
 

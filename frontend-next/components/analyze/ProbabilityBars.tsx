@@ -18,7 +18,7 @@ export function ProbabilityBars({ prediction, thresholds }: ProbabilityBarsProps
 
   return (
     <div className="space-y-2">
-      <h4 className="text-xs font-bold text-[var(--fg-subtle)] uppercase tracking-wider mb-1">
+      <h4 className="tech-label block mb-1">
         Score IA por clase
       </h4>
       <p className="text-[10px] text-[var(--fg-subtle)] mb-3">
@@ -53,7 +53,7 @@ export function ProbabilityBars({ prediction, thresholds }: ProbabilityBarsProps
               />
             </div>
             <span
-              className="w-10 shrink-0 text-right text-xs font-bold tabular-nums"
+              className="readout w-10 shrink-0 text-right text-xs font-bold"
               style={{ color: colors.bar }}
             >
               {pct.toFixed(1)}%
@@ -72,7 +72,7 @@ export function ProbabilityBars({ prediction, thresholds }: ProbabilityBarsProps
         </button>
       )}
 
-      <p className="text-[10px] text-[var(--fg-subtle)] pt-1">
+      <p className="readout text-[10px] text-[var(--fg-subtle)] pt-1">
         Procesado en {prediction.processing_time_ms.toFixed(0)} ms
         {prediction.model_version && ` · ${prediction.model_version}`}
         {prediction.cached && ' · resultado en caché'}

@@ -1,21 +1,21 @@
 import type { Metadata } from 'next'
-import { Figtree, Noto_Sans } from 'next/font/google'
+import { IBM_Plex_Sans, IBM_Plex_Mono } from 'next/font/google'
 import './globals.css'
 import { Providers } from '@/components/layout/Providers'
 import { AppShell }  from '@/components/layout/AppShell'
 
-const figtree = Figtree({
+const plexSans = IBM_Plex_Sans({
   subsets: ['latin'],
-  variable: '--font-figtree',
+  variable: '--font-plex-sans',
   display: 'swap',
-  weight: ['300', '400', '500', '600', '700', '800'],
+  weight: ['400', '500', '600', '700'],
 })
 
-const notoSans = Noto_Sans({
+const plexMono = IBM_Plex_Mono({
   subsets: ['latin'],
-  variable: '--font-noto',
+  variable: '--font-plex-mono',
   display: 'swap',
-  weight: ['300', '400', '500', '700'],
+  weight: ['400', '500', '600'],
 })
 
 export const metadata: Metadata = {
@@ -28,9 +28,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html
       lang="es"
       suppressHydrationWarning
-      className={`${figtree.variable} ${notoSans.variable} h-full`}
+      className={`${plexSans.variable} ${plexMono.variable} h-full`}
     >
-      <body className="h-full flex antialiased" style={{ fontFamily: "'Figtree', 'Noto Sans', system-ui, sans-serif" }}>
+      <body className="h-full flex antialiased" style={{ fontFamily: 'var(--font-sans)' }}>
         <Providers>
           <AppShell>{children}</AppShell>
         </Providers>

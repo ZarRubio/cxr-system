@@ -115,10 +115,10 @@ export function Sidebar() {
       <div className="p-3 border-t border-[#1F2937] space-y-2">
         {/* Session counter */}
         {!collapsed && (
-          <div className="flex items-center gap-2 px-2 py-1.5 rounded-lg bg-[rgba(8,145,178,0.1)]">
-            <Activity size={14} className="text-[#22D3EE] shrink-0" />
+          <div className="flex items-center gap-2 px-2 py-1.5 rounded-lg bg-[var(--sidebar-active-bg)]">
+            <Activity size={14} className="text-[var(--sidebar-active-fg)] shrink-0" />
             <span className="text-[12px] text-[#9CA3AF]">Análisis sesión:</span>
-            <span className="text-[12px] font-bold text-[#22D3EE] ml-auto">{total}</span>
+            <span className="readout text-[12px] font-bold text-[var(--sidebar-active-fg)] ml-auto">{total}</span>
           </div>
         )}
 
@@ -150,7 +150,7 @@ export function Sidebar() {
                 <div className="flex items-center gap-2.5 mb-2">
                   <div
                     className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0"
-                    style={{ background: isAdmin ? 'rgba(220,38,38,0.2)' : 'rgba(8,145,178,0.2)', color: isAdmin ? '#FCA5A5' : '#22D3EE' }}
+                    style={{ background: isAdmin ? 'rgba(220,38,38,0.2)' : 'var(--sidebar-active-bg)', color: isAdmin ? '#FCA5A5' : 'var(--sidebar-active-fg)' }}
                   >
                     {initials}
                   </div>

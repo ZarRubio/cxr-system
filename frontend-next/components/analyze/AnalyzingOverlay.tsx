@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useMemo, useState, useRef } from 'react'
 
 const STEPS = [
   { label: 'Validando formato de imagen',         duration: 800  },
@@ -21,17 +21,19 @@ export function AnalyzingOverlay({ fileBytes, filename }: Props) {
   const [stepIdx, setStepIdx]     = useState(0)
   const [progress, setProgress]   = useState(0)
   const [elapsed, setElapsed]     = useState(0)
-  const [thumbUrl, setThumbUrl]   = useState<string | null>(null)
   const canvasRef                  = useRef<HTMLCanvasElement>(null)
 
-  /* Generate thumbnail from fileBytes */
-  useEffect(() => {
-    if (!fileBytes || fileBytes.length === 0) return
+  /* URL de objeto para la miniatura; el effect solo revoca al desmontar */
+  const thumbUrl = useMemo(() => {
+    if (!fileBytes || fileBytes.length === 0) return null
     const blob = new Blob([fileBytes.buffer.slice(fileBytes.byteOffset, fileBytes.byteOffset + fileBytes.byteLength) as ArrayBuffer])
-    const url  = URL.createObjectURL(blob)
-    setThumbUrl(url)
-    return () => URL.revokeObjectURL(url)
+    return URL.createObjectURL(blob)
   }, [fileBytes])
+
+  useEffect(() => {
+    if (!thumbUrl) return
+    return () => URL.revokeObjectURL(thumbUrl)
+  }, [thumbUrl])
 
   /* Step progression */
   useEffect(() => {
@@ -65,20 +67,20 @@ export function AnalyzingOverlay({ fileBytes, filename }: Props) {
 
           {/* Animated X-ray icon */}
           <div className="relative w-20 h-20 shrink-0">
-            <span className="absolute inset-0 rounded-full bg-[#0891B2]/15 animate-ping" />
-            <span className="absolute inset-2 rounded-full bg-[#0891B2]/10 animate-ping [animation-delay:300ms]" />
-            <div className="absolute inset-0 rounded-full bg-[#0A0E1A] border-2 border-[#0891B2]/40 flex items-center justify-center overflow-hidden">
-              <div className="absolute left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-[#22D3EE] to-transparent animate-scan-line" />
+            <span className="absolute inset-0 rounded-full bg-[var(--primary)]/15 animate-ping" />
+            <span className="absolute inset-2 rounded-full bg-[var(--primary)]/10 animate-ping [animation-delay:300ms]" />
+            <div className="absolute inset-0 rounded-full bg-[#0A0E1A] border-2 border-[var(--primary)]/40 flex items-center justify-center overflow-hidden">
+              <div className="absolute left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-[var(--primary-light)] to-transparent animate-scan-line" />
               <svg viewBox="0 0 48 56" className="w-12 h-12 opacity-60" fill="none">
-                <path d="M8 10 Q4 16 4 28 Q4 44 24 50 Q44 44 44 28 Q44 16 40 10" stroke="#22D3EE" strokeWidth="1.5" strokeLinecap="round" className="animate-pulse" />
-                <line x1="24" y1="8" x2="24" y2="46" stroke="#22D3EE" strokeWidth="1" opacity="0.5" />
-                <path d="M24 16 Q14 18 10 24" stroke="#22D3EE" strokeWidth="1" opacity="0.6" strokeLinecap="round" />
-                <path d="M24 22 Q13 24 9 31"  stroke="#22D3EE" strokeWidth="1" opacity="0.5" strokeLinecap="round" />
-                <path d="M24 28 Q13 30 10 37" stroke="#22D3EE" strokeWidth="1" opacity="0.4" strokeLinecap="round" />
-                <path d="M24 16 Q34 18 38 24" stroke="#22D3EE" strokeWidth="1" opacity="0.6" strokeLinecap="round" />
-                <path d="M24 22 Q35 24 39 31"  stroke="#22D3EE" strokeWidth="1" opacity="0.5" strokeLinecap="round" />
-                <path d="M24 28 Q35 30 38 37" stroke="#22D3EE" strokeWidth="1" opacity="0.4" strokeLinecap="round" />
-                <ellipse cx="21" cy="34" rx="5" ry="7" stroke="#22D3EE" strokeWidth="1.2" opacity="0.7" className="animate-pulse [animation-duration:1s]" />
+                <path d="M8 10 Q4 16 4 28 Q4 44 24 50 Q44 44 44 28 Q44 16 40 10" stroke="var(--primary-light)" strokeWidth="1.5" strokeLinecap="round" className="animate-pulse" />
+                <line x1="24" y1="8" x2="24" y2="46" stroke="var(--primary-light)" strokeWidth="1" opacity="0.5" />
+                <path d="M24 16 Q14 18 10 24" stroke="var(--primary-light)" strokeWidth="1" opacity="0.6" strokeLinecap="round" />
+                <path d="M24 22 Q13 24 9 31"  stroke="var(--primary-light)" strokeWidth="1" opacity="0.5" strokeLinecap="round" />
+                <path d="M24 28 Q13 30 10 37" stroke="var(--primary-light)" strokeWidth="1" opacity="0.4" strokeLinecap="round" />
+                <path d="M24 16 Q34 18 38 24" stroke="var(--primary-light)" strokeWidth="1" opacity="0.6" strokeLinecap="round" />
+                <path d="M24 22 Q35 24 39 31"  stroke="var(--primary-light)" strokeWidth="1" opacity="0.5" strokeLinecap="round" />
+                <path d="M24 28 Q35 30 38 37" stroke="var(--primary-light)" strokeWidth="1" opacity="0.4" strokeLinecap="round" />
+                <ellipse cx="21" cy="34" rx="5" ry="7" stroke="var(--primary-light)" strokeWidth="1.2" opacity="0.7" className="animate-pulse [animation-duration:1s]" />
               </svg>
             </div>
           </div>
@@ -88,19 +90,19 @@ export function AnalyzingOverlay({ fileBytes, filename }: Props) {
             <p className="text-sm font-bold text-[var(--fg)]">Analizando radiografía</p>
             <p className="text-xs text-[var(--fg-subtle)] mt-0.5">Ensemble CNN-ViT · DenseNet121 + Transformer</p>
             {filename && (
-              <p className="text-[11px] text-[#0891B2] font-mono mt-1 truncate" title={filename}>
+              <p className="readout text-[11px] text-[var(--primary)] mt-1 truncate" title={filename}>
                 {filename}
               </p>
             )}
 
             {/* Thumbnail */}
             {thumbUrl && (
-              <div className="mt-2 w-full max-w-[140px] aspect-square rounded-lg overflow-hidden bg-gray-900 border border-[#0891B2]/30 relative">
+              <div className="viewport-frame mt-2 w-full max-w-[140px] aspect-square rounded-lg overflow-hidden bg-gray-900 border border-[var(--primary)]/30 relative">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={thumbUrl} alt="Imagen en análisis" className="w-full h-full object-cover grayscale opacity-80" />
                 {/* Scan line over preview */}
                 <div className="absolute inset-0 overflow-hidden rounded-lg">
-                  <div className="absolute left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-[#22D3EE]/60 to-transparent animate-scan-line" />
+                  <div className="absolute left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-[var(--primary-light)]/60 to-transparent animate-scan-line" />
                 </div>
               </div>
             )}
@@ -118,7 +120,7 @@ export function AnalyzingOverlay({ fileBytes, filename }: Props) {
               <div key={i} className="flex items-center gap-2.5">
                 <div className={`w-4 h-4 rounded-full shrink-0 flex items-center justify-center transition-all duration-300 ${
                   done    ? 'bg-[#16A34A]' :
-                  current ? 'bg-[#0891B2] animate-pulse' :
+                  current ? 'bg-[var(--primary)] animate-pulse' :
                             'bg-[var(--border)]'
                 }`}>
                   {done && (
@@ -144,11 +146,11 @@ export function AnalyzingOverlay({ fileBytes, filename }: Props) {
         <div className="w-full space-y-1.5">
           <div className="h-1.5 w-full rounded-full bg-[var(--border-subtle)] overflow-hidden">
             <div
-              className="h-full rounded-full bg-gradient-to-r from-[#0891B2] to-[#22D3EE] transition-all duration-150"
+              className="h-full rounded-full bg-gradient-to-r from-[var(--primary)] to-[var(--primary-light)] transition-all duration-150"
               style={{ width: `${progress.toFixed(1)}%` }}
             />
           </div>
-          <div className="flex justify-between text-[10px] text-[var(--fg-subtle)] tabular-nums">
+          <div className="readout flex justify-between text-[10px] text-[var(--fg-subtle)]">
             <span>{progress.toFixed(0)}%</span>
             <span>{(elapsed / 1000).toFixed(1)}s</span>
           </div>

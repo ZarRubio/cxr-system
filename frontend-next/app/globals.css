@@ -1,83 +1,78 @@
 @import "tailwindcss";
 
+/*
+  Sistema de diseño "Sala de lectura" — CXR Classifier HNAL
+  ─────────────────────────────────────────────────────────
+  Identidad: instrumento clínico de precisión. Superficies frías tipo
+  negatoscopio en claro; sala de lectura radiológica en oscuro.
+  Tipografía: IBM Plex Sans (UI) + IBM Plex Mono (lecturas numéricas,
+  IDs de estudio, probabilidades — como consola de modalidad).
+  Firma visual: marcos de viewport DICOM (esquinas) en los visores.
+*/
+
 @theme inline {
-  /* Medical teal palette */
-  --color-primary:       #0891B2;
-  --color-primary-dark:  #0E7490;
+  /* Petrol clínico */
+  --color-primary:       #0E7490;
+  --color-primary-dark:  #155E75;
   --color-primary-light: #22D3EE;
   --color-on-primary:    #FFFFFF;
 
-  /* Backgrounds */
-  --color-background:    #F0FDFA;
-  --color-surface:       #FFFFFF;
-  --color-muted:         #E8F1F6;
-  --color-border:        #CBD5E1;
-
-  /* Text */
-  --color-foreground:    #134E4A;
-  --color-muted-fg:      #475569;
-  --color-subtle:        #64748B;
-
-  /* Severity */
+  /* Severidad (semántica clínica — no cambiar) */
   --color-critical:      #DC2626;
   --color-high:          #D97706;
-  --color-moderate:      #0891B2;
+  --color-moderate:      #0E7490;
   --color-normal:        #16A34A;
 
-  /* Dark mode */
-  --color-dark-bg:       #0A0E1A;
-  --color-dark-surface:  #111827;
-  --color-dark-surface2: #1F2937;
-  --color-dark-border:   #374151;
-  --color-dark-fg:       #E5E7EB;
-  --color-dark-muted-fg: #9CA3AF;
+  /* Fuentes */
+  --font-sans: var(--font-plex-sans), 'IBM Plex Sans', system-ui, sans-serif;
+  --font-mono: var(--font-plex-mono), 'IBM Plex Mono', monospace;
 
-  /* Fonts */
-  --font-sans: 'Figtree', 'Noto Sans', system-ui, sans-serif;
-  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
-
-  /* Radii */
-  --radius-sm: 6px;
-  --radius:    8px;
-  --radius-md: 10px;
-  --radius-lg: 12px;
-  --radius-xl: 16px;
+  /* Radios: contenidos, de instrumento */
+  --radius-sm: 4px;
+  --radius:    6px;
+  --radius-md: 8px;
+  --radius-lg: 10px;
+  --radius-xl: 14px;
 }
 
-/* ── Light mode tokens ─────────────────────────────────────────── */
+/* ── Modo claro: película sobre negatoscopio ───────────────────── */
 :root {
-  --bg:          #F0FDFA;
-  --surface:     #FFFFFF;
-  --surface2:    #F8FAFC;
-  --border:      #CBD5E1;
-  --border-subtle: #E2E8F0;
-  --fg:          #134E4A;
-  --fg-muted:    #475569;
-  --fg-subtle:   #64748B;
-  --ring:        #0891B2;
-  --sidebar-bg:  #0F172A;
-  --sidebar-fg:  #E2E8F0;
-  --sidebar-muted: #94A3B8;
-  --sidebar-active-bg: rgba(8,145,178,0.15);
+  --bg:            #EEF2F3;
+  --surface:       #FFFFFF;
+  --surface2:      #F4F7F8;
+  --border:        #C9D4D8;
+  --border-subtle: #E0E7EA;
+  --fg:            #122A31;
+  --fg-muted:      #3E5A63;
+  --fg-subtle:     #64808A;
+  --primary:       #0E7490;
+  --primary-light: #22D3EE;
+  --ring:          #0E7490;
+  --sidebar-bg:    #0C181D;
+  --sidebar-fg:    #DCE8EC;
+  --sidebar-muted: #7C99A3;
+  --sidebar-active-bg: rgba(34, 211, 238, 0.12);
   --sidebar-active-fg: #22D3EE;
 }
 
-/* ── Dark mode tokens ──────────────────────────────────────────── */
+/* ── Modo oscuro: sala de lectura ──────────────────────────────── */
 .dark {
-  --bg:          #0A0E1A;
-  --surface:     #111827;
-  --surface2:    #1F2937;
-  --border:      #374151;
-  --border-subtle: #2D3748;
-  --fg:          #E5E7EB;
-  --fg-muted:    #9CA3AF;
-  --fg-subtle:   #6B7280;
-  --ring:        #0891B2;
-  --sidebar-bg:  #060B14;
-  --sidebar-fg:  #E2E8F0;
-  --sidebar-muted: #64748B;
-  --sidebar-active-bg: rgba(8,145,178,0.2);
-  --sidebar-active-fg: #22D3EE;
+  --bg:            #0B1418;
+  --surface:       #101C22;
+  --surface2:      #16262E;
+  --border:        #24404C;
+  --border-subtle: #1C333D;
+  --fg:            #DCE8EC;
+  --fg-muted:      #93AEB8;
+  --fg-subtle:     #64808A;
+  --primary:       #22D3EE;
+  --primary-light: #67E8F9;
+  --ring:          #22D3EE;
+  --sidebar-bg:    #071014;
+  --sidebar-fg:    #DCE8EC;
+  --sidebar-muted: #64808A;
+  --sidebar-active-bg: rgba(34, 211, 238, 0.14);
+  --sidebar-active-fg: #67E8F9;
 }
 
 /* ── Base ──────────────────────────────────────────────────────── */
@@ -92,6 +87,52 @@ html, body {
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3 {
+  letter-spacing: -0.02em;
+}
+
+/* Lecturas numéricas: mono con cifras tabulares, como consola de modalidad */
+.readout {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
+}
+
+/* Etiqueta técnica (eyebrow): mono, mayúsculas, espaciada */
+.tech-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--fg-subtle);
+}
+
+/* ── Firma: marco de viewport DICOM (esquinas) ─────────────────── */
+.viewport-frame {
+  position: relative;
+}
+.viewport-frame::before,
+.viewport-frame::after {
+  content: '';
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  pointer-events: none;
+  z-index: 2;
+  opacity: 0.65;
+}
+.viewport-frame::before {
+  top: 8px; left: 8px;
+  border-top: 2px solid var(--primary);
+  border-left: 2px solid var(--primary);
+}
+.viewport-frame::after {
+  bottom: 8px; right: 8px;
+  border-bottom: 2px solid var(--primary);
+  border-right: 2px solid var(--primary);
 }
 
 /* Scrollbar */
@@ -131,11 +172,6 @@ html, body {
 .animate-fade-in  { animation: fadeIn  150ms ease-out both; }
 .animate-scale-in { animation: scaleIn 200ms cubic-bezier(0.16, 1, 0.3, 1) both; }
 
-@media (prefers-reduced-motion: reduce) {
-  .animate-fade-in,
-  .animate-scale-in { animation: none; }
-}
-
 /* Scan-line animation for analyzing overlay */
 @keyframes scan-line {
   0%   { top: 0%;   opacity: 0; }
@@ -145,6 +181,13 @@ html, body {
 }
 .animate-scan-line {
   animation: scan-line 2s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-in,
+  .animate-scale-in,
+  .animate-scan-line { animation: none; }
+  * { scroll-behavior: auto !important; }
 }
 
 /* Card base */
@@ -168,5 +211,5 @@ html, body {
 /* Sidebar stripe */
 .finding-stripe-critical { border-left: 5px solid #DC2626; }
 .finding-stripe-high     { border-left: 5px solid #D97706; }
-.finding-stripe-moderate { border-left: 5px solid #0891B2; }
+.finding-stripe-moderate { border-left: 5px solid var(--primary); }
 .finding-stripe-normal   { border-left: 5px solid #16A34A; }

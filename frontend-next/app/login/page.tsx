@@ -4,6 +4,12 @@ import { signIn } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { Eye, EyeOff, Lock, User, Activity, AlertCircle } from 'lucide-react'
 
+const INPUT_BASE = [
+  'w-full pl-9 py-3 rounded-[var(--radius-md)] border text-sm',
+  'bg-[var(--surface2)] text-[var(--fg)] placeholder:text-[var(--fg-subtle)]',
+  'outline-none transition-shadow focus:ring-2 focus:ring-[var(--ring)]',
+].join(' ')
+
 export default function LoginPage() {
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
@@ -30,93 +36,57 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex" style={{ fontFamily: "'Figtree', system-ui, sans-serif" }}>
+    <div className="min-h-screen flex bg-[var(--bg)]">
 
-      {/* ── Panel izquierdo — branding clínico ── */}
+      {/* ── Panel izquierdo — sala de lectura ── */}
       <div
-        className="hidden lg:flex flex-col justify-between w-[420px] shrink-0 p-10 relative overflow-hidden"
-        style={{ background: '#060E1C' }}
+        className="hidden lg:flex flex-col justify-between w-[440px] shrink-0 p-10 relative overflow-hidden"
+        style={{ background: '#0C181D' }}
       >
-        {/* Grid decorativo de fondo */}
+        {/* Fondo tipo radiografía: dos campos pulmonares como gradientes radiales (solo CSS) */}
         <div
-          className="absolute inset-0 opacity-[0.04]"
+          aria-hidden="true"
+          className="absolute inset-0 pointer-events-none"
           style={{
-            backgroundImage:
-              'linear-gradient(#0891B2 1px, transparent 1px), linear-gradient(90deg, #0891B2 1px, transparent 1px)',
-            backgroundSize: '40px 40px',
+            background: [
+              'radial-gradient(ellipse 34% 46% at 36% 46%, rgba(34,211,238,0.09), transparent 72%)',
+              'radial-gradient(ellipse 34% 46% at 68% 46%, rgba(34,211,238,0.06), transparent 72%)',
+              'radial-gradient(ellipse 90% 70% at 50% 110%, rgba(14,116,144,0.14), transparent 70%)',
+            ].join(', '),
           }}
         />
 
-        {/* Círculos decorativos */}
-        <div
-          className="absolute top-[-80px] right-[-80px] w-[320px] h-[320px] rounded-full opacity-[0.06]"
-          style={{ border: '1px solid #0891B2' }}
-        />
-        <div
-          className="absolute top-[-40px] right-[-40px] w-[200px] h-[200px] rounded-full opacity-[0.08]"
-          style={{ border: '1px solid #0891B2' }}
-        />
-        <div
-          className="absolute bottom-[-60px] left-[-60px] w-[260px] h-[260px] rounded-full opacity-[0.05]"
-          style={{ border: '1px solid #0891B2' }}
-        />
-
-        {/* Header */}
+        {/* Header / identidad */}
         <div className="relative z-10">
-          <div className="flex items-center gap-2.5 mb-10">
-            <div
-              className="flex items-center justify-center w-9 h-9 rounded-lg"
-              style={{ background: 'rgba(8,145,178,0.15)', border: '1px solid rgba(8,145,178,0.3)' }}
-            >
-              <Activity size={18} style={{ color: '#0891B2' }} />
-            </div>
-            <span className="text-white font-extrabold text-base tracking-tight">CXR Classifier</span>
-          </div>
+          <p className="tech-label mb-6" style={{ color: 'var(--sidebar-muted)' }}>
+            Hospital Nacional Arzobispo Loayza — Lima
+          </p>
 
-          {/* Big display text */}
-          <div className="mb-8">
+          <div className="flex items-center gap-3 mb-6">
             <div
-              className="text-[80px] font-extrabold leading-none mb-1 select-none"
-              style={{ color: 'rgba(8,145,178,0.18)', letterSpacing: '-4px' }}
+              className="flex items-center justify-center w-10 h-10 rounded-[var(--radius-md)]"
+              style={{ background: 'var(--sidebar-active-bg)', border: '1px solid rgba(34,211,238,0.25)' }}
             >
-              CXR
+              <Activity size={20} style={{ color: 'var(--primary-light)' }} />
             </div>
-            <h1 className="text-3xl font-extrabold text-white leading-tight mb-3">
-              Sistema de apoyo<br />diagnóstico
+            <h1 className="text-3xl font-bold leading-tight" style={{ color: 'var(--sidebar-fg)' }}>
+              CXR Classifier
             </h1>
-            <p className="text-sm leading-relaxed" style={{ color: '#6B7280' }}>
-              Clasificación automatizada de radiografías de tórax mediante red neuronal CNN-ViT —
-              14 patologías independientes.
-            </p>
           </div>
 
-          {/* Stats pills */}
-          <div className="flex flex-wrap gap-2">
-            {[
-              { label: '14 clases', sub: 'patológicas' },
-              { label: 'AUC 0.80', sub: 'macro test' },
-              { label: 'Grad-CAM', sub: 'explicabilidad' },
-            ].map(({ label, sub }) => (
-              <div
-                key={label}
-                className="px-3 py-1.5 rounded-lg"
-                style={{ background: 'rgba(8,145,178,0.1)', border: '1px solid rgba(8,145,178,0.2)' }}
-              >
-                <span className="text-xs font-bold" style={{ color: '#22D3EE' }}>{label}</span>
-                <span className="text-xs ml-1" style={{ color: '#4B5563' }}>{sub}</span>
-              </div>
-            ))}
-          </div>
+          <p className="text-sm leading-relaxed max-w-[34ch]" style={{ color: 'var(--sidebar-muted)' }}>
+            Sistema de apoyo al diagnóstico de radiografías de tórax — 14 patologías,
+            ensemble CNN-ViT con explicabilidad Grad-CAM.
+          </p>
         </div>
 
         {/* Footer */}
         <div className="relative z-10">
-          <div className="h-px mb-6" style={{ background: 'rgba(255,255,255,0.06)' }} />
-          <p className="text-xs font-bold uppercase tracking-widest mb-1" style={{ color: '#374151' }}>
-            Hospital Nacional Arzobispo Loayza
+          <div className="h-px mb-5" style={{ background: 'rgba(220,232,236,0.08)' }} />
+          <p className="tech-label" style={{ color: 'var(--sidebar-muted)' }}>
+            Sala de lectura · HNAL 2026
           </p>
-          <p className="text-xs" style={{ color: '#374151' }}>Lima, Perú · 2026</p>
-          <p className="text-[10px] mt-3 leading-4" style={{ color: '#1F2937' }}>
+          <p className="text-[11px] mt-2 leading-4" style={{ color: '#4A626C' }}>
             Uso exclusivamente académico. No emite diagnóstico clínico definitivo.
             No sustituye el criterio del médico especialista.
           </p>
@@ -124,125 +94,118 @@ export default function LoginPage() {
       </div>
 
       {/* ── Panel derecho — formulario ── */}
-      <div className="flex-1 flex items-center justify-center bg-white dark:bg-[#0B1120] p-8">
-        <div className="w-full max-w-[380px]">
+      <div className="flex-1 flex items-center justify-center p-6">
+        <div className="w-full max-w-[400px]">
 
           {/* Mobile brand */}
-          <div className="lg:hidden flex items-center gap-2 mb-8">
-            <Activity size={20} className="text-[#0891B2]" />
-            <span className="font-extrabold text-lg text-[#0F172A] dark:text-white">CXR Classifier</span>
-            <span className="text-xs text-[#6B7280] ml-1">HNAL</span>
+          <div className="lg:hidden flex items-center gap-2 mb-6 px-1">
+            <Activity size={20} className="text-[var(--primary)]" />
+            <span className="font-bold text-lg text-[var(--fg)]">CXR Classifier</span>
+            <span className="tech-label ml-1">HNAL</span>
           </div>
 
-          {/* Heading */}
-          <div className="mb-8">
-            <h2 className="text-2xl font-extrabold text-[#0F172A] dark:text-white mb-1">
-              Iniciar sesión
-            </h2>
-            <p className="text-sm text-[#6B7280]">
-              Acceso exclusivo para personal autorizado HNAL
-            </p>
-          </div>
-
-          {/* Form */}
-          <form onSubmit={handleSubmit} className="space-y-4" noValidate>
-
-            {/* Username */}
-            <div>
-              <label htmlFor="username" className="block text-xs font-bold text-[#374151] dark:text-[#9CA3AF] uppercase tracking-wider mb-1.5">
-                Usuario
-              </label>
-              <div className="relative">
-                <User size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9CA3AF]" />
-                <input
-                  id="username"
-                  type="text"
-                  autoComplete="username"
-                  autoFocus
-                  value={username}
-                  onChange={(e) => { setUsername(e.target.value); setError('') }}
-                  placeholder="usuario.hnal"
-                  className="w-full pl-9 pr-4 py-3 rounded-xl border text-sm bg-[#F8FAFC] dark:bg-[#1E293B] text-[#0F172A] dark:text-white placeholder:text-[#CBD5E1] transition-all outline-none"
-                  style={{
-                    borderColor: error ? '#EF4444' : '#E2E8F0',
-                    boxShadow: 'none',
-                  }}
-                  onFocus={(e) => { e.target.style.borderColor = '#0891B2'; e.target.style.boxShadow = '0 0 0 3px rgba(8,145,178,0.1)' }}
-                  onBlur={(e)  => { e.target.style.borderColor = error ? '#EF4444' : '#E2E8F0'; e.target.style.boxShadow = 'none' }}
-                />
-              </div>
+          <div className="card p-8">
+            {/* Heading */}
+            <div className="mb-7">
+              <p className="tech-label mb-2">Acceso al sistema</p>
+              <h2 className="text-2xl font-bold text-[var(--fg)] mb-1">
+                Iniciar sesión
+              </h2>
+              <p className="text-sm text-[var(--fg-subtle)]">
+                Acceso exclusivo para personal autorizado HNAL
+              </p>
             </div>
 
-            {/* Password */}
-            <div>
-              <label htmlFor="password" className="block text-xs font-bold text-[#374151] dark:text-[#9CA3AF] uppercase tracking-wider mb-1.5">
-                Contraseña
-              </label>
-              <div className="relative">
-                <Lock size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9CA3AF]" />
-                <input
-                  id="password"
-                  ref={pwdRef}
-                  type={showPwd ? 'text' : 'password'}
-                  autoComplete="current-password"
-                  value={password}
-                  onChange={(e) => { setPassword(e.target.value); setError('') }}
-                  placeholder="••••••••"
-                  className="w-full pl-9 pr-10 py-3 rounded-xl border text-sm bg-[#F8FAFC] dark:bg-[#1E293B] text-[#0F172A] dark:text-white placeholder:text-[#CBD5E1] transition-all outline-none"
-                  style={{
-                    borderColor: error ? '#EF4444' : '#E2E8F0',
-                    boxShadow: 'none',
-                  }}
-                  onFocus={(e) => { e.target.style.borderColor = '#0891B2'; e.target.style.boxShadow = '0 0 0 3px rgba(8,145,178,0.1)' }}
-                  onBlur={(e)  => { e.target.style.borderColor = error ? '#EF4444' : '#E2E8F0'; e.target.style.boxShadow = 'none' }}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPwd(!showPwd)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9CA3AF] hover:text-[#475569] transition-colors"
-                  aria-label={showPwd ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+            {/* Form */}
+            <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+
+              {/* Username */}
+              <div>
+                <label htmlFor="username" className="tech-label block mb-1.5">
+                  Usuario
+                </label>
+                <div className="relative">
+                  <User size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--fg-subtle)]" />
+                  <input
+                    id="username"
+                    type="text"
+                    autoComplete="username"
+                    autoFocus
+                    value={username}
+                    onChange={(e) => { setUsername(e.target.value); setError('') }}
+                    placeholder="usuario.hnal"
+                    aria-invalid={!!error}
+                    className={`readout ${INPUT_BASE} pr-4`}
+                    style={{ borderColor: error ? '#DC2626' : 'var(--border)' }}
+                  />
+                </div>
+              </div>
+
+              {/* Password */}
+              <div>
+                <label htmlFor="password" className="tech-label block mb-1.5">
+                  Contraseña
+                </label>
+                <div className="relative">
+                  <Lock size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--fg-subtle)]" />
+                  <input
+                    id="password"
+                    ref={pwdRef}
+                    type={showPwd ? 'text' : 'password'}
+                    autoComplete="current-password"
+                    value={password}
+                    onChange={(e) => { setPassword(e.target.value); setError('') }}
+                    placeholder="••••••••"
+                    aria-invalid={!!error}
+                    className={`${INPUT_BASE} pr-10`}
+                    style={{ borderColor: error ? '#DC2626' : 'var(--border)' }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPwd(!showPwd)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--fg-subtle)] hover:text-[var(--fg)] transition-colors cursor-pointer"
+                    aria-label={showPwd ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                  >
+                    {showPwd ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+              </div>
+
+              {/* Error */}
+              {error && (
+                <div
+                  role="alert"
+                  className="flex items-start gap-2 rounded-[var(--radius-md)] bg-[#FEE2E2] dark:bg-[#450A0A] border border-[#FCA5A5] px-4 py-3"
                 >
-                  {showPwd ? <EyeOff size={16} /> : <Eye size={16} />}
-                </button>
-              </div>
-            </div>
+                  <AlertCircle size={15} className="text-[#DC2626] mt-0.5 shrink-0" />
+                  <p className="text-xs text-[#991B1B] dark:text-[#FCA5A5] leading-5">{error}</p>
+                </div>
+              )}
 
-            {/* Error */}
-            {error && (
-              <div className="flex items-start gap-2 rounded-xl bg-[#FEF2F2] border border-[#FECACA] px-4 py-3">
-                <AlertCircle size={15} className="text-[#EF4444] mt-0.5 shrink-0" />
-                <p className="text-xs text-[#B91C1C] leading-5">{error}</p>
-              </div>
-            )}
-
-            {/* Submit */}
-            <button
-              type="submit"
-              disabled={loading || !username || !password}
-              className="w-full py-3.5 rounded-xl text-sm font-bold text-white transition-all duration-150 mt-2 disabled:opacity-50 disabled:cursor-not-allowed"
-              style={{ background: loading ? '#0E7490' : '#0891B2' }}
-              onMouseEnter={(e) => { if (!loading) (e.target as HTMLElement).style.background = '#0E7490' }}
-              onMouseLeave={(e) => { if (!loading) (e.target as HTMLElement).style.background = '#0891B2' }}
-            >
-              {loading ? (
-                <span className="flex items-center justify-center gap-2">
-                  <svg className="animate-spin h-4 w-4 text-white" viewBox="0 0 24 24" fill="none">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
-                  </svg>
-                  Verificando…
-                </span>
-              ) : 'Ingresar al sistema'}
-            </button>
-          </form>
+              {/* Submit */}
+              <button
+                type="submit"
+                disabled={loading || !username || !password}
+                className="w-full py-3 rounded-[var(--radius-md)] text-sm font-bold text-white transition-all duration-150 mt-2 bg-[var(--primary)] hover:bg-[color-mix(in_srgb,var(--primary)_85%,black)] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+              >
+                {loading ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <svg className="animate-spin h-4 w-4 text-white" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                    </svg>
+                    Verificando…
+                  </span>
+                ) : 'Ingresar al sistema'}
+              </button>
+            </form>
+          </div>
 
           {/* Disclaimer */}
-          <div className="mt-8 pt-6 border-t border-[#F1F5F9] dark:border-[#1E293B]">
-            <p className="text-[10px] text-[#94A3B8] leading-4 text-center">
-              Sistema de uso exclusivamente académico · HNAL Lima 2026<br />
-              No emite diagnóstico clínico definitivo · No sustituye al especialista
-            </p>
-          </div>
+          <p className="mt-6 text-[10px] text-[var(--fg-subtle)] leading-4 text-center">
+            Sistema de uso exclusivamente académico · HNAL Lima 2026<br />
+            No emite diagnóstico clínico definitivo · No sustituye al especialista
+          </p>
         </div>
       </div>
     </div>

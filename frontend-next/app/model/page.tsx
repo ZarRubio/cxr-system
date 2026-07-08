@@ -2,7 +2,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { BarChart3, Cpu, Target, Layers, ChevronDown, ChevronUp } from 'lucide-react'
 import { fetchModelInfo } from '@/lib/api'
-import { SEVERITY_COLORS } from '@/lib/constants'
 import { cn } from '@/lib/utils'
 import { useState } from 'react'
 
@@ -20,7 +19,7 @@ const ALL_CLASS_DEFAULTS: Record<string, {
   Emphysema:          { auc: 0.862, sensitivity: 0.680, specificity: 0.890, color: '#D97706', note: 'Ref. Wang 2017.', validated: false },
   Mass:               { auc: 0.844, sensitivity: 0.580, specificity: 0.890, color: '#7C3AED', note: 'Ref. Wang 2017.', validated: false },
   Pneumothorax:       { auc: 0.882, sensitivity: 0.720, specificity: 0.900, color: '#DC2626', note: 'Ref. Wang 2017.', validated: false },
-  Atelectasis:        { auc: 0.816, sensitivity: 0.660, specificity: 0.810, color: '#0891B2', note: 'Ref. Wang 2017.', validated: false },
+  Atelectasis:        { auc: 0.816, sensitivity: 0.660, specificity: 0.810, color: 'var(--primary)', note: 'Ref. Wang 2017.', validated: false },
   Consolidation:      { auc: 0.788, sensitivity: 0.600, specificity: 0.820, color: '#0369A1', note: 'Ref. Wang 2017.', validated: false },
   Nodule:             { auc: 0.760, sensitivity: 0.490, specificity: 0.850, color: '#64748B', note: 'Ref. Wang 2017.', validated: false },
   Pneumonia:          { auc: 0.775, sensitivity: 0.620, specificity: 0.790, color: '#B91C1C', note: 'Umbral bajo para TB.', validated: false },
@@ -31,8 +30,8 @@ const ALL_CLASS_DEFAULTS: Record<string, {
 function MetricCard({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
     <div className="card p-4">
-      <p className="text-[11px] font-extrabold text-[var(--fg-subtle)] uppercase tracking-wider mb-1">{label}</p>
-      <p className="text-3xl font-extrabold text-[var(--fg)] leading-none">{value}</p>
+      <p className="tech-label block mb-1">{label}</p>
+      <p className="readout text-3xl font-extrabold text-[var(--fg)] leading-none">{value}</p>
       {sub && <p className="text-[11px] text-[var(--fg-subtle)] mt-1">{sub}</p>}
     </div>
   )
@@ -67,7 +66,7 @@ export default function ModelPage() {
 
       {isLoading && (
         <div className="flex items-center gap-2 text-[var(--fg-subtle)] text-sm">
-          <div className="animate-spin h-4 w-4 rounded-full border-t-2 border-[#0891B2]" />
+          <div className="animate-spin h-4 w-4 rounded-full border-t-2 border-[var(--primary)]" />
           Cargando métricas del backend…
         </div>
       )}
@@ -83,7 +82,7 @@ export default function ModelPage() {
       {/* AUC bars */}
       <div className="card p-5 space-y-4">
         <div className="flex items-center gap-2 mb-1">
-          <BarChart3 size={16} className="text-[#0891B2]" />
+          <BarChart3 size={16} className="text-[var(--primary)]" />
           <h3 className="text-sm font-bold text-[var(--fg)]">Área bajo la curva ROC por clase</h3>
         </div>
         {rows.map(({ cls, auc: a, color, validated }) => (
@@ -100,7 +99,7 @@ export default function ModelPage() {
                 style={{ width: `${(a * 100).toFixed(1)}%`, background: color, opacity: validated ? 1 : 0.5 }}
               />
             </div>
-            <span className="w-12 text-right text-xs font-extrabold tabular-nums" style={{ color }}>
+            <span className="readout w-12 text-right text-xs font-extrabold" style={{ color }}>
               {a.toFixed(3)}
             </span>
           </div>
@@ -114,7 +113,7 @@ export default function ModelPage() {
       {/* Sensitivity / Specificity table */}
       <div className="card overflow-hidden p-0">
         <div className="px-5 py-4 border-b border-[var(--border-subtle)] flex items-center gap-2">
-          <Target size={16} className="text-[#0891B2]" />
+          <Target size={16} className="text-[var(--primary)]" />
           <h3 className="text-sm font-bold text-[var(--fg)]">Sensibilidad y especificidad</h3>
         </div>
         <div className="overflow-x-auto">
@@ -122,7 +121,7 @@ export default function ModelPage() {
             <thead>
               <tr className="bg-[var(--surface2)] border-b border-[var(--border-subtle)]">
                 {['Clase', 'Sensibilidad', 'Especificidad', 'Umbral', 'Nota'].map((h) => (
-                  <th key={h} className="text-left text-xs font-bold text-[var(--fg-subtle)] uppercase tracking-wider px-4 py-3">{h}</th>
+                  <th key={h} className="tech-label text-left px-4 py-3">{h}</th>
                 ))}
               </tr>
             </thead>
@@ -137,12 +136,12 @@ export default function ModelPage() {
                       <span className="font-bold">{cls}</span>
                       {!validated && <span className="ml-1.5 text-[9px] border border-[var(--border-subtle)] rounded px-1 text-[var(--fg-subtle)]">ref</span>}
                     </td>
-                    <td className={`px-4 py-3 text-sm font-bold ${lowSens ? 'text-[#DC2626]' : ''}`}>
+                    <td className={`readout px-4 py-3 text-sm font-bold ${lowSens ? 'text-[#DC2626]' : ''}`}>
                       {(sensitivity * 100).toFixed(1)}%
                       {lowSens && <span className="ml-1 text-[10px]">⚠</span>}
                     </td>
-                    <td className="px-4 py-3 font-bold text-sm">{(specificity * 100).toFixed(1)}%</td>
-                    <td className="px-4 py-3 text-sm font-mono text-[var(--fg-muted)]">{thrStr}</td>
+                    <td className="readout px-4 py-3 font-bold text-sm">{(specificity * 100).toFixed(1)}%</td>
+                    <td className="readout px-4 py-3 text-sm text-[var(--fg-muted)]">{thrStr}</td>
                     <td className="px-4 py-3 text-xs text-[var(--fg-subtle)]">{note}</td>
                   </tr>
                 )
@@ -158,7 +157,7 @@ export default function ModelPage() {
           onClick={() => setArchOpen(!archOpen)}
           className={cn('w-full px-5 py-4 flex items-center gap-2 cursor-pointer hover:bg-[var(--surface2)] transition-colors text-left')}
         >
-          <Layers size={16} className="text-[#0891B2]" />
+          <Layers size={16} className="text-[var(--primary)]" />
           <h3 className="text-sm font-bold text-[var(--fg)] flex-1">Arquitectura del modelo</h3>
           {archOpen ? <ChevronUp size={16} className="text-[var(--fg-subtle)]" /> : <ChevronDown size={16} className="text-[var(--fg-subtle)]" />}
         </button>

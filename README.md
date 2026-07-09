@@ -61,6 +61,9 @@ Cuando ninguna clase supera su umbral, el sistema reporta **No Finding**.
   nunca se leen (Ley 29733). Aparecen en el análisis, el historial y el reporte PDF.
 - **Triage por lote** (`/batch`): hasta 8 placas por pasada, resultados ordenados por severidad
   (críticos primero) para priorizar la lectura; cada análisis queda en el historial.
+- **Panel de estadísticas** (`/admin/stats`, solo admin): volumen diario, distribución por
+  severidad y hallazgo, actividad y concordancia por radiólogo, discrepancias recientes, con
+  filtros por rango de fechas (también disponibles en el historial).
 
 ## Stack
 

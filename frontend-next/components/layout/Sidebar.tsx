@@ -2,7 +2,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
-  Microscope, ClipboardList, BarChart3, Layers,
+  Microscope, ClipboardList, BarChart3, Layers, TrendingUp,
   Sun, Moon, ChevronLeft, ChevronRight, Activity,
   LogOut, Shield, Settings,
 } from 'lucide-react'
@@ -20,7 +20,10 @@ const NAV = [
   { href: '/model',    label: 'Modelo',    icon: BarChart3   },
 ]
 
-const NAV_ADMIN = { href: '/admin', label: 'Admin', icon: Settings }
+const NAV_ADMIN = [
+  { href: '/admin/stats', label: 'Estadísticas', icon: TrendingUp },
+  { href: '/admin',       label: 'Admin',        icon: Settings   },
+]
 
 export function Sidebar() {
   const pathname  = usePathname()
@@ -61,8 +64,8 @@ export function Sidebar() {
       {/* Navigation */}
       <nav className="flex-1 py-4 overflow-y-auto">
         <ul className="space-y-1 px-2">
-          {[...NAV, ...(isAdmin ? [NAV_ADMIN] : [])].map(({ href, label, icon: Icon }) => {
-            const active = pathname.startsWith(href)
+          {[...NAV, ...(isAdmin ? NAV_ADMIN : [])].map(({ href, label, icon: Icon }) => {
+            const active = href === '/admin' ? pathname === '/admin' : pathname.startsWith(href)
             return (
               <li key={href}>
                 <Link

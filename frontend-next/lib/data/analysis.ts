@@ -46,6 +46,16 @@ export interface AnalysisFilters {
   q?: string
   severity?: Severity
   feedback?: FeedbackFilter
+  /** Fecha local YYYY-MM-DD inclusive */
+  dateFrom?: string
+  /** Fecha local YYYY-MM-DD inclusive */
+  dateTo?: string
+}
+
+/** createdAt (ISO UTC) -> fecha local YYYY-MM-DD, comparable con los filtros. */
+function localDate(iso: string): string {
+  const d = new Date(iso)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
 /** Construye el registro persistente a partir de una predicción del backend. */
@@ -91,6 +101,8 @@ export function filterAnalyses(records: AnalysisRecord[], filters: AnalysisFilte
   const q = filters.q?.trim().toLowerCase()
   return records.filter((r) => {
     if (filters.severity && r.severity !== filters.severity) return false
+    if (filters.dateFrom && localDate(r.createdAt) < filters.dateFrom) return false
+    if (filters.dateTo && localDate(r.createdAt) > filters.dateTo) return false
     if (filters.feedback === 'pending' && r.feedback !== null) return false
     if (filters.feedback === 'agree' && r.feedback?.agrees !== true) return false
     if (filters.feedback === 'disagree' && r.feedback?.agrees !== false) return false

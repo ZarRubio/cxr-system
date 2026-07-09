@@ -25,6 +25,8 @@ export default function HistoryPage() {
   const [q, setQ]               = useState('')
   const [severity, setSeverity] = useState<Severity | ''>('')
   const [feedback, setFeedback] = useState<FeedbackFilter | ''>('')
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo]     = useState('')
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['analyses'],
@@ -39,8 +41,10 @@ export default function HistoryPage() {
     q: q || undefined,
     severity: severity || undefined,
     feedback: feedback || undefined,
+    dateFrom: dateFrom || undefined,
+    dateTo: dateTo || undefined,
   }
-  const filtered = useMemo(() => filterAnalyses(analyses, filters), [analyses, q, severity, feedback]) // eslint-disable-line react-hooks/exhaustive-deps
+  const filtered = useMemo(() => filterAnalyses(analyses, filters), [analyses, q, severity, feedback, dateFrom, dateTo]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const exportCSV = () => {
     const rows = [
@@ -98,6 +102,26 @@ export default function HistoryPage() {
                 className="w-full h-9 pl-9 pr-3 text-sm rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--fg)] placeholder:text-[var(--fg-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]"
               />
             </div>
+            <label className="flex items-center gap-1.5 text-xs text-[var(--fg-subtle)]">
+              Desde
+              <input
+                type="date"
+                value={dateFrom}
+                onChange={(e) => setDateFrom(e.target.value)}
+                aria-label="Filtrar desde fecha"
+                className="h-9 px-2 text-sm rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--fg)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]"
+              />
+            </label>
+            <label className="flex items-center gap-1.5 text-xs text-[var(--fg-subtle)]">
+              Hasta
+              <input
+                type="date"
+                value={dateTo}
+                onChange={(e) => setDateTo(e.target.value)}
+                aria-label="Filtrar hasta fecha"
+                className="h-9 px-2 text-sm rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--fg)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]"
+              />
+            </label>
             <select
               value={severity}
               onChange={(e) => setSeverity(e.target.value as Severity | '')}

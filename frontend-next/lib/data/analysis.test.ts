@@ -58,6 +58,18 @@ describe('filterAnalyses', () => {
   it('combina filtros', () => {
     expect(filterAnalyses(records, { severity: 'critical', feedback: 'agree' })).toHaveLength(0)
   })
+
+  it('filtra por rango de fechas (inclusive, fecha local)', () => {
+    const dated = [
+      mk({ id: 'd1', createdAt: '2026-07-01T12:00:00.000Z' }),
+      mk({ id: 'd2', createdAt: '2026-07-05T12:00:00.000Z' }),
+      mk({ id: 'd3', createdAt: '2026-07-08T12:00:00.000Z' }),
+    ]
+    expect(filterAnalyses(dated, { dateFrom: '2026-07-05' }).map((r) => r.id)).toEqual(['d2', 'd3'])
+    expect(filterAnalyses(dated, { dateTo: '2026-07-05' }).map((r) => r.id)).toEqual(['d1', 'd2'])
+    expect(filterAnalyses(dated, { dateFrom: '2026-07-05', dateTo: '2026-07-05' }).map((r) => r.id)).toEqual(['d2'])
+    expect(filterAnalyses(dated, { dateFrom: '2026-07-09' })).toHaveLength(0)
+  })
 })
 
 describe('triageRank', () => {

@@ -7,7 +7,8 @@ import { filterAnalyses, type AnalysisFilters, type AnalysisRecord, type Feedbac
 import { formatTimestamp, formatConfidence, downloadBlob, cn } from '@/lib/utils'
 import { SEVERITY_COLORS, BADGES, SEVERITY_LABELS } from '@/lib/constants'
 import { Button } from '@/components/ui/button'
-import { ClipboardList, Download, ChevronDown, ChevronUp, Search, Check, X, Clock, Loader2 } from 'lucide-react'
+import { buildPdf, type StudyMeta } from '@/lib/pdf'
+import { ClipboardList, Download, ChevronDown, ChevronUp, Search, Check, X, Clock, Loader2, FileText } from 'lucide-react'
 import { ProbabilityBars } from '@/components/analyze/ProbabilityBars'
 import { FeedbackCard } from '@/components/analyze/FeedbackCard'
 import type { Prediction, Severity } from '@/lib/types'
@@ -322,6 +323,7 @@ function HistoryCard({ analysis, canValidate, expanded, onToggle }: RowProps) {
 
 function HistoryDetail({ analysis, canValidate }: { analysis: AnalysisRecord; canValidate: boolean }) {
   const queryClient = useQueryClient()
+  const [pdfLoading, setPdfLoading] = useState(false)
 
   // Pseudo-predicción para reutilizar los componentes de resultados.
   // El historial no guarda imágenes ni Grad-CAM (privacidad): solo scores.
@@ -331,11 +333,33 @@ function HistoryDetail({ analysis, canValidate }: { analysis: AnalysisRecord; ca
     probabilities: analysis.probabilities,
     positive_findings: analysis.positiveFindings,
     processing_time_ms: analysis.processingTimeMs ?? 0,
+    image_hash: analysis.imageHash ?? undefined,
+    model_version: analysis.modelVersion ?? undefined,
+  }
+
+  const handleDownloadPdf = async () => {
+    setPdfLoading(true)
+    try {
+      const meta: StudyMeta = {
+        studyId:            analysis.studyId ?? analysis.dicomStudyHash ?? '',
+        projection:         analysis.projection ?? '',
+        clinicalIndication: analysis.clinicalIndication ?? '',
+        radiologistName:    analysis.userName,
+        patientAge:         analysis.patientAge,
+        patientSex:         analysis.patientSex,
+      }
+      const bytes = await buildPdf(analysis.filename, null, prediction, '', meta, analysis.feedback)
+      downloadBlob(bytes, `${meta.studyId || analysis.id.slice(0, 8)}_reporte_cxr.pdf`, 'application/pdf')
+    } catch (e) {
+      console.error('PDF error:', e)
+    } finally {
+      setPdfLoading(false)
+    }
   }
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs text-[var(--fg-subtle)] pb-3 border-b border-[var(--border-subtle)]">
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-1 text-xs text-[var(--fg-subtle)] pb-3 border-b border-[var(--border-subtle)]">
         {analysis.studyId && (
           <span>Estudio <span className="readout font-bold text-[var(--fg)]">{analysis.studyId}</span></span>
         )}
@@ -346,6 +370,18 @@ function HistoryDetail({ analysis, canValidate }: { analysis: AnalysisRecord; ca
         {analysis.clinicalIndication && <span>Indicación: {analysis.clinicalIndication}</span>}
         {analysis.modelVersion && <span>Modelo: <span className="readout">{analysis.modelVersion}</span></span>}
         {analysis.imageHash && <span>Hash: <span className="readout">{analysis.imageHash.slice(0, 12)}…</span></span>}
+        <span className="ml-auto">
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={handleDownloadPdf}
+            loading={pdfLoading}
+            title="Reporte regenerado desde el historial (sin imágenes: no se almacenan)"
+          >
+            <FileText size={13} />
+            {pdfLoading ? 'Generando…' : 'Reporte PDF'}
+          </Button>
+        </span>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">

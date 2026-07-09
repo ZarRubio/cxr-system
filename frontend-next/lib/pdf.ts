@@ -1,4 +1,5 @@
 import type { Prediction } from './types'
+import type { AnalysisFeedback } from './data/analysis'
 import { DESCRIPTIONS, BADGES, SEVERITY_MAP, SEVERITY_LABELS, CLASSES_INFO } from './constants'
 
 export interface StudyMeta {
@@ -57,10 +58,12 @@ function scoreInterpretation(pct: number): string {
 
 export async function buildPdf(
   filename: string,
-  originalBytes: Uint8Array,
+  /** null cuando se genera desde el historial: las imágenes no se almacenan */
+  originalBytes: Uint8Array | null,
   prediction: Prediction,
   notes?: string,
   meta?: StudyMeta,
+  feedback?: AnalysisFeedback | null,
 ): Promise<Uint8Array> {
   const { jsPDF } = await import('jspdf')
   const doc  = new jsPDF({ format: 'a4', unit: 'pt' })
@@ -294,6 +297,7 @@ export async function buildPdf(
   y += 12
 
   // ── 6. Images ──────────────────────────────────────────────────────────────
+  if (originalBytes) {
   y = pb(y, 250)
   y = sectionHeader('Imágenes del estudio', y)
 
@@ -352,6 +356,19 @@ export async function buildPdf(
     y += capLines.length * LH[7.5] + 14
   } catch {
     y += 8
+  }
+  } else {
+    // Reporte regenerado desde el historial: sin imágenes por diseño
+    y = pb(y, 30)
+    doc.setFont('helvetica', 'italic')
+    doc.setFontSize(8)
+    doc.setTextColor(107, 114, 128)
+    const noImg = doc.splitTextToSize(
+      'Reporte regenerado desde el historial clínico. Las imágenes no se incluyen: el sistema no almacena radiografías por protección de datos.',
+      W - M * 2,
+    )
+    drawLines(noImg, M, y, LH[8])
+    y += noImg.length * LH[8] + 14
   }
 
   // ── 8. Clinical description ────────────────────────────────────────────────
@@ -446,6 +463,46 @@ export async function buildPdf(
   doc.setTextColor(55, 65, 81)
   drawLines(impLines, M + 12, y + 18, NOTE_LINE_H)
   y += impBoxH + 20
+
+  // ── 11b. Validación del radiólogo (concordancia registrada) ───────────────
+  if (feedback) {
+    y = pb(y, 60)
+    y = sectionHeader('Validación del radiólogo', y)
+
+    const fbColor: RGB = feedback.agrees ? [22, 101, 52] : [146, 64, 14]
+    const fbBg: RGB    = feedback.agrees ? [220, 252, 231] : [254, 243, 199]
+    const fbText = feedback.agrees
+      ? `CONCORDANCIA: el radiólogo confirma el hallazgo principal del modelo (${BADGES[prediction.predicted_class] ?? prediction.predicted_class}).`
+      : `DISCREPANCIA: el radiólogo indica como hallazgo real ${BADGES[feedback.actualFinding ?? ''] ?? feedback.actualFinding ?? '—'} (el modelo propuso ${BADGES[prediction.predicted_class] ?? prediction.predicted_class}).`
+
+    const fbLines = doc.splitTextToSize(fbText, W - M * 2 - 24)
+    const extraLines = feedback.comment ? doc.splitTextToSize(`Comentario: ${feedback.comment}`, W - M * 2 - 24) : []
+    const fbBoxH = (fbLines.length + extraLines.length) * LH[9] + 28
+    y = pb(y, fbBoxH + 10)
+
+    doc.setFillColor(...fbBg)
+    doc.roundedRect(M, y, W - M * 2, fbBoxH, 4, 4, 'F')
+    doc.setFillColor(...fbColor)
+    doc.roundedRect(M, y, 4, fbBoxH, 2, 2, 'F')
+
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(9)
+    doc.setTextColor(...fbColor)
+    drawLines(fbLines, M + 12, y + 16, LH[9])
+    if (extraLines.length > 0) {
+      doc.setFont('helvetica', 'italic')
+      doc.setTextColor(55, 65, 81)
+      drawLines(extraLines, M + 12, y + 16 + fbLines.length * LH[9], LH[9])
+    }
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(7)
+    doc.setTextColor(107, 114, 128)
+    doc.text(
+      `Validado el ${new Date(feedback.createdAt).toLocaleString('es-PE', { dateStyle: 'short', timeStyle: 'short' })}`,
+      W - M - 8, y + fbBoxH - 8, { align: 'right' },
+    )
+    y += fbBoxH + 20
+  }
 
   // ── 12. Signature block ────────────────────────────────────────────────────
   y = pb(y, 80)

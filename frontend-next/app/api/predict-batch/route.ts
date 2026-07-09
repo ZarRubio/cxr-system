@@ -1,8 +1,17 @@
 import type { NextRequest } from 'next/server'
 import { auth } from '@/auth'
 import { backendHeaders, backendUrl, passthrough } from '@/lib/backend'
+import { getDataStore } from '@/lib/data/store'
+import { buildAnalysisRecord } from '@/lib/data/analysis'
+import type { Prediction } from '@/lib/types'
 
 export const maxDuration = 300
+
+interface BatchItem {
+  filename: string
+  result: (Prediction & { analysis_id?: string }) | null
+  error: string | null
+}
 
 export async function POST(request: NextRequest) {
   const session = await auth()
@@ -25,5 +34,28 @@ export async function POST(request: NextRequest) {
     body,
     signal: AbortSignal.timeout(280_000),
   })
-  return passthrough(res)
+
+  if (!res.ok) return passthrough(res)
+
+  // Persistir cada análisis exitoso del lote en el historial clínico.
+  const data = (await res.json()) as { results: BatchItem[]; processing_time_ms: number }
+  const user = session.user as Record<string, unknown>
+  const store = getDataStore()
+
+  for (const item of data.results ?? []) {
+    if (!item.result) continue
+    const record = buildAnalysisRecord(
+      { id: String(user.id ?? ''), name: String(user.name ?? '') },
+      item.result,
+      { filename: item.filename || 'imagen' },
+    )
+    try {
+      await store.createAnalysis(record)
+      item.result.analysis_id = record.id
+    } catch (e) {
+      console.error('[predict-batch] no se pudo persistir el análisis:', e)
+    }
+  }
+
+  return Response.json(data)
 }

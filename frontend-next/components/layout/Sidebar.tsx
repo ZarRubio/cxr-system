@@ -2,7 +2,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
-  Microscope, ClipboardList, BarChart3,
+  Microscope, ClipboardList, BarChart3, Layers,
   Sun, Moon, ChevronLeft, ChevronRight, Activity,
   LogOut, Shield, Settings,
 } from 'lucide-react'
@@ -15,6 +15,7 @@ import { useState } from 'react'
 
 const NAV = [
   { href: '/analyze',  label: 'Analizar',  icon: Microscope  },
+  { href: '/batch',    label: 'Lote',      icon: Layers      },
   { href: '/history',  label: 'Historial', icon: ClipboardList },
   { href: '/model',    label: 'Modelo',    icon: BarChart3   },
 ]

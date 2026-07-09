@@ -7,6 +7,8 @@ export interface StudyMeta {
   clinicalIndication: string
   radiologistName?:   string   // tomado de la sesión NextAuth
   radiologistCmp?:    string   // tomado de la sesión NextAuth
+  patientAge?:        number | null  // del DICOM, pseudonimizado
+  patientSex?:        string | null  // del DICOM: M / F / O
 }
 
 type RGB = [number, number, number]
@@ -195,6 +197,8 @@ export async function buildPdf(
   // ── 3. Study metadata ──────────────────────────────────────────────────────
   y = sectionHeader('Datos del estudio', y)
   if (meta?.studyId)            y = kvRow('ID de estudio',       meta.studyId, y)
+  if (meta?.patientAge != null) y = kvRow('Edad del paciente',   `${meta.patientAge} años`, y)
+  if (meta?.patientSex)         y = kvRow('Sexo',                meta.patientSex === 'M' ? 'Masculino' : meta.patientSex === 'F' ? 'Femenino' : meta.patientSex, y)
   if (meta?.projection)         y = kvRow('Proyección',          meta.projection, y)
   if (meta?.clinicalIndication) y = kvRow('Indicación clínica',  meta.clinicalIndication, y)
   y = kvRow('Fecha del informe', now, y)

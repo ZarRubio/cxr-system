@@ -316,6 +316,8 @@ function HistoryDetail({ analysis, canValidate }: { analysis: AnalysisRecord; ca
           <span>Estudio <span className="readout font-bold text-[var(--fg)]">{analysis.studyId}</span></span>
         )}
         <span>Dr(a). {analysis.userName}</span>
+        {analysis.patientAge != null && <span>Edad: {analysis.patientAge} años</span>}
+        {analysis.patientSex && <span>Sexo: {analysis.patientSex}</span>}
         {analysis.projection && <span>Proyección: {analysis.projection}</span>}
         {analysis.clinicalIndication && <span>Indicación: {analysis.clinicalIndication}</span>}
         {analysis.modelVersion && <span>Modelo: <span className="readout">{analysis.modelVersion}</span></span>}

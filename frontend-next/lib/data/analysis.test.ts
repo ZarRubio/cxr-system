@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { filterAnalyses, type AnalysisRecord } from './analysis'
+import { filterAnalyses, triageRank, type AnalysisRecord } from './analysis'
 
 function mk(partial: Partial<AnalysisRecord>): AnalysisRecord {
   return {
@@ -11,6 +11,9 @@ function mk(partial: Partial<AnalysisRecord>): AnalysisRecord {
     studyId: 'EST-20260708-001',
     projection: 'PA',
     clinicalIndication: null,
+    patientAge: null,
+    patientSex: null,
+    dicomStudyHash: null,
     predictedClass: 'Pneumonia',
     confidence: 0.82,
     severity: 'critical',
@@ -54,5 +57,25 @@ describe('filterAnalyses', () => {
 
   it('combina filtros', () => {
     expect(filterAnalyses(records, { severity: 'critical', feedback: 'agree' })).toHaveLength(0)
+  })
+})
+
+describe('triageRank', () => {
+  it('cualquier crítico va antes que cualquier alto', () => {
+    expect(triageRank('critical', 0.31)).toBeLessThan(triageRank('high', 0.99))
+  })
+
+  it('a igual severidad, mayor confianza va primero', () => {
+    expect(triageRank('critical', 0.9)).toBeLessThan(triageRank('critical', 0.5))
+  })
+
+  it('orden completo de severidades', () => {
+    const ranks = [
+      triageRank('critical', 0.5),
+      triageRank('high', 0.5),
+      triageRank('moderate', 0.5),
+      triageRank('normal', 0.5),
+    ]
+    expect([...ranks].sort((a, b) => a - b)).toEqual(ranks)
   })
 })

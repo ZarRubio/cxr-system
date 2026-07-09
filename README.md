@@ -56,6 +56,11 @@ Cuando ninguna clase supera su umbral, el sistema reporta **No Finding**.
 - **Validación del radiólogo**: sobre cada análisis se registra concordancia o discrepancia
   (con el hallazgo real) — la métrica de concordancia clínica del sistema. Exportable a CSV/JSON
   desde el historial.
+- **Metadatos DICOM pseudonimizados**: de los archivos `.dcm` se extraen solo edad, sexo,
+  proyección (ViewPosition) y un hash del StudyInstanceUID — nombre, ID de paciente y fechas
+  nunca se leen (Ley 29733). Aparecen en el análisis, el historial y el reporte PDF.
+- **Triage por lote** (`/batch`): hasta 8 placas por pasada, resultados ordenados por severidad
+  (críticos primero) para priorizar la lectura; cada análisis queda en el historial.
 
 ## Stack
 

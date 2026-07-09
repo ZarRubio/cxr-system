@@ -1,4 +1,5 @@
-import type { Severity } from '@/lib/types'
+import type { Prediction, Severity } from '@/lib/types'
+import { SEVERITY_MAP } from '@/lib/constants'
 
 /**
  * Tipos del historial clínico persistente y helpers puros compartidos
@@ -24,6 +25,10 @@ export interface AnalysisRecord {
   studyId: string | null
   projection: string | null
   clinicalIndication: string | null
+  /** Metadatos DICOM pseudonimizados (null en PNG/JPG o DICOM sin tags) */
+  patientAge: number | null
+  patientSex: string | null
+  dicomStudyHash: string | null
   predictedClass: string
   confidence: number
   severity: Severity
@@ -41,6 +46,44 @@ export interface AnalysisFilters {
   q?: string
   severity?: Severity
   feedback?: FeedbackFilter
+}
+
+/** Construye el registro persistente a partir de una predicción del backend. */
+export function buildAnalysisRecord(
+  user: { id: string; name: string },
+  prediction: Prediction,
+  study: { filename: string; studyId?: string | null; projection?: string | null; clinicalIndication?: string | null },
+): AnalysisRecord {
+  return {
+    id: crypto.randomUUID(),
+    userId: user.id,
+    userName: user.name,
+    createdAt: new Date().toISOString(),
+    filename: study.filename,
+    studyId: study.studyId ?? null,
+    // La proyección del DICOM (ViewPosition) manda sobre la del formulario
+    projection: prediction.dicom_meta?.view_position ?? study.projection ?? null,
+    clinicalIndication: study.clinicalIndication ?? null,
+    patientAge: prediction.dicom_meta?.patient_age ?? null,
+    patientSex: prediction.dicom_meta?.patient_sex ?? null,
+    dicomStudyHash: prediction.dicom_meta?.study_hash ?? null,
+    predictedClass: prediction.predicted_class,
+    confidence: prediction.confidence,
+    severity: SEVERITY_MAP[prediction.predicted_class] ?? 'normal',
+    probabilities: prediction.probabilities ?? {},
+    positiveFindings: prediction.positive_findings ?? [],
+    imageHash: prediction.image_hash ?? null,
+    modelVersion: prediction.model_version ?? null,
+    processingTimeMs: prediction.processing_time_ms ?? null,
+    feedback: null,
+  }
+}
+
+/** Orden de triage: severidad más grave primero, luego confianza descendente. */
+const SEVERITY_RANK: Record<Severity, number> = { critical: 0, high: 1, moderate: 2, normal: 3 }
+
+export function triageRank(severity: Severity, confidence: number): number {
+  return SEVERITY_RANK[severity] * 1000 + Math.round((1 - confidence) * 999)
 }
 
 /** Filtrado en memoria, idéntico en servidor y cliente. */

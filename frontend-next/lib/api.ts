@@ -54,6 +54,36 @@ export async function predict(
   return res.json()
 }
 
+export interface BatchResultItem {
+  filename: string
+  result: (Prediction & { analysis_id?: string }) | null
+  error: string | null
+}
+
+export interface BatchResponse {
+  results: BatchResultItem[]
+  processing_time_ms: number
+}
+
+export async function predictBatch(
+  files: Array<{ bytes: Uint8Array; name: string }>,
+): Promise<BatchResponse> {
+  const form = new FormData()
+  for (const f of files) {
+    form.append('files', new Blob([f.bytes.buffer as ArrayBuffer]), f.name)
+  }
+  const res = await fetch('/api/predict-batch?include_gradcam=false', {
+    method: 'POST',
+    body: form,
+    signal: AbortSignal.timeout(300_000),
+  })
+  if (!res.ok) {
+    const detail = await res.json().catch(() => ({}))
+    throw new Error(detail?.detail ?? `Error ${res.status}`)
+  }
+  return res.json()
+}
+
 export async function fetchAnalyses(
   filters: AnalysisFilters = {},
 ): Promise<{ analyses: AnalysisRecord[]; isAdmin: boolean }> {

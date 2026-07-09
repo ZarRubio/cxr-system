@@ -84,6 +84,10 @@ export function useAnalyze() {
         clinicalIndication: studyMeta.clinicalIndication,
       })
       setPrediction(result)
+      // DICOM: la proyección real (ViewPosition) reemplaza la del formulario
+      if (result.dicom_meta?.view_position) {
+        setStudyMeta((m) => ({ ...m, projection: result.dicom_meta!.view_position! }))
+      }
       setStatDismissed(false)
       addEntry(filename, result, fileBytes, {
         ...studyMeta,
@@ -110,6 +114,8 @@ export function useAnalyze() {
         ...studyMeta,
         radiologistName: String(user?.name ?? ''),
         radiologistCmp:  String(user?.cmp  ?? ''),
+        patientAge: prediction.dicom_meta?.patient_age ?? null,
+        patientSex: prediction.dicom_meta?.patient_sex ?? null,
       }
       const bytes = await buildPdf(filename, fileBytes, prediction, notes, meta)
       downloadBlob(bytes, `${studyMeta.studyId}_reporte_cxr.pdf`, 'application/pdf')

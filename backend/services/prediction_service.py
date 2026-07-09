@@ -14,6 +14,7 @@ from fastapi import HTTPException
 from constants.clinical_text import CLASS_DISCLAIMERS, CLASS_EXPLANATIONS, DISCLAIMER
 from schemas.prediction import PredictionResponse
 from services.audit_service import write_audit_event
+from services.dicom_service import extract_study_metadata
 from services.gradcam_service import generate_gradcam
 from services.model_service import CLASSES_14, run_ensemble_inference
 from settings import settings
@@ -219,6 +220,10 @@ def predict_image(
     result, gradcam_image, gradcam_cls = _run_prediction(ensemble, img_array, options)
     elapsed_ms = round((time.perf_counter() - t0) * 1000, 1)
     response_data = _build_response_data(result, img_array, image_hash, gradcam_image, gradcam_cls, elapsed_ms)
+
+    # DICOM: adjuntar metadatos no identificantes (edad, sexo, proyeccion)
+    if detect_format(file_bytes, filename) == "dicom":
+        response_data["dicom_meta"] = extract_study_metadata(file_bytes)
 
     cache.put(cache_key, response_data)
 

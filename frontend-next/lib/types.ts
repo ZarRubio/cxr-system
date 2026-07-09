@@ -19,6 +19,13 @@ export interface Prediction {
     visual?: string
     clinical?: string
   }
+  /** Metadatos no identificantes extraídos del DICOM (pseudonimizados) */
+  dicom_meta?: {
+    patient_age?: number | null
+    patient_sex?: string | null
+    view_position?: string | null
+    study_hash?: string | null
+  } | null
 }
 
 export interface ModelInfo {

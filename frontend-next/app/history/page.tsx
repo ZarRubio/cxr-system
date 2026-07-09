@@ -28,6 +28,7 @@ export default function HistoryPage() {
   const [feedback, setFeedback] = useState<FeedbackFilter | ''>('')
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo]     = useState('')
+  const [byUser, setByUser]     = useState('')
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['analyses'],
@@ -37,6 +38,10 @@ export default function HistoryPage() {
 
   const analyses = useMemo(() => data?.analyses ?? [], [data])
   const isAdmin  = data?.isAdmin ?? false
+  const radiologists = useMemo(
+    () => [...new Set(analyses.map((a) => a.userName))].sort((a, b) => a.localeCompare(b)),
+    [analyses],
+  )
 
   const filters: AnalysisFilters = {
     q: q || undefined,
@@ -44,8 +49,9 @@ export default function HistoryPage() {
     feedback: feedback || undefined,
     dateFrom: dateFrom || undefined,
     dateTo: dateTo || undefined,
+    userName: (isAdmin && byUser) || undefined,
   }
-  const filtered = useMemo(() => filterAnalyses(analyses, filters), [analyses, q, severity, feedback, dateFrom, dateTo]) // eslint-disable-line react-hooks/exhaustive-deps
+  const filtered = useMemo(() => filterAnalyses(analyses, filters), [analyses, q, severity, feedback, dateFrom, dateTo, byUser, isAdmin]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const exportCSV = () => {
     const rows = [
@@ -123,6 +129,19 @@ export default function HistoryPage() {
                 className="h-9 px-2 text-sm rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--fg)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]"
               />
             </label>
+            {isAdmin && radiologists.length > 1 && (
+              <select
+                value={byUser}
+                onChange={(e) => setByUser(e.target.value)}
+                aria-label="Filtrar por radiólogo"
+                className="h-9 px-2 text-sm rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--fg)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)] max-w-[190px]"
+              >
+                <option value="">Radiólogo: todos</option>
+                {radiologists.map((name) => (
+                  <option key={name} value={name}>{name}</option>
+                ))}
+              </select>
+            )}
             <select
               value={severity}
               onChange={(e) => setSeverity(e.target.value as Severity | '')}

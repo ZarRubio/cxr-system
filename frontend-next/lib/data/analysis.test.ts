@@ -59,6 +59,17 @@ describe('filterAnalyses', () => {
     expect(filterAnalyses(records, { severity: 'critical', feedback: 'agree' })).toHaveLength(0)
   })
 
+  it('filtra por radiólogo (nombre exacto)', () => {
+    const mixed = [
+      mk({ id: 'r1', userName: 'Dra. Pérez' }),
+      mk({ id: 'r2', userName: 'Dr. Quispe' }),
+      mk({ id: 'r3', userName: 'Dra. Pérez' }),
+    ]
+    expect(filterAnalyses(mixed, { userName: 'Dra. Pérez' }).map((r) => r.id)).toEqual(['r1', 'r3'])
+    expect(filterAnalyses(mixed, { userName: 'Dr. Quispe' })).toHaveLength(1)
+    expect(filterAnalyses(mixed, { userName: 'Pérez' })).toHaveLength(0)
+  })
+
   it('filtra por rango de fechas (inclusive, fecha local)', () => {
     const dated = [
       mk({ id: 'd1', createdAt: '2026-07-01T12:00:00.000Z' }),

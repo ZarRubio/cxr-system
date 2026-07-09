@@ -50,6 +50,8 @@ export interface AnalysisFilters {
   dateFrom?: string
   /** Fecha local YYYY-MM-DD inclusive */
   dateTo?: string
+  /** Nombre exacto del radiólogo (vista admin) */
+  userName?: string
 }
 
 /** createdAt (ISO UTC) -> fecha local YYYY-MM-DD, comparable con los filtros. */
@@ -101,6 +103,7 @@ export function filterAnalyses(records: AnalysisRecord[], filters: AnalysisFilte
   const q = filters.q?.trim().toLowerCase()
   return records.filter((r) => {
     if (filters.severity && r.severity !== filters.severity) return false
+    if (filters.userName && r.userName !== filters.userName) return false
     if (filters.dateFrom && localDate(r.createdAt) < filters.dateFrom) return false
     if (filters.dateTo && localDate(r.createdAt) > filters.dateTo) return false
     if (filters.feedback === 'pending' && r.feedback !== null) return false

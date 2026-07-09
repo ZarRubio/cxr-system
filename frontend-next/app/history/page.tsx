@@ -1,6 +1,7 @@
 'use client'
-import { useMemo, useState } from 'react'
+import { Suspense, useMemo, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useSearchParams } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { fetchAnalyses } from '@/lib/api'
 import { filterAnalyses, type AnalysisFilters, type AnalysisRecord, type FeedbackFilter } from '@/lib/data/analysis'
@@ -19,11 +20,22 @@ import type { Prediction, Severity } from '@/lib/types'
  * ve los suyos; el administrador ve todos.
  */
 export default function HistoryPage() {
+  return (
+    <Suspense fallback={null}>
+      <HistoryContent />
+    </Suspense>
+  )
+}
+
+function HistoryContent() {
   const { data: session } = useSession()
   const sessionUserId = String((session?.user as Record<string, unknown>)?.id ?? '')
 
+  // Búsqueda inicial desde la URL (p.ej. /history?q=LOTE-20260709-042 desde /batch)
+  const searchParams = useSearchParams()
+
   const [expanded, setExpanded] = useState<string | null>(null)
-  const [q, setQ]               = useState('')
+  const [q, setQ]               = useState(searchParams.get('q') ?? '')
   const [severity, setSeverity] = useState<Severity | ''>('')
   const [feedback, setFeedback] = useState<FeedbackFilter | ''>('')
   const [dateFrom, setDateFrom] = useState('')
@@ -55,9 +67,9 @@ export default function HistoryPage() {
 
   const exportCSV = () => {
     const rows = [
-      ['study_id', 'timestamp', 'radiologo', 'filename', 'predicted', 'confidence', 'severity', 'feedback', 'hallazgo_real', 'image_hash'],
+      ['study_id', 'lote', 'timestamp', 'radiologo', 'filename', 'predicted', 'confidence', 'severity', 'feedback', 'hallazgo_real', 'image_hash'],
       ...filtered.map((a) => [
-        a.studyId ?? '', a.createdAt, a.userName, a.filename, a.predictedClass,
+        a.studyId ?? '', a.batchId ?? '', a.createdAt, a.userName, a.filename, a.predictedClass,
         a.confidence.toFixed(4), a.severity,
         a.feedback ? (a.feedback.agrees ? 'concuerda' : 'discrepa') : 'pendiente',
         a.feedback?.actualFinding ?? '', a.imageHash ?? '',
@@ -201,6 +213,7 @@ export default function HistoryPage() {
                     canValidate={a.userId === sessionUserId}
                     expanded={expanded === a.id}
                     onToggle={() => setExpanded(expanded === a.id ? null : a.id)}
+                    onBatchClick={(id) => setQ(id)}
                   />
                 ))}
               </tbody>
@@ -253,9 +266,23 @@ interface RowProps {
   canValidate: boolean
   expanded: boolean
   onToggle: () => void
+  onBatchClick?: (batchId: string) => void
 }
 
-function HistoryRow({ analysis, isAdmin, canValidate, expanded, onToggle }: RowProps) {
+/** Chip del lote: clic filtra el historial por ese lote. */
+function BatchChip({ batchId, onClick }: { batchId: string; onClick?: (id: string) => void }) {
+  return (
+    <button
+      onClick={(e) => { e.stopPropagation(); onClick?.(batchId) }}
+      title={`Filtrar por ${batchId}`}
+      className="readout inline-flex items-center rounded px-1.5 py-px text-[9px] font-bold border border-[var(--primary)] text-[var(--primary)] hover:bg-[color-mix(in_srgb,var(--primary)_10%,transparent)] cursor-pointer"
+    >
+      {batchId}
+    </button>
+  )
+}
+
+function HistoryRow({ analysis, isAdmin, canValidate, expanded, onToggle, onBatchClick }: RowProps) {
   const c = SEVERITY_COLORS[analysis.severity]
   return (
     <>
@@ -272,6 +299,9 @@ function HistoryRow({ analysis, isAdmin, canValidate, expanded, onToggle }: RowP
             {analysis.studyId ?? '—'}
           </div>
           <div className="text-[10px] text-[var(--fg-subtle)] truncate mt-0.5">{analysis.filename}</div>
+          {analysis.batchId && (
+            <div className="mt-1"><BatchChip batchId={analysis.batchId} onClick={onBatchClick} /></div>
+          )}
         </td>
         {isAdmin && (
           <td className="px-4 py-3 text-xs text-[var(--fg-muted)] max-w-[140px] truncate">{analysis.userName}</td>
@@ -381,6 +411,9 @@ function HistoryDetail({ analysis, canValidate }: { analysis: AnalysisRecord; ca
       <div className="flex flex-wrap items-center gap-x-6 gap-y-1 text-xs text-[var(--fg-subtle)] pb-3 border-b border-[var(--border-subtle)]">
         {analysis.studyId && (
           <span>Estudio <span className="readout font-bold text-[var(--fg)]">{analysis.studyId}</span></span>
+        )}
+        {analysis.batchId && (
+          <span>Lote <span className="readout font-bold text-[var(--primary)]">{analysis.batchId}</span></span>
         )}
         <span>Dr(a). {analysis.userName}</span>
         {analysis.patientAge != null && <span>Edad: {analysis.patientAge} años</span>}

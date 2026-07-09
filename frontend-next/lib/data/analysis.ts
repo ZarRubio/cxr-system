@@ -23,6 +23,8 @@ export interface AnalysisRecord {
   createdAt: string
   filename: string
   studyId: string | null
+  /** ID del lote cuando el análisis vino de /batch (LOTE-YYYYMMDD-nnn) */
+  batchId: string | null
   projection: string | null
   clinicalIndication: string | null
   /** Metadatos DICOM pseudonimizados (null en PNG/JPG o DICOM sin tags) */
@@ -64,7 +66,7 @@ function localDate(iso: string): string {
 export function buildAnalysisRecord(
   user: { id: string; name: string },
   prediction: Prediction,
-  study: { filename: string; studyId?: string | null; projection?: string | null; clinicalIndication?: string | null },
+  study: { filename: string; studyId?: string | null; batchId?: string | null; projection?: string | null; clinicalIndication?: string | null },
 ): AnalysisRecord {
   return {
     id: crypto.randomUUID(),
@@ -73,6 +75,7 @@ export function buildAnalysisRecord(
     createdAt: new Date().toISOString(),
     filename: study.filename,
     studyId: study.studyId ?? null,
+    batchId: study.batchId ?? null,
     // La proyección del DICOM (ViewPosition) manda sobre la del formulario
     projection: prediction.dicom_meta?.view_position ?? study.projection ?? null,
     clinicalIndication: study.clinicalIndication ?? null,
@@ -110,7 +113,7 @@ export function filterAnalyses(records: AnalysisRecord[], filters: AnalysisFilte
     if (filters.feedback === 'agree' && r.feedback?.agrees !== true) return false
     if (filters.feedback === 'disagree' && r.feedback?.agrees !== false) return false
     if (q) {
-      const haystack = [r.studyId ?? '', r.filename, r.predictedClass, r.userName]
+      const haystack = [r.studyId ?? '', r.batchId ?? '', r.filename, r.predictedClass, r.userName]
         .join(' ')
         .toLowerCase()
       if (!haystack.includes(q)) return false

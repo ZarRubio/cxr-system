@@ -9,6 +9,7 @@ function mk(partial: Partial<AnalysisRecord>): AnalysisRecord {
     createdAt: '2026-07-08T12:00:00.000Z',
     filename: 'torax.png',
     studyId: 'EST-20260708-001',
+    batchId: null,
     projection: 'PA',
     clinicalIndication: null,
     patientAge: null,
@@ -57,6 +58,15 @@ describe('filterAnalyses', () => {
 
   it('combina filtros', () => {
     expect(filterAnalyses(records, { severity: 'critical', feedback: 'agree' })).toHaveLength(0)
+  })
+
+  it('la búsqueda por texto encuentra el ID de lote', () => {
+    const withBatch = [
+      mk({ id: 'b1', batchId: 'LOTE-20260709-042' }),
+      mk({ id: 'b2', batchId: 'LOTE-20260709-042' }),
+      mk({ id: 'b3', batchId: null }),
+    ]
+    expect(filterAnalyses(withBatch, { q: 'lote-20260709-042' }).map((r) => r.id)).toEqual(['b1', 'b2'])
   })
 
   it('filtra por radiólogo (nombre exacto)', () => {

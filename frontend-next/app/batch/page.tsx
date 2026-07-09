@@ -30,6 +30,7 @@ interface QueuedFile {
 export default function BatchPage() {
   const [queue, setQueue]       = useState<QueuedFile[]>([])
   const [results, setResults]   = useState<BatchResultItem[] | null>(null)
+  const [batchId, setBatchId]   = useState<string | null>(null)
   const [analyzing, setAnalyzing] = useState(false)
   const [error, setError]       = useState<string | null>(null)
 
@@ -67,6 +68,7 @@ export default function BatchPage() {
     try {
       const res = await predictBatch(queue)
       setResults(res.results)
+      setBatchId(res.batch_id ?? null)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Error desconocido')
     } finally {
@@ -77,6 +79,7 @@ export default function BatchPage() {
   const reset = () => {
     setQueue([])
     setResults(null)
+    setBatchId(null)
     setError(null)
   }
 
@@ -187,14 +190,19 @@ export default function BatchPage() {
             </div>
           )}
 
-          <div className="flex items-center justify-between">
-            <p className="text-xs text-[var(--fg-subtle)]">
-              <span className="readout">{triaged.length}</span> placas · orden de triage (mayor severidad primero)
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <p className="text-xs text-[var(--fg-subtle)] flex items-center gap-2 flex-wrap">
+              {batchId && (
+                <span className="readout inline-flex items-center rounded px-2 py-0.5 text-[10px] font-bold border border-[var(--primary)] text-[var(--primary)]">
+                  {batchId}
+                </span>
+              )}
+              <span><span className="readout">{triaged.length}</span> placas · orden de triage (mayor severidad primero)</span>
             </p>
             <div className="flex gap-2">
-              <Link href="/history">
+              <Link href={batchId ? `/history?q=${encodeURIComponent(batchId)}` : '/history'}>
                 <Button variant="secondary" size="sm">
-                  <ClipboardList size={13} /> Ver en historial
+                  <ClipboardList size={13} /> Ver lote en historial
                 </Button>
               </Link>
               <Button variant="ghost" size="sm" onClick={reset}>

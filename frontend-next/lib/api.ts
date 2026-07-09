@@ -63,6 +63,8 @@ export interface BatchResultItem {
 export interface BatchResponse {
   results: BatchResultItem[]
   processing_time_ms: number
+  /** ID del lote asignado a todos los análisis persistidos (LOTE-YYYYMMDD-nnn) */
+  batch_id?: string
 }
 
 export async function predictBatch(

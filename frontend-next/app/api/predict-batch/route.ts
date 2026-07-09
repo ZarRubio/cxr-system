@@ -37,17 +37,22 @@ export async function POST(request: NextRequest) {
 
   if (!res.ok) return passthrough(res)
 
-  // Persistir cada análisis exitoso del lote en el historial clínico.
-  const data = (await res.json()) as { results: BatchItem[]; processing_time_ms: number }
+  // Persistir cada análisis exitoso del lote en el historial clínico,
+  // todos con el mismo ID de lote para trazabilidad.
+  const data = (await res.json()) as { results: BatchItem[]; processing_time_ms: number; batch_id?: string }
   const user = session.user as Record<string, unknown>
   const store = getDataStore()
+
+  const stamp = new Date().toISOString().slice(0, 10).replace(/-/g, '')
+  const batchId = `LOTE-${stamp}-${String(Math.floor(Math.random() * 1000)).padStart(3, '0')}`
+  data.batch_id = batchId
 
   for (const item of data.results ?? []) {
     if (!item.result) continue
     const record = buildAnalysisRecord(
       { id: String(user.id ?? ''), name: String(user.name ?? '') },
       item.result,
-      { filename: item.filename || 'imagen' },
+      { filename: item.filename || 'imagen', batchId },
     )
     try {
       await store.createAnalysis(record)

@@ -17,6 +17,7 @@ function mk(partial: Partial<AnalysisRecord>): AnalysisRecord {
     createdAt: new Date().toISOString(),
     filename: 'torax.png',
     studyId: 'EST-20260708-001',
+    batchId: null,
     projection: 'PA',
     clinicalIndication: null,
     patientAge: 58,

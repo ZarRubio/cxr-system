@@ -15,12 +15,14 @@ export async function POST(request: NextRequest) {
   const contentType = request.headers.get('content-type')
   if (contentType) headers.set('Content-Type', contentType)
 
+  // Body bufferizado: un stream no es re-enviable y rompe cuando undici
+  // reintenta (p.ej. localhost ::1 -> 127.0.0.1).
+  const body = await request.arrayBuffer()
+
   const res = await fetch(backendUrl('/predict-batch', request.nextUrl.searchParams.toString()), {
     method: 'POST',
     headers,
-    body: request.body,
-    // @ts-expect-error: duplex es requerido por undici para streams de request
-    duplex: 'half',
+    body,
     signal: AbortSignal.timeout(280_000),
   })
   return passthrough(res)

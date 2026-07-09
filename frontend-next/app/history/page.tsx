@@ -9,7 +9,7 @@ import { formatTimestamp, formatConfidence, downloadBlob, cn } from '@/lib/utils
 import { SEVERITY_COLORS, BADGES, SEVERITY_LABELS } from '@/lib/constants'
 import { Button } from '@/components/ui/button'
 import { buildPdf, type StudyMeta } from '@/lib/pdf'
-import { ClipboardList, Download, ChevronDown, ChevronUp, Search, Check, X, Clock, Loader2, FileText } from 'lucide-react'
+import { ClipboardList, Download, ChevronDown, ChevronUp, Search, Check, X, Clock, Loader2, FileText, SlidersHorizontal, Calendar } from 'lucide-react'
 import { ProbabilityBars } from '@/components/analyze/ProbabilityBars'
 import { FeedbackCard } from '@/components/analyze/FeedbackCard'
 import type { Prediction, Severity } from '@/lib/types'
@@ -19,6 +19,13 @@ import type { Prediction, Severity } from '@/lib/types'
  * momento de predecir y sobreviven a la sesión del navegador. Cada radiólogo
  * ve los suyos; el administrador ve todos.
  */
+
+/** Clase compartida de los selects de filtro; resalta cuando hay valor activo. */
+const selectCls = (active: boolean) =>
+  cn(
+    'h-9 px-2 text-xs rounded-lg border bg-[var(--surface2)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)] cursor-pointer max-w-[190px]',
+    active ? 'border-[var(--primary)] text-[var(--primary)] font-semibold' : 'border-[var(--border)] text-[var(--fg)]',
+  )
 export default function HistoryPage() {
   return (
     <Suspense fallback={null}>
@@ -31,11 +38,20 @@ function HistoryContent() {
   const { data: session } = useSession()
   const sessionUserId = String((session?.user as Record<string, unknown>)?.id ?? '')
 
-  // Búsqueda inicial desde la URL (p.ej. /history?q=LOTE-20260709-042 desde /batch)
+  // Búsqueda desde la URL (p.ej. /history?q=LOTE-20260709-042 desde /batch).
+  // El router de Next puede reusar esta página ya montada al navegar, así que
+  // no basta el estado inicial: se adopta el q de la URL cada vez que cambia
+  // (patrón "adjust state during render").
   const searchParams = useSearchParams()
+  const urlQ = searchParams.get('q') ?? ''
 
   const [expanded, setExpanded] = useState<string | null>(null)
-  const [q, setQ]               = useState(searchParams.get('q') ?? '')
+  const [q, setQ]               = useState(urlQ)
+  const [lastUrlQ, setLastUrlQ] = useState(urlQ)
+  if (urlQ !== lastUrlQ) {
+    setLastUrlQ(urlQ)
+    if (urlQ) setQ(urlQ)
+  }
   const [severity, setSeverity] = useState<Severity | ''>('')
   const [feedback, setFeedback] = useState<FeedbackFilter | ''>('')
   const [dateFrom, setDateFrom] = useState('')
@@ -109,85 +125,113 @@ function HistoryContent() {
         </div>
       ) : (
         <>
-          {/* Toolbar */}
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="relative flex-1 min-w-[200px]">
-              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--fg-subtle)]" />
-              <input
-                type="text"
-                placeholder="Buscar por ID estudio, hallazgo, archivo…"
-                value={q}
-                onChange={(e) => setQ(e.target.value)}
-                className="w-full h-9 pl-9 pr-3 text-sm rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--fg)] placeholder:text-[var(--fg-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]"
-              />
+          {/* Toolbar: búsqueda + export arriba, filtros compactos debajo */}
+          <div className="card p-3 space-y-3">
+            <div className="flex items-center gap-2">
+              <div className="relative flex-1 min-w-[180px]">
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--fg-subtle)]" />
+                <input
+                  type="text"
+                  placeholder="Buscar por estudio, lote, hallazgo, archivo…"
+                  value={q}
+                  onChange={(e) => setQ(e.target.value)}
+                  className="w-full h-9 pl-9 pr-8 text-sm rounded-lg border border-[var(--border)] bg-[var(--surface2)] text-[var(--fg)] placeholder:text-[var(--fg-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]"
+                />
+                {q && (
+                  <button
+                    onClick={() => setQ('')}
+                    aria-label="Limpiar búsqueda"
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--fg-subtle)] hover:text-[var(--fg)] cursor-pointer"
+                  >
+                    <X size={14} />
+                  </button>
+                )}
+              </div>
+              <Button variant="secondary" size="sm" onClick={exportCSV}>
+                <Download size={13} /> CSV
+              </Button>
+              <Button variant="secondary" size="sm" onClick={exportJSON}>
+                <Download size={13} /> JSON
+              </Button>
             </div>
-            <label className="flex items-center gap-1.5 text-xs text-[var(--fg-subtle)]">
-              Desde
-              <input
-                type="date"
-                value={dateFrom}
-                onChange={(e) => setDateFrom(e.target.value)}
-                aria-label="Filtrar desde fecha"
-                className="h-9 px-2 text-sm rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--fg)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]"
-              />
-            </label>
-            <label className="flex items-center gap-1.5 text-xs text-[var(--fg-subtle)]">
-              Hasta
-              <input
-                type="date"
-                value={dateTo}
-                onChange={(e) => setDateTo(e.target.value)}
-                aria-label="Filtrar hasta fecha"
-                className="h-9 px-2 text-sm rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--fg)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]"
-              />
-            </label>
-            {isAdmin && radiologists.length > 1 && (
+
+            <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-[var(--border-subtle)]">
+              <span className="tech-label flex items-center gap-1.5 mr-1">
+                <SlidersHorizontal size={12} /> Filtros
+              </span>
+
+              {/* Rango de fechas agrupado */}
+              <div className="flex items-center gap-1 h-9 px-2 rounded-lg border border-[var(--border)] bg-[var(--surface2)]">
+                <Calendar size={13} className="text-[var(--fg-subtle)] shrink-0" />
+                <input
+                  type="date"
+                  value={dateFrom}
+                  onChange={(e) => setDateFrom(e.target.value)}
+                  aria-label="Desde fecha"
+                  className="bg-transparent text-xs text-[var(--fg)] focus:outline-none w-[108px] cursor-pointer"
+                />
+                <span className="text-[var(--fg-subtle)] text-xs">—</span>
+                <input
+                  type="date"
+                  value={dateTo}
+                  onChange={(e) => setDateTo(e.target.value)}
+                  aria-label="Hasta fecha"
+                  className="bg-transparent text-xs text-[var(--fg)] focus:outline-none w-[108px] cursor-pointer"
+                />
+              </div>
+
+              {isAdmin && radiologists.length > 1 && (
+                <select
+                  value={byUser}
+                  onChange={(e) => setByUser(e.target.value)}
+                  aria-label="Filtrar por radiólogo"
+                  className={selectCls(!!byUser)}
+                >
+                  <option value="">Radiólogo: todos</option>
+                  {radiologists.map((name) => (
+                    <option key={name} value={name}>{name}</option>
+                  ))}
+                </select>
+              )}
               <select
-                value={byUser}
-                onChange={(e) => setByUser(e.target.value)}
-                aria-label="Filtrar por radiólogo"
-                className="h-9 px-2 text-sm rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--fg)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)] max-w-[190px]"
+                value={severity}
+                onChange={(e) => setSeverity(e.target.value as Severity | '')}
+                aria-label="Filtrar por severidad"
+                className={selectCls(!!severity)}
               >
-                <option value="">Radiólogo: todos</option>
-                {radiologists.map((name) => (
-                  <option key={name} value={name}>{name}</option>
+                <option value="">Severidad: todas</option>
+                {(Object.keys(SEVERITY_LABELS) as Severity[]).map((s) => (
+                  <option key={s} value={s}>{SEVERITY_LABELS[s]}</option>
                 ))}
               </select>
-            )}
-            <select
-              value={severity}
-              onChange={(e) => setSeverity(e.target.value as Severity | '')}
-              aria-label="Filtrar por severidad"
-              className="h-9 px-2 text-sm rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--fg)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]"
-            >
-              <option value="">Severidad: todas</option>
-              {(Object.keys(SEVERITY_LABELS) as Severity[]).map((s) => (
-                <option key={s} value={s}>{SEVERITY_LABELS[s]}</option>
-              ))}
-            </select>
-            <select
-              value={feedback}
-              onChange={(e) => setFeedback(e.target.value as FeedbackFilter | '')}
-              aria-label="Filtrar por validación"
-              className="h-9 px-2 text-sm rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--fg)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]"
-            >
-              <option value="">Validación: todas</option>
-              <option value="pending">Pendiente</option>
-              <option value="agree">Concuerda</option>
-              <option value="disagree">Discrepa</option>
-            </select>
-            <Button variant="secondary" size="sm" onClick={exportCSV}>
-              <Download size={13} /> CSV
-            </Button>
-            <Button variant="secondary" size="sm" onClick={exportJSON}>
-              <Download size={13} /> JSON
-            </Button>
-          </div>
+              <select
+                value={feedback}
+                onChange={(e) => setFeedback(e.target.value as FeedbackFilter | '')}
+                aria-label="Filtrar por validación"
+                className={selectCls(!!feedback)}
+              >
+                <option value="">Validación: todas</option>
+                <option value="pending">Pendiente</option>
+                <option value="agree">Concuerda</option>
+                <option value="disagree">Discrepa</option>
+              </select>
 
-          <p className="text-xs text-[var(--fg-subtle)]">
-            <span className="readout">{filtered.length}</span> análisis
-            {analyses.length >= 500 && ' (mostrando los 500 más recientes)'}
-          </p>
+              {(q || severity || feedback || dateFrom || dateTo || byUser) && (
+                <button
+                  onClick={() => { setQ(''); setSeverity(''); setFeedback(''); setDateFrom(''); setDateTo(''); setByUser('') }}
+                  className="text-xs text-[var(--fg-subtle)] hover:text-[var(--fg)] underline underline-offset-2 cursor-pointer"
+                >
+                  Limpiar
+                </button>
+              )}
+
+              <span className="ml-auto text-xs text-[var(--fg-subtle)]">
+                <span className="readout font-bold text-[var(--fg)]">{filtered.length}</span>
+                {filtered.length === analyses.length ? ' análisis' : ` de ${analyses.length} análisis`}
+                {analyses.length >= 500 && ' (últimos 500)'}
+              </span>
+            </div>
+          </div>
 
           {/* Table - desktop */}
           <div className="hidden sm:block card overflow-hidden p-0">

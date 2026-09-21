@@ -7,6 +7,7 @@ import { ClinicalRecommendations } from '@/components/analyze/ClinicalRecommenda
 import { ProbabilityBars } from '@/components/analyze/ProbabilityBars'
 import { GradCamView } from '@/components/analyze/GradCamView'
 import { SecondaryFindings } from '@/components/analyze/SecondaryFindings'
+import { CXRScreeningAlert } from '@/components/analyze/CXRScreeningAlert'
 import { Button } from '@/components/ui/button'
 import type { Prediction } from '@/lib/types'
 
@@ -58,6 +59,8 @@ export function ResultsSection({
           Nuevo análisis
         </button>
       </div>
+
+      <CXRScreeningAlert screening={prediction.cxr_screening} />
 
       {/* Row 1: Finding + Grad-CAM */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">

@@ -61,6 +61,10 @@ Manual funcional: [`docs/MANUAL_USUARIO.md`](docs/MANUAL_USUARIO.md).
 - **Metadatos DICOM pseudonimizados**: de los archivos `.dcm` se extraen solo edad, sexo,
   proyección (ViewPosition) y un hash del StudyInstanceUID — nombre, ID de paciente y fechas
   nunca se leen (Ley 29733). Aparecen en el análisis, el historial y el reporte PDF.
+- **Control de imagen CXR**: antes de inferir, un filtro dedicado revisa modalidad DICOM,
+  color, relación de aspecto y distribución de intensidades. Rechaza modalidades inequívocas
+  como CT, MR o US y fotografías claramente cromáticas; los casos dudosos se procesan con una
+  advertencia visible. Es un control técnico heurístico y no certifica calidad diagnóstica.
 - **Triage por lote** (`/batch`): hasta 8 placas por pasada, resultados ordenados por severidad
   (críticos primero) para priorizar la lectura; cada análisis queda en el historial.
 - **Panel de estadísticas** (`/admin/stats`, solo admin): volumen diario, distribución por

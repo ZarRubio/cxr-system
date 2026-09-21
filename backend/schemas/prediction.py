@@ -10,6 +10,15 @@ class DicomMeta(BaseModel):
     study_hash: str | None = None       # sha256(StudyInstanceUID)[:10]
 
 
+class CXRScreening(BaseModel):
+    """Resultado del control tecnico de compatibilidad con radiografia de torax."""
+
+    status: str                         # likely_cxr / uncertain / not_cxr
+    score: float                        # score heuristico, no probabilidad clinica
+    method: str
+    reasons: list[str] = []
+
+
 class PredictionResponse(BaseModel):
     predicted_class: str
     predicted_label: int              # -1 si No Finding
@@ -25,6 +34,7 @@ class PredictionResponse(BaseModel):
     image_hash: str | None = None
     cached: bool = False
     image_warnings: list[str] = []
+    cxr_screening: CXRScreening
     explanation: dict[str, str] | None = None
     dicom_meta: DicomMeta | None = None
 

@@ -14,6 +14,7 @@ from fastapi import HTTPException
 from constants.clinical_text import CLASS_DISCLAIMERS, CLASS_EXPLANATIONS, DISCLAIMER
 from schemas.prediction import PredictionResponse
 from services.audit_service import write_audit_event
+from services.cxr_screening_service import CXRScreeningResult, classify_cxr
 from services.dicom_service import extract_study_metadata
 from services.gradcam_service import generate_gradcam
 from services.model_service import CLASSES_14, run_ensemble_inference
@@ -56,7 +57,10 @@ def validate_file_size(file_bytes: bytes) -> None:
         )
 
 
-def image_warnings(img_array: np.ndarray) -> list[str]:
+def image_warnings(
+    img_array: np.ndarray,
+    screening: CXRScreeningResult | None = None,
+) -> list[str]:
     """Heuristicas de calidad de imagen; nunca bloquean la prediccion."""
     warnings = []
     h, w = img_array.shape[:2]
@@ -99,6 +103,12 @@ def image_warnings(img_array: np.ndarray) -> list[str]:
             )
     except Exception:
         pass
+
+    if screening and screening.status == "uncertain":
+        warnings.append(
+            "El control automatico no pudo confirmar que sea una radiografia de torax. "
+            "Revise modalidad, proyeccion y calidad antes de interpretar el resultado."
+        )
 
     return warnings
 
@@ -163,6 +173,7 @@ def _run_prediction(ensemble: dict, img_array: np.ndarray, options: PredictOptio
 def _build_response_data(
     result: dict,
     img_array: np.ndarray,
+    screening: CXRScreeningResult,
     image_hash: str,
     gradcam_image: str,
     gradcam_cls: str,
@@ -183,7 +194,8 @@ def _build_response_data(
         model_version=MODEL_VERSION,
         image_hash=image_hash,
         cached=False,
-        image_warnings=image_warnings(img_array),
+        image_warnings=image_warnings(img_array, screening),
+        cxr_screening=screening.response_data(),
         explanation=CLASS_EXPLANATIONS.get(predicted_class),
     )
 
@@ -211,7 +223,33 @@ def predict_image(
         logger.info("prediction_cache_hit", extra={"image_hash": image_hash, "client_ip": client_ip})
         return PredictionResponse(**cached)
 
+    fmt = detect_format(file_bytes, filename)
     img_array = _decode_and_validate(file_bytes, filename)
+    screening = classify_cxr(file_bytes, fmt, img_array)
+    if screening.reject:
+        logger.warning(
+            "non_cxr_input_rejected",
+            extra={
+                "image_hash": image_hash,
+                "screening_method": screening.method,
+                "client_ip": client_ip,
+            },
+        )
+        write_audit_event(
+            {
+                "event_type": "input_rejected",
+                "image_hash": image_hash,
+                "reason": "not_cxr",
+                "screening_method": screening.method,
+            }
+        )
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                "La imagen no es compatible con una radiografia de torax. "
+                f"{screening.reasons[0]} Cargue una CXR valida en PNG, JPG o DICOM."
+            ),
+        )
 
     ensemble = getattr(app_state, "ensemble", None)
     if ensemble is None:
@@ -219,10 +257,18 @@ def predict_image(
 
     result, gradcam_image, gradcam_cls = _run_prediction(ensemble, img_array, options)
     elapsed_ms = round((time.perf_counter() - t0) * 1000, 1)
-    response_data = _build_response_data(result, img_array, image_hash, gradcam_image, gradcam_cls, elapsed_ms)
+    response_data = _build_response_data(
+        result,
+        img_array,
+        screening,
+        image_hash,
+        gradcam_image,
+        gradcam_cls,
+        elapsed_ms,
+    )
 
     # DICOM: adjuntar metadatos no identificantes (edad, sexo, proyeccion)
-    if detect_format(file_bytes, filename) == "dicom":
+    if fmt == "dicom":
         response_data["dicom_meta"] = extract_study_metadata(file_bytes)
 
     cache.put(cache_key, response_data)
@@ -233,6 +279,7 @@ def predict_image(
             "image_hash": image_hash,
             "predicted_class": response_data["predicted_class"],
             "positive_findings": result["positive_findings"],
+            "cxr_screening_status": screening.status,
             "processing_time_ms": elapsed_ms,
             "client_ip": client_ip,
         },
@@ -244,6 +291,7 @@ def predict_image(
             "predicted_class": response_data["predicted_class"],
             "confidence": response_data["confidence"],
             "positive_findings": result["positive_findings"],
+            "cxr_screening_status": screening.status,
         }
     )
 

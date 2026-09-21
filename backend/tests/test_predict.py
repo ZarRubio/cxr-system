@@ -32,6 +32,7 @@ from pydicom.uid import ExplicitVRLittleEndian, SecondaryCaptureImageStorage, ge
 
 from main import app
 from routers.predict import _parse_gradcam_method
+from services.cxr_screening_service import classify_cxr
 from services.dicom_service import extract_pixels_from_dicom
 from services.model_service import CLASSES_14, run_ensemble_inference
 from services.prediction_service import image_warnings, validate_file_size
@@ -106,7 +107,16 @@ def _make_cmyk_jpg_bytes(width: int = 224, height: int = 224) -> bytes:
     return buf.getvalue()
 
 
-def _make_dicom_bytes(photometric: str = "MONOCHROME2") -> bytes:
+def _make_color_photo_bytes(width: int = 224, height: int = 224) -> bytes:
+    rng = np.random.default_rng(42)
+    arr = rng.integers(0, 255, (height, width, 3), dtype=np.uint8)
+    arr[:, :, 0] = np.maximum(arr[:, :, 0], 160)
+    buf = io.BytesIO()
+    Image.fromarray(arr, mode="RGB").save(buf, format="PNG")
+    return buf.getvalue()
+
+
+def _make_dicom_bytes(photometric: str = "MONOCHROME2", modality: str | None = None) -> bytes:
     pixel_data = np.array([[0, 1000], [250, 750]], dtype=np.uint16)
 
     file_meta = FileMetaDataset()
@@ -126,6 +136,8 @@ def _make_dicom_bytes(photometric: str = "MONOCHROME2") -> bytes:
     ds.PixelRepresentation = 0
     ds.SOPClassUID = file_meta.MediaStorageSOPClassUID
     ds.SOPInstanceUID = file_meta.MediaStorageSOPInstanceUID
+    if modality:
+        ds.Modality = modality
     ds.RescaleSlope = 2
     ds.RescaleIntercept = -100
     ds.WindowCenter = 900
@@ -356,6 +368,34 @@ class TestImageWarnings:
         assert any("contraste" in w.lower() for w in warnings)
 
 
+class TestCXRScreening:
+    def test_grayscale_radiograph_like_image_is_accepted(self):
+        file_bytes = _make_png_bytes()
+        image = np.asarray(Image.open(io.BytesIO(file_bytes)).convert("L"))
+        result = classify_cxr(file_bytes, "png", image)
+        assert result.status == "likely_cxr"
+        assert result.reject is False
+
+    def test_color_photo_is_rejected(self):
+        file_bytes = _make_color_photo_bytes()
+        image = np.asarray(Image.open(io.BytesIO(file_bytes)).convert("L"))
+        result = classify_cxr(file_bytes, "png", image)
+        assert result.status == "not_cxr"
+        assert result.reject is True
+
+    def test_dx_dicom_is_accepted_from_modality(self):
+        file_bytes = _make_dicom_bytes(modality="DX")
+        result = classify_cxr(file_bytes, "dicom", np.zeros((224, 224), dtype=np.uint8))
+        assert result.status == "likely_cxr"
+        assert result.method == "dicom_modality"
+
+    @pytest.mark.parametrize("modality", ["CT", "MR", "US"])
+    def test_non_radiographic_dicom_is_rejected(self, modality):
+        file_bytes = _make_dicom_bytes(modality=modality)
+        result = classify_cxr(file_bytes, "dicom", np.zeros((224, 224), dtype=np.uint8))
+        assert result.status == "not_cxr"
+        assert result.reject is True
+
 # ══════════════════════════════════════════════════════════════════════════════
 # 7. /health endpoint
 # ══════════════════════════════════════════════════════════════════════════════
@@ -395,6 +435,7 @@ class TestModelInfoEndpoint:
         data = client.get("/model-info").json()
         assert "thresholds" in data
         assert "metrics" in data
+        assert data["input_screening"]["version"] == "visual_heuristics_v1"
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -414,7 +455,7 @@ class TestPredictEndpoint:
             "predicted_class", "predicted_label", "confidence", "probabilities",
             "positive_findings", "gradcam_image", "gradcam_class",
             "processing_time_ms", "disclaimer", "image_hash", "cached",
-            "image_warnings", "explanation",
+            "image_warnings", "cxr_screening", "explanation",
         }
         assert required.issubset(set(data))
 
@@ -459,6 +500,14 @@ class TestPredictEndpoint:
             "/predict", files={"file": ("bad.jpg", b"not-an-image" * 200, "image/jpeg")}
         )
         assert resp.status_code == 422
+
+    def test_color_photo_returns_controlled_422(self, client: TestClient):
+        resp = client.post(
+            "/predict",
+            files={"file": ("selfie.png", _make_color_photo_bytes(), "image/png")},
+        )
+        assert resp.status_code == 422
+        assert "radiografia de torax" in resp.json()["detail"]
 
     def test_cmyk_jpg_returns_422_with_channels_message(self, client: TestClient):
         resp = client.post(

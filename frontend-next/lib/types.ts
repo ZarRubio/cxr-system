@@ -15,6 +15,13 @@ export interface Prediction {
   cached?: boolean
   sub_threshold_findings?: Array<{ class: string; probability: number }>
   image_warnings?: string[]
+  cxr_screening?: {
+    status: 'likely_cxr' | 'uncertain' | 'not_cxr'
+    /** Score tecnico heuristico; no representa probabilidad diagnostica. */
+    score: number
+    method: string
+    reasons: string[]
+  }
   explanation?: {
     summary?: string
     visual?: string

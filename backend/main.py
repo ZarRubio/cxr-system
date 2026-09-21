@@ -14,7 +14,7 @@ from routers import predict
 from settings import settings
 from utils.cache import LRUCache
 
-__version__ = "2.1.0"
+__version__ = "2.2.0"
 
 if RATE_LIMITING_AVAILABLE:
     from slowapi import _rate_limit_exceeded_handler
@@ -130,7 +130,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="CXR Classification API",
     description="Clasificacion de radiografias de torax — HNAL 2026",
-    version="2.0.0",
+    version=__version__,
     lifespan=lifespan,
 )
 
@@ -190,6 +190,11 @@ async def model_info(request: Request):
         "task": "multi-label",
         "input_size": "224x224",
         "normalization": "xrv [-1024, 1024]",
+        "input_screening": {
+            "version": "visual_heuristics_v1",
+            "statuses": ["likely_cxr", "uncertain", "not_cxr"],
+            "signals": ["DICOM Modality", "color", "aspect ratio", "intensity distribution"],
+        },
         "classes": LABELS_14,
         "thresholds": thresholds,
         "metrics": AUC_METRICS,

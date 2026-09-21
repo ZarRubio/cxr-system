@@ -12,6 +12,7 @@ import { buildPdf, type StudyMeta } from '@/lib/pdf'
 import { ClipboardList, Download, ChevronDown, ChevronUp, Search, Check, X, Clock, Loader2, FileText, SlidersHorizontal, Calendar } from 'lucide-react'
 import { ProbabilityBars } from '@/components/analyze/ProbabilityBars'
 import { FeedbackCard } from '@/components/analyze/FeedbackCard'
+import { EmailAlertStatus } from '@/components/EmailAlertStatus'
 import type { Prediction, Severity } from '@/lib/types'
 
 /**
@@ -452,6 +453,7 @@ function HistoryDetail({ analysis, canValidate }: { analysis: AnalysisRecord; ca
 
   return (
     <div className="space-y-4">
+      <EmailAlertStatus alert={analysis.emailAlert} />
       <div className="flex flex-wrap items-center gap-x-6 gap-y-1 text-xs text-[var(--fg-subtle)] pb-3 border-b border-[var(--border-subtle)]">
         {analysis.studyId && (
           <span>Estudio <span className="readout font-bold text-[var(--fg)]">{analysis.studyId}</span></span>

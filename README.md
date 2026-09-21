@@ -26,10 +26,12 @@ Cuando ninguna clase supera su umbral, el sistema reporta **No Finding**.
 
 ## Producción
 
+Manual funcional: [`docs/MANUAL_USUARIO.md`](docs/MANUAL_USUARIO.md).
+
 | Servicio | URL |
 |---|---|
-| Frontend | <https://cxr-frontend-55733445282.us-central1.run.app> |
-| Backend (health) | <https://cxr-backend-55733445282.us-central1.run.app/health> |
+| Frontend | <https://cxr-frontend-35fld7nofa-uc.a.run.app> |
+| Backend (health) | <https://cxr-backend-35fld7nofa-uc.a.run.app/health> |
 
 ## Arquitectura
 
@@ -135,7 +137,7 @@ docker compose up --build
 | `CXR_API_KEY` | *(vacía)* | Si se define, `/predict*` y `/model-info` exigen header `X-API-Key` |
 | `CXR_SKIP_MODEL_LOAD` | `0` | `1` para tests/mocks (no carga checkpoints) |
 | `CXR_RATE_LIMIT_PREDICT` | `20/minute` | Límite SlowAPI por IP (usa `X-Forwarded-For` del proxy) |
-| `CXR_AUDIT_LOG_PATH` | `logs/audit.jsonl` | Log JSONL de auditoría (sin imágenes ni datos de paciente) |
+| `CXR_AUDIT_LOG_PATH` | `logs/audit.jsonl` | Copia JSONL local; cada evento también sale como JSON estructurado para persistencia en Cloud Logging |
 | `CXR_MAX_UPLOAD_MB` | `15` | Tamaño máximo de imagen |
 | `CXR_MAX_IMAGE_DIM` | `8192` | Dimensión máxima (px) — protege contra OOM |
 | `CXR_CACHE_MAX_ENTRIES` | `20` | Entradas del caché LRU de predicciones |
@@ -167,10 +169,44 @@ docker compose up --build
 Query params de `/predict*`: `gradcam_method` (`gradcam`·`gradcam++`·`scorecam`) e
 `include_gradcam` (`true`/`false`). Toda respuesta incluye header `X-Request-ID`.
 
+## Seguridad de sesión y auditoría
+
+- Las rutas sensibles consultan el estado actual de la cuenta en SQLite o Firestore en cada
+  solicitud. Al desactivar un usuario, su JWT anterior deja de autorizar operaciones y la
+  navegación protegida elimina la cookie de sesión en la siguiente petición.
+- El backend registra una bitácora mínima por predicción con timestamp, hash SHA-256,
+  hallazgo principal, confianza y hallazgos positivos. No registra la imagen ni metadatos
+  identificantes del paciente.
+- En local se mantiene además `logs/audit.jsonl`. En Cloud Run, los eventos JSON enviados
+  a stdout son capturados automáticamente por Cloud Logging y sobreviven al ciclo de vida
+  efímero de las instancias. La retención final depende de la política del bucket de logs
+  configurada en GCP.
+
 ## Tests
 
+### Alertas por correo
+
+Los análisis nuevos con hallazgos positivos marcados `critical` en `SEVERITY_MAP`
+notifican al administrador y, si tiene correo, al radiólogo responsable. Se evalúan
+también los hallazgos secundarios. Es una prioridad del modelo, no una confirmación clínica.
+El correo contiene ID de estudio (o ID del análisis si no se ingresó uno), responsable,
+fecha en Lima, hallazgos, puntuaciones y enlace autenticado al historial. No incluye imágenes,
+nombre de archivo, indicación clínica ni datos demográficos del paciente.
+
+- Remitente: `SMTP_USER=Adcejuma@gmail.com`; clave de aplicación en el secreto GitHub `SMTP_PASSWORD`.
+- El workflow pasa estas variables al servidor Cloud Run, nunca al navegador o al build.
+- Administrador inicial: `aerubio2305@gmail.com`, obligatorio y editable en Gestión de radiólogos.
+- Cada usuario puede modificar su correo desde "Correo de alertas"; el administrador también puede editarlo en la tabla de usuarios.
+- Si falta correo del radiólogo, se registra "Pendiente de configurar correo" y se avisa igualmente al administrador.
+- Los estados se guardan por destinatario en `emailAlert` del análisis, visibles en resultados e historial.
+- `sent` significa aceptación por SMTP, no confirmación de lectura ni llegada a bandeja de entrada.
+- Un bloqueo persistente evita repetir el envío del mismo análisis entre instancias. No hay reintentos automáticos:
+  si el proceso termina durante SMTP, queda pendiente de confirmación para evitar duplicados.
+  Reanalizar una imagen crea otro estudio y puede generar otra alerta. Configurar un correo no reenvía alertas antiguas.
+- El secreto de GitHub solo estará disponible tras desplegar el nuevo workflow. En local, configurar SMTP en `.env.local` y `AUTH_URL`.
+
 ```bash
-# Backend: 80 tests
+# Backend: 90 tests
 cd backend
 CXR_SKIP_MODEL_LOAD=1 python -m pytest tests/ -q
 python -m ruff check .

@@ -1,6 +1,6 @@
 import 'server-only'
 import type { CXRUser } from '@/lib/types'
-import type { AnalysisFeedback, AnalysisRecord } from './analysis'
+import type { AnalysisFeedback, AnalysisRecord, EmailAlert } from './analysis'
 import { sqliteStore } from './sqlite-store'
 
 /**
@@ -19,12 +19,14 @@ export interface DataStore {
   createUser(user: CXRUser): Promise<void>
   updateUser(
     id: string,
-    fields: Partial<Pick<CXRUser, 'name' | 'cmp' | 'specialty' | 'active' | 'password'>>,
+    fields: Partial<Pick<CXRUser, 'name' | 'cmp' | 'specialty' | 'active' | 'password' | 'email'>>,
   ): Promise<CXRUser | null>
   deleteUser(id: string): Promise<boolean>
 
   // Historial de análisis
   createAnalysis(record: AnalysisRecord): Promise<void>
+  claimEmailAlert(id: string, alert: EmailAlert): Promise<boolean>
+  setEmailAlert(id: string, alert: EmailAlert): Promise<void>
   getAnalysis(id: string): Promise<AnalysisRecord | null>
   /** Últimos análisis (desc por fecha). Sin userId lista todos (vista admin). */
   listAnalyses(opts: { userId?: string; limit?: number }): Promise<AnalysisRecord[]>

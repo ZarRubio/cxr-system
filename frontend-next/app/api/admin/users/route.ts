@@ -3,13 +3,16 @@ import { auth } from '@/auth'
 import bcrypt from 'bcryptjs'
 import { createUser, getUserByUsername, getUsers } from '@/lib/user-store'
 import type { CXRUser } from '@/lib/types'
+import { parseEmail } from '@/lib/email-address'
+import { getUserById } from '@/lib/user-store'
 
 async function requireAdmin() {
   const session = await auth()
   if (!session || (session.user as Record<string, unknown>).role !== 'admin') {
     return null
   }
-  return session
+  const current = await getUserById(String((session.user as Record<string, unknown>).id))
+  return current?.active && current.role === 'admin' ? session : null
 }
 
 export async function GET() {
@@ -27,6 +30,10 @@ export async function POST(req: Request) {
 
   const body = await req.json()
   const { name, username, password, cmp, specialty } = body
+  let email: string | null
+  try { email = parseEmail(body.email) } catch (error) {
+    return NextResponse.json({ error: (error as Error).message }, { status: 400 })
+  }
 
   if (!name || !username || !password) {
     return NextResponse.json({ error: 'Nombre, usuario y contraseña son obligatorios.' }, { status: 400 })
@@ -44,6 +51,7 @@ export async function POST(req: Request) {
     username,
     password:  await bcrypt.hash(password, 10),
     role:      'radiologist',
+    email,
     cmp:       cmp || null,
     specialty: specialty || 'Radiología',
     active:    true,

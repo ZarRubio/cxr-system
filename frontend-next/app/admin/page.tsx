@@ -1,8 +1,10 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
+import { EmailEditor } from '@/components/EmailEditor'
 import { UserPlus, ToggleLeft, ToggleRight, Shield, Stethoscope, X, Eye, EyeOff, AlertCircle, CheckCircle2 } from 'lucide-react'
 
 interface UserRow {
+  email?: string | null
   id:        string
   name:      string
   username:  string
@@ -34,7 +36,7 @@ export default function AdminPage() {
   const [showForm, setShowForm] = useState(false)
   const [toast,   setToast]   = useState<{ type: 'ok' | 'err'; msg: string } | null>(null)
 
-  const [form, setForm] = useState({ name: '', username: '', cmp: '', specialty: 'Radiología', password: '', confirm: '' })
+  const [form, setForm] = useState({ name: '', username: '', email: '', cmp: '', specialty: 'Radiología', password: '', confirm: '' })
   const [showPwd, setShowPwd] = useState(false)
   const [saving,  setSaving]  = useState(false)
   const [formErr, setFormErr] = useState('')
@@ -80,12 +82,12 @@ export default function AdminPage() {
       const res = await fetch('/api/admin/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: form.name, username: form.username, cmp: form.cmp, specialty: form.specialty, password: form.password }),
+        body: JSON.stringify({ name: form.name, username: form.username, email: form.email, cmp: form.cmp, specialty: form.specialty, password: form.password }),
       })
       const data = await res.json()
       if (!res.ok) { setFormErr(data.error ?? 'Error al crear usuario.'); return }
       setUsers(prev => [...prev, data])
-      setForm({ name: '', username: '', cmp: '', specialty: 'Radiología', password: '', confirm: '' })
+      setForm({ name: '', username: '', email: '', cmp: '', specialty: 'Radiología', password: '', confirm: '' })
       setShowForm(false)
       showToast('ok', `Dr./Dra. ${data.name} creado correctamente.`)
     } finally {
@@ -164,7 +166,7 @@ export default function AdminPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-[var(--surface2)] border-b border-[var(--border-subtle)]">
-                  {['Radiólogo', 'Usuario', 'CMP', 'Especialidad', 'Rol', 'Estado'].map(h => (
+                  {['Radiólogo', 'Usuario', 'Correo', 'CMP', 'Especialidad', 'Rol', 'Estado'].map(h => (
                     <th key={h} className="text-left text-xs font-bold text-[var(--fg-subtle)] uppercase tracking-wider px-4 py-3">{h}</th>
                   ))}
                 </tr>
@@ -184,6 +186,9 @@ export default function AdminPage() {
                       </div>
                     </td>
                     <td className="px-4 py-3 font-mono text-xs text-[var(--fg-muted)]">{user.username}</td>
+                    <td className="px-4 py-3 min-w-[260px]">
+                      <EmailEditor initialEmail={user.email ?? null} required={user.role === 'admin'} endpoint={`/api/admin/users/${user.id}`} />
+                    </td>
                     <td className="px-4 py-3 text-xs text-[var(--fg-muted)]">{user.cmp ?? '—'}</td>
                     <td className="px-4 py-3 text-xs text-[var(--fg-muted)]">{user.specialty ?? '—'}</td>
                     <td className="px-4 py-3">
@@ -224,8 +229,8 @@ export default function AdminPage() {
 
       {/* Create user drawer/modal */}
       {showForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm px-4">
-          <div className="bg-white dark:bg-[#0F172A] border border-[var(--border-subtle)] rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm px-4">
+          <div className="bg-white dark:bg-[#0F172A] border border-[var(--border-subtle)] rounded-2xl w-full max-w-md shadow-2xl max-h-[90dvh] overflow-y-auto">
             <div className="flex items-center justify-between px-6 py-5 border-b border-[var(--border-subtle)]">
               <div>
                 <h3 className="text-base font-bold text-[var(--fg)]">Nuevo radiólogo</h3>
@@ -240,6 +245,7 @@ export default function AdminPage() {
               {[
                 { id: 'name',      label: 'Nombre completo',  placeholder: 'Dr. Juan Pérez García',  type: 'text',     required: true  },
                 { id: 'username',  label: 'Usuario de acceso', placeholder: 'jperez',                 type: 'text',     required: true  },
+                { id: 'email', label: 'Correo (opcional)', placeholder: 'nombre@correo.com', type: 'email', required: false },
                 { id: 'cmp',       label: 'N° CMP',           placeholder: '12345',                   type: 'text',     required: false },
                 { id: 'specialty', label: 'Especialidad',     placeholder: 'Radiología',              type: 'text',     required: false },
               ].map(({ id, label, placeholder, type, required }) => (

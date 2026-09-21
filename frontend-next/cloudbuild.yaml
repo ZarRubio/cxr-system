@@ -3,7 +3,7 @@ steps:
     args:
       - 'build'
       - '--build-arg'
-      - 'NEXT_PUBLIC_BACKEND_URL=https://cxr-backend-55733445282.us-central1.run.app'
+      - 'NEXT_PUBLIC_BACKEND_URL=https://cxr-backend-35fld7nofa-uc.a.run.app'
       - '-t'
       - 'us-central1-docker.pkg.dev/project-20fbf8b2-6971-4ef9-8b1/cxr/frontend:latest'
       - '.'

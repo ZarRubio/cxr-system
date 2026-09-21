@@ -1,4 +1,5 @@
 'use client'
+import { EmailAlertStatus } from '@/components/EmailAlertStatus'
 import { useCallback, useMemo, useState } from 'react'
 import { useDropzone } from 'react-dropzone'
 import Link from 'next/link'
@@ -269,6 +270,7 @@ function TriageRow({ item, position }: { item: BatchResultItem; position: number
       <td className="readout px-4 py-3 text-xs font-bold" style={{ color: c.bar }}>{position}</td>
       <td className="px-4 py-3 max-w-[220px]">
         <span className="text-xs text-[var(--fg)] truncate block">{item.filename}</span>
+        <EmailAlertStatus alert={item.result.email_alert} />
         {item.result.dicom_meta?.patient_age != null && (
           <span className="text-[10px] text-[var(--fg-subtle)]">
             {item.result.dicom_meta.patient_age} años{item.result.dicom_meta.patient_sex ? ` · ${item.result.dicom_meta.patient_sex}` : ''}

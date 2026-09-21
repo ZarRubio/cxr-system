@@ -135,6 +135,24 @@ class TestAuditService:
         assert event["image_hash"] == "abc"
         assert "timestamp" in event
 
+    def test_emits_structured_event_for_cloud_logging(self, tmp_path, monkeypatch):
+        from services import audit_service
+
+        audit_path = tmp_path / "audit.jsonl"
+        calls = []
+        monkeypatch.setattr(audit_service.settings, "audit_log_path", str(audit_path))
+        monkeypatch.setattr(
+            audit_service.logger,
+            "info",
+            lambda message, *, extra: calls.append((message, extra)),
+        )
+
+        audit_service.write_audit_event({"event_type": "prediction", "image_hash": "abc"})
+
+        assert calls[0][0] == "audit_event"
+        assert calls[0][1]["image_hash"] == "abc"
+        assert "timestamp" in calls[0][1]
+
     def test_appends_multiple_events(self, tmp_path, monkeypatch):
         from services import audit_service
 
@@ -147,12 +165,16 @@ class TestAuditService:
         lines = audit_path.read_text(encoding="utf-8").strip().splitlines()
         assert [json.loads(ln)["n"] for ln in lines] == [0, 1, 2]
 
-    def test_unwritable_path_does_not_raise(self, monkeypatch):
+    def test_empty_path_uses_structured_log_only(self, monkeypatch):
         from services import audit_service
 
-        # Ruta invalida en Windows y Linux: un directorio como archivo
+        calls = []
         monkeypatch.setattr(audit_service.settings, "audit_log_path", "")
-        audit_service.write_audit_event({"event_type": "prediction"})  # no debe lanzar
+        monkeypatch.setattr(
+            audit_service.logger, "info", lambda message, *, extra: calls.append((message, extra))
+        )
+        audit_service.write_audit_event({"event_type": "prediction"})
+        assert calls[0][0] == "audit_event"
 
 
 # ══════════════════════════════════════════════════════════════════════════════

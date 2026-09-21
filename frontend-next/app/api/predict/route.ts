@@ -1,9 +1,10 @@
 import type { NextRequest } from 'next/server'
-import { auth } from '@/auth'
+import { getActiveSession } from '@/lib/active-session'
 import { backendHeaders, backendUrl, passthrough } from '@/lib/backend'
 import { getDataStore } from '@/lib/data/store'
 import { buildAnalysisRecord } from '@/lib/data/analysis'
 import type { Prediction } from '@/lib/types'
+import { notifyCriticalAnalysis } from '@/lib/critical-email'
 
 export const maxDuration = 300
 
@@ -19,8 +20,8 @@ function studyHeader(request: NextRequest, name: string): string | null {
 }
 
 export async function POST(request: NextRequest) {
-  const session = await auth()
-  if (!session) {
+  const principal = await getActiveSession()
+  if (!principal) {
     return Response.json({ detail: 'No autorizado.' }, { status: 401 })
   }
 
@@ -45,9 +46,8 @@ export async function POST(request: NextRequest) {
   // Predicción exitosa: persistir en el historial clínico antes de responder.
   // Si el guardado falla, la predicción se devuelve igual (sin analysis_id).
   const prediction = (await res.json()) as Prediction
-  const user = session.user as Record<string, unknown>
   const record = buildAnalysisRecord(
-    { id: String(user.id ?? ''), name: String(user.name ?? '') },
+    { id: principal.user.id, name: principal.user.name },
     prediction,
     {
       filename: studyHeader(request, 'x-cxr-filename') ?? 'imagen',
@@ -59,7 +59,13 @@ export async function POST(request: NextRequest) {
 
   try {
     await getDataStore().createAnalysis(record)
-    return Response.json({ ...prediction, analysis_id: record.id })
+    prediction.analysis_id = record.id
+    try {
+      prediction.email_alert = await notifyCriticalAnalysis(record)
+    } catch {
+      console.error('[predict] no se pudo completar la alerta', { analysisId: record.id })
+    }
+    return Response.json(prediction)
   } catch (e) {
     console.error('[predict] no se pudo persistir el análisis:', e)
     return Response.json(prediction)

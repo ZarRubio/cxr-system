@@ -4,6 +4,7 @@ import bcrypt from 'bcryptjs'
 import { existsSync, mkdirSync, readFileSync } from 'fs'
 import { join } from 'path'
 import type { CXRUser } from './types'
+import { DEFAULT_ADMIN_EMAIL } from './email-address'
 
 /**
  * Base de datos SQLite del frontend (usuarios).
@@ -82,7 +83,10 @@ export function getDb(): Database.Database {
     );
     CREATE INDEX IF NOT EXISTS idx_analyses_user ON analyses (userId, createdAt DESC);
   `)
+  const columns = db.prepare('PRAGMA table_info(users)').all() as Array<{ name: string }>
+  if (!columns.some((column) => column.name === 'email')) db.exec('ALTER TABLE users ADD COLUMN email TEXT')
   seedFromLegacyJson(db)
   seedDefaultAdmin(db)
+  db.prepare("UPDATE users SET email = ? WHERE role = 'admin' AND (email IS NULL OR email = '')").run(DEFAULT_ADMIN_EMAIL)
   return db
 }

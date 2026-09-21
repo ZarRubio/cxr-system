@@ -33,6 +33,8 @@ services:
       # Sin AUTH_URL, el server standalone detecta el host como 0.0.0.0:3000
       # y los redirects de auth (p.ej. signout -> /login) apuntan a una URL muerta.
       - AUTH_URL=${AUTH_URL:-http://localhost:3000}
+      - SMTP_USER=${SMTP_USER:-Adcejuma@gmail.com}
+      - SMTP_PASSWORD=${SMTP_PASSWORD:-}
       - NODE_ENV=production
     depends_on:
       backend:

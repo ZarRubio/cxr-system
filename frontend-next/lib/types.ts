@@ -1,4 +1,5 @@
 export interface Prediction {
+  email_alert?: import('./data/analysis').EmailAlert
   /** ID del registro persistido en el historial (lo añade /api/predict) */
   analysis_id?: string
   predicted_class: string
@@ -53,6 +54,7 @@ export interface ClassMetrics {
 export type Severity = 'critical' | 'high' | 'moderate' | 'normal'
 
 export interface CXRUser {
+  email?: string | null
   id:        string
   name:      string
   username:  string

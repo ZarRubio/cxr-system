@@ -3,7 +3,8 @@ import bcrypt from 'bcryptjs'
 import type { CXRUser } from '@/lib/types'
 import type { AnalysisFeedback, AnalysisRecord } from './analysis'
 import type { DataStore } from './store'
-import { fsDeleteDoc, fsGetDoc, fsQuery, fsSetDoc, fsUpdateFields } from './firestore-rest'
+import { fsClaimEmailAlert, fsDeleteDoc, fsGetDoc, fsQuery, fsSetDoc, fsUpdateFields } from './firestore-rest'
+import { DEFAULT_ADMIN_EMAIL } from '@/lib/email-address'
 
 /**
  * Persistencia en Firestore (colecciones `users` y `analyses`).
@@ -30,7 +31,10 @@ let seedPromise: Promise<void> | null = null
 function ensureSeed(): Promise<void> {
   seedPromise ??= (async () => {
     const admin = await fsGetDoc(USERS, 'usr_admin')
-    if (admin) return
+    if (admin) {
+      if (!admin.email) await fsUpdateFields(USERS, 'usr_admin', { email: DEFAULT_ADMIN_EMAIL })
+      return
+    }
     const password = process.env.SEED_ADMIN_PASSWORD ?? 'hnal2026'
     const user: CXRUser = {
       id: 'usr_admin',
@@ -38,6 +42,7 @@ function ensureSeed(): Promise<void> {
       username: 'admin',
       password: bcrypt.hashSync(password, 10),
       role: 'admin',
+      email: DEFAULT_ADMIN_EMAIL,
       cmp: null,
       specialty: 'Administración del sistema',
       active: true,
@@ -106,6 +111,14 @@ export const firestoreStore: DataStore = {
   async getAnalysis(id) {
     const doc = await fsGetDoc(ANALYSES, id)
     return doc ? toAnalysis(doc) : null
+  },
+
+  async claimEmailAlert(id, alert) {
+    return fsClaimEmailAlert(id, alert)
+  },
+
+  async setEmailAlert(id, alert) {
+    await fsUpdateFields(ANALYSES, id, { emailAlert: alert as unknown as Record<string, unknown> })
   },
 
   async listAnalyses({ userId, limit = 500 }) {

@@ -1,10 +1,17 @@
 import NextAuth from 'next-auth'
 import { authConfig } from './auth.config'
 import { NextResponse } from 'next/server'
+import { getUserById } from './lib/user-store'
 
 const { auth } = NextAuth(authConfig)
 
-export default auth((req) => {
+function clearSessionCookies(response: NextResponse) {
+  response.cookies.delete('authjs.session-token')
+  response.cookies.delete('__Secure-authjs.session-token')
+  return response
+}
+
+export default auth(async (req) => {
   const { pathname } = req.nextUrl
   const isLoggedIn   = !!req.auth
 
@@ -18,15 +25,30 @@ export default auth((req) => {
     return NextResponse.next()
   }
 
+  let accountActive = false
+  if (isLoggedIn) {
+    const id = (req.auth?.user as Record<string, unknown> | undefined)?.id
+    try {
+      accountActive = Boolean(id && (await getUserById(String(id)))?.active)
+    } catch (error) {
+      console.error('[auth] no se pudo revalidar la cuenta', error)
+      return new NextResponse('Servicio de autenticación no disponible.', { status: 503 })
+    }
+  }
+
   // Login: si ya autenticado, redirigir a /analyze
   if (pathname === '/login') {
-    if (isLoggedIn) return NextResponse.redirect(new URL('/analyze', req.nextUrl))
+    if (accountActive) return NextResponse.redirect(new URL('/analyze', req.nextUrl))
+    if (isLoggedIn) return clearSessionCookies(NextResponse.next())
     return NextResponse.next()
   }
 
   // Rutas protegidas: redirigir a /login si no autenticado
-  if (!isLoggedIn) {
-    return NextResponse.redirect(new URL('/login', req.nextUrl))
+  if (!isLoggedIn || !accountActive) {
+    const loginUrl = new URL('/login', req.nextUrl)
+    if (isLoggedIn) loginUrl.searchParams.set('reason', 'inactive')
+    const response = NextResponse.redirect(loginUrl)
+    return isLoggedIn ? clearSessionCookies(response) : response
   }
 
   // /admin y /api/admin: solo rol admin

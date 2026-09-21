@@ -159,6 +159,21 @@ export async function fsDeleteDoc(collection: string, id: string): Promise<boole
   return true
 }
 
+/** Compare-and-set prevents concurrent instances from sending the same alert. */
+export async function fsClaimEmailAlert(id: string, alert: unknown): Promise<boolean> {
+  const path = `/analyses/${encodeURIComponent(id)}`
+  const res = await firestoreFetch(path)
+  if (!res.ok) throw new Error(`Firestore alert read: ${res.status}`)
+  const doc = await res.json() as { fields?: Record<string, FsValue>; updateTime: string }
+  if (doc.fields?.emailAlert) return false
+  const claimed = await firestoreFetch(`${path}?updateMask.fieldPaths=emailAlert&currentDocument.updateTime=${encodeURIComponent(doc.updateTime)}`, {
+    method: 'PATCH', body: JSON.stringify({ fields: { emailAlert: toFsValue(alert) } }),
+  })
+  if (claimed.status === 409 || claimed.status === 400) return false
+  if (!claimed.ok) throw new Error(`Firestore alert claim: ${claimed.status}`)
+  return true
+}
+
 export interface FsQueryOptions {
   collection: string
   where?: Array<{ field: string; op: 'EQUAL'; value: unknown }>

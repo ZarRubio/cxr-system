@@ -14,8 +14,8 @@ env:
   REGION: us-central1
   REGISTRY: us-central1-docker.pkg.dev
   AR_REPO: cxr
-  BACKEND_URL: https://cxr-backend-55733445282.us-central1.run.app
-  FRONTEND_URL: https://cxr-frontend-55733445282.us-central1.run.app
+  BACKEND_URL: https://cxr-backend-35fld7nofa-uc.a.run.app
+  FRONTEND_URL: https://cxr-frontend-35fld7nofa-uc.a.run.app
   GCS_MODELS_BUCKET: cxr-model-artifacts-55733445282
 
 jobs:
@@ -106,7 +106,28 @@ jobs:
           docker push "$IMAGE:latest"
 
       - name: Deploy frontend to Cloud Run
+        env:
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          CXR_DEPLOY_BACKEND_KEY: ${{ secrets.CXR_API_KEY }}
+          CXR_DEPLOY_AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
         run: |
+          test -n "$SMTP_PASSWORD" || { echo "Falta el secreto SMTP_PASSWORD"; exit 1; }
+          python3 - <<'PY'
+          import json, os
+          config = {
+              "HOSTNAME": "0.0.0.0", "BACKEND_URL": "${{ env.BACKEND_URL }}",
+              "AUTH_TRUST_HOST": "true", "AUTH_URL": "${{ env.FRONTEND_URL }}",
+              "DATA_BACKEND": "firestore", "GOOGLE_CLOUD_PROJECT": "${{ env.PROJECT_ID }}",
+              "BACKEND_API_KEY": os.environ["CXR_DEPLOY_BACKEND_KEY"],
+              "AUTH_SECRET": os.environ["CXR_DEPLOY_AUTH_SECRET"],
+              "SMTP_USER": "Adcejuma@gmail.com", "SMTP_PASSWORD": os.environ["SMTP_PASSWORD"],
+          }
+          path = os.path.join(os.environ["RUNNER_TEMP"], "cxr-frontend-env.json")
+          with open(path, "w") as f:
+              json.dump(config, f)
+          os.chmod(path, 0o600)
+          PY
+          trap 'rm -f "$RUNNER_TEMP/cxr-frontend-env.json"' EXIT
           gcloud run deploy cxr-frontend \
             --image "${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.AR_REPO }}/frontend:${{ github.sha }}" \
             --region ${{ env.REGION }} \
@@ -117,4 +138,4 @@ jobs:
             --min-instances 0 \
             --max-instances 3 \
             --port 3000 \
-            --set-env-vars "HOSTNAME=0.0.0.0,BACKEND_URL=${{ env.BACKEND_URL }},AUTH_TRUST_HOST=true,AUTH_URL=${{ env.FRONTEND_URL }},DATA_BACKEND=firestore,GOOGLE_CLOUD_PROJECT=${{ env.PROJECT_ID }},BACKEND_API_KEY=${{ secrets.CXR_API_KEY }},AUTH_SECRET=${{ secrets.AUTH_SECRET }}"
+            --env-vars-file "$RUNNER_TEMP/cxr-frontend-env.json"

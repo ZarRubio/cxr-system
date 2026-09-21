@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server'
-import { auth } from '@/auth'
+import { getActiveSession } from '@/lib/active-session'
 import { getDataStore } from '@/lib/data/store'
 import { filterAnalyses, type AnalysisFilters, type FeedbackFilter } from '@/lib/data/analysis'
 import type { Severity } from '@/lib/types'
@@ -9,12 +9,12 @@ import type { Severity } from '@/lib/types'
  * Los administradores ven el historial completo del servicio.
  */
 export async function GET(request: NextRequest) {
-  const session = await auth()
-  if (!session) {
+  const principal = await getActiveSession()
+  if (!principal) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   }
 
-  const user = session.user as Record<string, unknown>
+  const user = principal.user
   const isAdmin = user.role === 'admin'
   const params = request.nextUrl.searchParams
 
@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
   }
 
   const analyses = await getDataStore().listAnalyses({
-    userId: isAdmin ? undefined : String(user.id ?? ''),
+    userId: isAdmin ? undefined : user.id,
     limit: 500,
   })
 

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { auth } from '@/auth'
+import { getActiveSession } from '@/lib/active-session'
 import { getDataStore } from '@/lib/data/store'
 import type { AnalysisFeedback } from '@/lib/data/analysis'
 
@@ -12,8 +12,8 @@ export async function PUT(
   req: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const session = await auth()
-  if (!session) {
+  const principal = await getActiveSession()
+  if (!principal) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   }
 
@@ -24,8 +24,7 @@ export async function PUT(
     return NextResponse.json({ error: 'Análisis no encontrado.' }, { status: 404 })
   }
 
-  const user = session.user as Record<string, unknown>
-  if (analysis.userId !== String(user.id ?? '')) {
+  if (analysis.userId !== principal.user.id) {
     return NextResponse.json(
       { error: 'Solo el radiólogo que realizó el análisis puede validarlo.' },
       { status: 403 },

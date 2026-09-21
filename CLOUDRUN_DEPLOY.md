@@ -55,10 +55,10 @@ gcloud run deploy cxr-backend \
   --max-instances 3 \
   --no-cpu-throttling \
   --allow-unauthenticated \
-  --set-env-vars "CXR_CORS_ORIGINS=https://cxr-frontend-55733445282.us-central1.run.app,CXR_API_KEY=<la-misma-key-que-el-frontend>"
+  --set-env-vars "CXR_CORS_ORIGINS=https://cxr-frontend-35fld7nofa-uc.a.run.app,CXR_API_KEY=<la-misma-key-que-el-frontend>"
 ```
 
-Backend URL: `https://cxr-backend-55733445282.us-central1.run.app`
+Backend URL: `https://cxr-backend-35fld7nofa-uc.a.run.app`
 
 ## 5. Build y push del frontend (Next.js)
 
@@ -88,14 +88,14 @@ gcloud run deploy cxr-frontend \
   --min-instances 0 \
   --max-instances 3 \
   --allow-unauthenticated \
-  --set-env-vars "HOSTNAME=0.0.0.0,BACKEND_URL=https://cxr-backend-55733445282.us-central1.run.app,BACKEND_API_KEY=<la-misma-key-que-el-backend>,AUTH_SECRET=<openssl rand -base64 32>,AUTH_TRUST_HOST=true"
+  --set-env-vars "HOSTNAME=0.0.0.0,BACKEND_URL=https://cxr-backend-35fld7nofa-uc.a.run.app,BACKEND_API_KEY=<la-misma-key-que-el-backend>,AUTH_SECRET=<openssl rand -base64 32>,AUTH_TRUST_HOST=true"
 ```
 
 ## 7. Verificación final
 
 ```bash
 # Backend health
-curl https://cxr-backend-55733445282.us-central1.run.app/health
+curl https://cxr-backend-35fld7nofa-uc.a.run.app/health
 
 # Frontend URL
 gcloud run services describe cxr-frontend --region us-central1 --format='value(status.url)'

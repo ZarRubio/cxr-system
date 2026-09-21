@@ -41,11 +41,12 @@ export const sqliteStore: DataStore = {
   async createUser(user) {
     getDb()
       .prepare(
-        `INSERT INTO users (id, name, username, password, role, cmp, specialty, active, createdAt)
-         VALUES (@id, @name, @username, @password, @role, @cmp, @specialty, @active, @createdAt)`,
+        `INSERT INTO users (id, name, username, password, role, cmp, specialty, active, createdAt, email)
+         VALUES (@id, @name, @username, @password, @role, @cmp, @specialty, @active, @createdAt, @email)`,
       )
       .run({
         ...user,
+        email: user.email ?? null,
         cmp: user.cmp ?? null,
         specialty: user.specialty ?? null,
         active: user.active ? 1 : 0,
@@ -57,8 +58,8 @@ export const sqliteStore: DataStore = {
     if (!current) return null
     const next = { ...current, ...fields }
     getDb()
-      .prepare('UPDATE users SET name = ?, password = ?, cmp = ?, specialty = ?, active = ? WHERE id = ?')
-      .run(next.name, next.password, next.cmp ?? null, next.specialty ?? null, next.active ? 1 : 0, id)
+      .prepare('UPDATE users SET name = ?, password = ?, cmp = ?, specialty = ?, active = ?, email = ? WHERE id = ?')
+      .run(next.name, next.password, next.cmp ?? null, next.specialty ?? null, next.active ? 1 : 0, next.email ?? null, id)
     return this.getUserById(id)
   },
 
@@ -76,6 +77,22 @@ export const sqliteStore: DataStore = {
   async getAnalysis(id) {
     const row = getDb().prepare('SELECT data FROM analyses WHERE id = ?').get(id) as { data: string } | undefined
     return row ? rowToAnalysis(row) : null
+  },
+
+  async claimEmailAlert(id, alert) {
+    return getDb().transaction(() => {
+      const row = getDb().prepare('SELECT data FROM analyses WHERE id = ?').get(id) as { data: string } | undefined
+      if (!row) return false
+      const record = rowToAnalysis(row)
+      if (record.emailAlert) return false
+      getDb().prepare('UPDATE analyses SET data = ? WHERE id = ?').run(JSON.stringify({ ...record, emailAlert: alert }), id)
+      return true
+    })()
+  },
+
+  async setEmailAlert(id, alert) {
+    getDb().prepare("UPDATE analyses SET data = json_set(data, '$.emailAlert', json(?)) WHERE id = ?")
+      .run(JSON.stringify(alert), id)
   },
 
   async listAnalyses({ userId, limit = 500 }) {

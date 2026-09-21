@@ -10,11 +10,17 @@ logger = logging.getLogger("cxr.audit")
 
 
 def write_audit_event(event: dict[str, Any]) -> None:
-    """Append a patient-safe audit event without image bytes or DICOM metadata."""
+    """Persist a patient-safe audit event locally and through structured stdout logs."""
     payload = {
         "timestamp": datetime.now(UTC).isoformat(),
         **event,
     }
+    # Cloud Run captures stdout/stderr in Cloud Logging. Keeping the complete
+    # audit payload in structured fields makes the trail survive instance restarts.
+    logger.info("audit_event", extra=payload)
+
+    if not settings.audit_log_path:
+        return
     path = Path(settings.audit_log_path)
     try:
         path.parent.mkdir(parents=True, exist_ok=True)

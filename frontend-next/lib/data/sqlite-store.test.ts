@@ -41,6 +41,7 @@ describe('sqliteStore — usuarios', () => {
     const admin = await sqliteStore.getUserByUsername('admin')
     expect(admin).not.toBeNull()
     expect(admin!.role).toBe('admin')
+    expect(admin!.email).toBe('aerubio2305@gmail.com')
   })
 
   it('crea, actualiza y borra usuarios', async () => {
@@ -51,9 +52,10 @@ describe('sqliteStore — usuarios', () => {
     })
     expect((await sqliteStore.getUserById('usr_t1'))!.username).toBe('test1')
 
-    const updated = await sqliteStore.updateUser('usr_t1', { active: false, name: 'Test B' })
+    const updated = await sqliteStore.updateUser('usr_t1', { active: false, name: 'Test B', email: 'test@example.com' })
     expect(updated!.active).toBe(false)
     expect(updated!.name).toBe('Test B')
+    expect(updated!.email).toBe('test@example.com')
 
     expect(await sqliteStore.deleteUser('usr_t1')).toBe(true)
     expect(await sqliteStore.getUserById('usr_t1')).toBeNull()
@@ -94,5 +96,15 @@ describe('sqliteStore — análisis', () => {
     const again = await sqliteStore.setAnalysisFeedback('an-1', { ...fb, agrees: true, actualFinding: null })
     expect(again!.feedback!.agrees).toBe(true)
     expect(await sqliteStore.setAnalysisFeedback('inexistente', fb)).toBeNull()
+  })
+
+  it('claims an alert once and preserves feedback when updating delivery', async () => {
+    const alert = { createdAt: new Date().toISOString(), admin: { status: 'sending' as const }, radiologist: { status: 'pending_email' as const } }
+    expect(await sqliteStore.claimEmailAlert('an-1', alert)).toBe(true)
+    expect(await sqliteStore.claimEmailAlert('an-1', alert)).toBe(false)
+    await sqliteStore.setEmailAlert('an-1', { ...alert, admin: { status: 'sent' } })
+    const saved = await sqliteStore.getAnalysis('an-1')
+    expect(saved?.emailAlert?.admin.status).toBe('sent')
+    expect(saved?.feedback?.agrees).toBe(true)
   })
 })

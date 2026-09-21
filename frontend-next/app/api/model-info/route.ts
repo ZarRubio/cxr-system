@@ -1,10 +1,10 @@
 import type { NextRequest } from 'next/server'
-import { auth } from '@/auth'
+import { getActiveSession } from '@/lib/active-session'
 import { backendHeaders, backendUrl, passthrough } from '@/lib/backend'
 
 export async function GET(request: NextRequest) {
-  const session = await auth()
-  if (!session) {
+  const principal = await getActiveSession()
+  if (!principal) {
     return Response.json({ detail: 'No autorizado.' }, { status: 401 })
   }
 

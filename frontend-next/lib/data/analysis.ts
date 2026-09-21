@@ -17,6 +17,7 @@ export interface AnalysisFeedback {
 }
 
 export interface AnalysisRecord {
+  emailAlert?: EmailAlert
   id: string
   userId: string
   userName: string
@@ -40,6 +41,21 @@ export interface AnalysisRecord {
   modelVersion: string | null
   processingTimeMs: number | null
   feedback: AnalysisFeedback | null
+}
+
+export type DeliveryStatus = 'sending' | 'sent' | 'failed' | 'pending_email' | 'not_configured'
+export interface EmailDelivery {
+  status: DeliveryStatus
+  sentAt?: string
+}
+export interface EmailAlert {
+  createdAt: string
+  admin: EmailDelivery
+  radiologist: EmailDelivery
+}
+
+export function criticalFindings(record: Pick<AnalysisRecord, 'positiveFindings'>): string[] {
+  return [...new Set(record.positiveFindings)].filter((finding) => SEVERITY_MAP[finding] === 'critical')
 }
 
 export type FeedbackFilter = 'pending' | 'agree' | 'disagree'
@@ -84,7 +100,8 @@ export function buildAnalysisRecord(
     dicomStudyHash: prediction.dicom_meta?.study_hash ?? null,
     predictedClass: prediction.predicted_class,
     confidence: prediction.confidence,
-    severity: SEVERITY_MAP[prediction.predicted_class] ?? 'normal',
+    severity: criticalFindings({ positiveFindings: prediction.positive_findings ?? [] }).length
+      ? 'critical' : SEVERITY_MAP[prediction.predicted_class] ?? 'normal',
     probabilities: prediction.probabilities ?? {},
     positiveFindings: prediction.positive_findings ?? [],
     imageHash: prediction.image_hash ?? null,
@@ -113,7 +130,7 @@ export function filterAnalyses(records: AnalysisRecord[], filters: AnalysisFilte
     if (filters.feedback === 'agree' && r.feedback?.agrees !== true) return false
     if (filters.feedback === 'disagree' && r.feedback?.agrees !== false) return false
     if (q) {
-      const haystack = [r.studyId ?? '', r.batchId ?? '', r.filename, r.predictedClass, r.userName]
+      const haystack = [r.id, r.studyId ?? '', r.batchId ?? '', r.filename, r.predictedClass, r.userName]
         .join(' ')
         .toLowerCase()
       if (!haystack.includes(q)) return false

@@ -25,7 +25,7 @@ export function createUser(user: CXRUser): Promise<void> {
 
 export function updateUser(
   id: string,
-  fields: Partial<Pick<CXRUser, 'name' | 'cmp' | 'specialty' | 'active' | 'password'>>,
+  fields: Partial<Pick<CXRUser, 'name' | 'cmp' | 'specialty' | 'active' | 'password' | 'email'>>,
 ): Promise<CXRUser | null> {
   return getDataStore().updateUser(id, fields)
 }

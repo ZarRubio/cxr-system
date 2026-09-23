@@ -1,56 +1,49 @@
 'use client'
-import { useTheme }  from 'next-themes'
+import { useSyncExternalStore } from 'react'
+import { useTheme } from 'next-themes'
 import { useSession, signOut } from 'next-auth/react'
-import { Sun, Moon, Activity, LogOut } from 'lucide-react'
-import { useSessionStore } from '@/store/session'
+import { Moon, Sun, LogOut, UserRound, X } from 'lucide-react'
+import * as Dialog from '@radix-ui/react-dialog'
+import { ProfileEmail } from '../ProfileEmail'
+import { Button } from '../ui/button'
+
+const subscribe = () => () => {}
 
 export function Header() {
-  const { theme, setTheme } = useTheme()
-  const { data: session }   = useSession()
-  const total = useSessionStore((s) => s.totalAnalyses)
-
-  const user     = session?.user
-  const initials = user?.name?.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() ?? ''
-
+  const { resolvedTheme, setTheme } = useTheme()
+  const { data: session } = useSession()
+  const mounted = useSyncExternalStore(subscribe, () => true, () => false)
+  const dark = mounted && resolvedTheme === 'dark'
   return (
-    <header className="lg:hidden sticky top-0 z-40 flex items-center justify-between px-4 py-3 bg-[var(--sidebar-bg)] border-b border-[#1F2937]">
-      <div>
-        <span className="text-white font-extrabold text-base">CXR Classifier</span>
-        <span className="text-[#6B7280] text-xs ml-2">HNAL 2026</span>
+    <header className="shrink-0 flex items-center justify-between gap-3 px-4 sm:px-8 min-h-16 border-b border-[var(--border-subtle)] bg-[var(--surface)]">
+      <div className="min-w-0">
+        <p className="lg:hidden font-semibold text-sm">CXR Classifier</p>
+        <p className="hidden lg:block text-sm text-[var(--fg-muted)]">Hospital Nacional Arzobispo Loayza</p>
+        <p className="lg:hidden text-xs text-[var(--fg-subtle)]">HNAL · Investigación</p>
       </div>
-      <div className="flex items-center gap-2">
-        {total > 0 && (
-          <div className="flex items-center gap-1 text-[var(--sidebar-active-fg)] text-xs font-bold">
-            <Activity size={13} />
-            <span className="readout">{total}</span>
-          </div>
-        )}
-        <button
-          onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-          className="text-[#9CA3AF] hover:text-white transition-colors p-1.5 rounded cursor-pointer"
-          aria-label="Cambiar tema"
-        >
-          {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+      <div className="flex items-center gap-1">
+        <button className="icon-button" title={dark ? 'Modo claro' : 'Modo oscuro'} aria-label={dark ? 'Activar modo claro' : 'Activar modo oscuro'} onClick={() => setTheme(dark ? 'light' : 'dark')}>
+          {dark ? <Sun size={18} /> : <Moon size={18} />}
         </button>
-        {user && (
-          <>
-            <div
-              className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold"
-              style={{ background: 'var(--sidebar-active-bg)', color: 'var(--sidebar-active-fg)' }}
-              title={user.name}
-            >
-              {initials}
-            </div>
-            <button
-              onClick={() => signOut({ redirectTo: '/login' })}
-              className="text-[#6B7280] hover:text-white transition-colors p-1 rounded cursor-pointer"
-              aria-label="Cerrar sesión"
-              title="Cerrar sesión"
-            >
-              <LogOut size={16} />
+        <Dialog.Root>
+          <Dialog.Trigger asChild>
+            <button className="flex items-center gap-2 min-h-11 px-2 rounded-md text-sm cursor-pointer hover:bg-[var(--surface2)]" aria-label="Abrir mi cuenta">
+              <UserRound size={18} aria-hidden="true" /><span className="hidden sm:block max-w-44 truncate">{session?.user?.name ?? 'Mi cuenta'}</span>
             </button>
-          </>
-        )}
+          </Dialog.Trigger>
+          <Dialog.Portal>
+            <Dialog.Overlay className="fixed inset-0 bg-black/40 z-[60]" />
+            <Dialog.Content className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[calc(100%-2rem)] max-w-md max-h-[85dvh] overflow-y-auto card p-6 z-[61]">
+              <div className="flex items-center justify-between gap-3">
+                <Dialog.Title className="text-lg font-semibold">Mi cuenta</Dialog.Title>
+                <Dialog.Close className="icon-button" aria-label="Cerrar cuenta"><X size={18} /></Dialog.Close>
+              </div>
+              <Dialog.Description className="text-sm text-[var(--fg-muted)] mb-5">{session?.user?.name}</Dialog.Description>
+              <ProfileEmail />
+              <Button variant="outline" onClick={() => signOut({ redirectTo: '/login' })}><LogOut size={16} />Cerrar sesión</Button>
+            </Dialog.Content>
+          </Dialog.Portal>
+        </Dialog.Root>
       </div>
     </header>
   )

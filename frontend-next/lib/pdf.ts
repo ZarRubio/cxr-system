@@ -48,12 +48,12 @@ function scoreLabel(pct: number): string {
 
 function scoreInterpretation(pct: number): string {
   if (pct >= 85)
-    return 'El modelo identifica patrones muy consistentes con esta patología. Resultado robusto para apoyo diagnóstico.'
+    return 'Score elevado del modelo para este patrón. No representa una probabilidad clínica calibrada y requiere revisión de la imagen por el radiólogo.'
   if (pct >= 70)
-    return 'Hallazgos sugestivos de la patología indicada. Se recomienda correlación con la clínica del paciente.'
+    return 'Score intermedio-alto del modelo. Revisar localización, calidad de imagen y correlación clínica antes de interpretarlo.'
   if (pct >= 50)
-    return 'Hallazgos inespecíficos. La predicción es poco concluyente; se recomienda revisión por especialista.'
-  return 'Resultado no concluyente. No utilizar como base diagnóstica sin evaluación clínica completa.'
+    return 'Score intermedio y potencialmente limítrofe. Se recomienda revisión radiológica reforzada.'
+  return 'Score bajo o resultado sin hallazgo sobre umbral. No descarta patología y exige evaluación clínica completa.'
 }
 
 export async function buildPdf(
@@ -174,7 +174,7 @@ export async function buildPdf(
   doc.setFontSize(14)
   doc.setTextColor(...sevRgb)
   const badgeLabel = prediction.predicted_class === 'No Finding'
-    ? 'Sin hallazgos patológicos'
+    ? 'Sin hallazgos sobre umbral'
     : (BADGES[prediction.predicted_class] ?? prediction.predicted_class)
   doc.text(badgeLabel, M + 14, y + 47)
 
@@ -213,7 +213,7 @@ export async function buildPdf(
 
   // ── 4. Positive findings ───────────────────────────────────────────────────
   if (prediction.positive_findings && prediction.positive_findings.length > 0) {
-    y = sectionHeader('Hallazgos sobre umbral diagnóstico', y)
+    y = sectionHeader('Hallazgos sobre umbral del modelo', y)
 
     const primary    = prediction.predicted_class
     const secondary  = prediction.positive_findings.filter((f) => f !== primary)
@@ -294,11 +294,48 @@ export async function buildPdf(
   drawLines(interpLines, M + 6, y, LH[9])
   y += interpLines.length * LH[9] + 10
 
+  if (prediction.decision_support) {
+    const support = prediction.decision_support
+    const statusLabel = {
+      stable: 'Concordancia técnica',
+      borderline: 'Decisión cercana al umbral',
+      discordant: 'Desacuerdo entre modelos',
+    }[support.status]
+    const supportColor: RGB = support.status === 'stable'
+      ? [22, 101, 52]
+      : support.status === 'borderline'
+        ? [146, 64, 14]
+        : [153, 27, 27]
+
+    y = sectionHeader('Consistencia interna del ensemble', y)
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(9)
+    doc.setTextColor(...supportColor)
+    doc.text(statusLabel, M + 6, y)
+    y += 16
+
+    doc.setFont('helvetica', 'normal')
+    doc.setTextColor(55, 65, 81)
+    const supportText = [
+      `Clase evaluada: ${support.focus_class}. Desacuerdo: ${(support.model_disagreement * 100).toFixed(1)} pp. Distancia al umbral: ${(support.threshold_margin * 100).toFixed(1)} pp.`,
+      ...support.reasons,
+      support.recommendation,
+      'Este indicador mide consistencia interna; no es una probabilidad clínica calibrada.',
+    ]
+    for (const text of supportText) {
+      const lines = doc.splitTextToSize(text, W - M * 2 - 12)
+      y = pb(y, lines.length * LH[8.5] + 4)
+      drawLines(lines, M + 6, y, LH[8.5])
+      y += lines.length * LH[8.5] + 4
+    }
+    y += 8
+  }
+
   y += 12
 
   // ── 6. Images ──────────────────────────────────────────────────────────────
   if (originalBytes) {
-  y = pb(y, 250)
+  y = pb(y, Math.floor((W - M * 2 - 16) / 2) + 100)
   y = sectionHeader('Imágenes del estudio', y)
 
   const toDataUrl = (bytes: Uint8Array): Promise<string> =>
@@ -311,16 +348,16 @@ export async function buildPdf(
     })
 
   const IMG_W = Math.floor((W - M * 2 - 16) / 2)
-  const IMG_H = Math.round(IMG_W * 0.95)
+  const IMG_H = IMG_W
 
   try {
-    const origUrl = await toDataUrl(originalBytes)
+    const origUrl = prediction.image_preview ?? await toDataUrl(originalBytes)
 
     // Column labels
     doc.setFont('helvetica', 'bold')
     doc.setFontSize(8)
     doc.setTextColor(75, 85, 99)
-    doc.text('Radiografía original', M, y)
+    doc.text('Vista procesada (no diagnóstica)', M, y)
     doc.text(
       prediction.gradcam_class
         ? `Mapa de activación — ${BADGES[prediction.gradcam_class] ?? prediction.gradcam_class}`
@@ -375,7 +412,7 @@ export async function buildPdf(
   const desc = DESCRIPTIONS[prediction.predicted_class]
   if (desc) {
     y = pb(y, 50)
-    y = sectionHeader('Descripción clínica del hallazgo', y)
+    y = sectionHeader('Texto de referencia de la clase (no observación del estudio)', y)
     doc.setFont('helvetica', 'normal')
     doc.setFontSize(9)
     doc.setTextColor(55, 65, 81)
@@ -389,7 +426,7 @@ export async function buildPdf(
   const exp = prediction.explanation
   if (exp && (exp.summary || exp.visual || exp.clinical)) {
     y = pb(y, 40)
-    y = sectionHeader('Explicación generada por el modelo', y)
+    y = sectionHeader('Texto predefinido de la clase (no generado desde la imagen)', y)
 
     for (const [label, text] of [
       ['Resumen',          exp.summary],
@@ -435,16 +472,12 @@ export async function buildPdf(
 
   // ── 11. Observaciones e impresión diagnóstica ─────────────────────────────
   y = pb(y, 80)
-  y = sectionHeader('Impresión diagnóstica', y)
+  y = sectionHeader('Observaciones del radiólogo', y)
 
   const NOTE_LINE_H = 18
   const impressionText = notes && notes.trim()
     ? notes.trim()
-    : `Estudio compatible con ${
-        prediction.predicted_class === 'No Finding'
-          ? 'hallazgos dentro de límites normales. No se identifican opacidades, consolidaciones ni masas evidentes.'
-          : `${BADGES[prediction.predicted_class] ?? prediction.predicted_class} (Score IA ${confPct.toFixed(1)}%). ${DESCRIPTIONS[prediction.predicted_class] ?? ''} Se recomienda correlación con la clínica del paciente y criterio del radiólogo certificado.`
-      }`
+    : 'No se registraron observaciones del radiólogo. Este reporte resume resultados automáticos y no constituye una impresión diagnóstica. Ningún umbral superado no equivale a ausencia de enfermedad.'
 
   const impLines = doc.splitTextToSize(impressionText, W - M * 2 - 24)
   const impBoxH  = impLines.length * NOTE_LINE_H + 32
@@ -555,7 +588,7 @@ export async function buildPdf(
   const sysLines = [
     `Estudio: ${meta?.studyId ?? '—'}`,
     `Informe: ${now}`,
-    'CXR-Ensemble v1 · HNAL 2026',
+    prediction.model_version ?? 'Version del modelo no registrada',
     'Resultado sujeto a validación clínica',
   ]
   sysLines.forEach((line, i) => {
@@ -571,10 +604,9 @@ export async function buildPdf(
   doc.setFontSize(8)
   doc.setTextColor(107, 114, 128)
   const methText =
-    'El sistema utiliza un ensemble de red neuronal convolucional DenseNet121 y Vision Transformer (ViT) con ' +
-    '4 bloques y 8 cabezas de atención. Las predicciones se combinan por promedio ponderado sobre 14 clases patológicas. ' +
-    'La explicabilidad visual se genera con Grad-CAM sobre la última capa convolucional. ' +
-    'Los umbrales de clasificación fueron optimizados por clase sobre el conjunto de validación.'
+    'El sistema combina dos clasificadores DenseNet121 y Vision Transformer mediante promedio ponderado sobre 14 clases. ' +
+    'Grad-CAM representa activaciones del modelo v2, no una segmentación de lesiones ni una explicación completa del ensemble. ' +
+    'Los scores no son probabilidades clínicas calibradas. La validación externa y la reproducibilidad de los umbrales deben documentarse.'
   const methLines = doc.splitTextToSize(methText, W - M * 2 - 12)
   drawLines(methLines, M + 6, y, LH[8])
 

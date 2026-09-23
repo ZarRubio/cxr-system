@@ -68,7 +68,7 @@ export function ProbabilityBars({ prediction, thresholds }: ProbabilityBarsProps
           className="flex items-center gap-1 text-xs text-[var(--fg-subtle)] hover:text-[var(--fg)] transition-colors mt-1 cursor-pointer"
         >
           {showAll ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
-          {showAll ? 'Mostrar menos' : `${hidden.length} clases con probabilidad < 3%`}
+          {showAll ? 'Mostrar menos' : `${hidden.length} clases con score IA < 3%`}
         </button>
       )}
 

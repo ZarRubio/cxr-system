@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import { GitCompare, AlertCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { UploadArea } from '@/components/analyze/UploadArea'
-import { FindingCard } from '@/components/analyze/FindingCard'
+import { MultipleFindingsCard } from '@/components/analyze/FindingCard'
 import { ProbabilityBars } from '@/components/analyze/ProbabilityBars'
 import { GradCamView } from '@/components/analyze/GradCamView'
 import { fetchModelInfo, predict } from '@/lib/api'
@@ -30,9 +30,10 @@ export default function ComparePage() {
   const { data: modelInfo } = useQuery({ queryKey: ['model-info'], queryFn: fetchModelInfo })
 
   const bothReady = slotA.bytes.length > 0 && slotB.bytes.length > 0
-  const hasResults = slotA.prediction !== null || slotB.prediction !== null
+  const hasResults = slotA.prediction !== null || slotB.prediction !== null || !!slotA.error || !!slotB.error
 
   const handleCompare = async () => {
+    if (!bothReady || running) return
     setRunning(true)
     setSlotA((s) => ({ ...s, loading: true, error: null }))
     setSlotB((s) => ({ ...s, loading: true, error: null }))
@@ -59,26 +60,28 @@ export default function ComparePage() {
 
   return (
     <div className="space-y-6">
-      <div>
+      <div className="page-heading">
         <h1 className="text-2xl font-extrabold text-[var(--fg)]">Comparación de radiografías</h1>
         <p className="text-sm text-[var(--fg-subtle)] mt-1">
-          Carga dos imágenes para comparar hallazgos lado a lado con el mismo modelo.
+          Dos resultados independientes del mismo modelo. No establece progresión de enfermedad.
         </p>
       </div>
 
       {/* Upload row */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="card p-4 space-y-2">
+        <div className="space-y-2 min-w-0">
           <p className="tech-label">Imagen A</p>
           <UploadArea
+            disabled={running}
             onFile={(b, n) => setSlotA({ ...emptySlot(), bytes: b, name: n })}
             currentFilename={slotA.name || undefined}
             onClear={() => setSlotA(emptySlot())}
           />
         </div>
-        <div className="card p-4 space-y-2">
+        <div className="space-y-2 min-w-0">
           <p className="tech-label">Imagen B</p>
           <UploadArea
+            disabled={running}
             onFile={(b, n) => setSlotB({ ...emptySlot(), bytes: b, name: n })}
             currentFilename={slotB.name || undefined}
             onClear={() => setSlotB(emptySlot())}
@@ -142,7 +145,7 @@ export default function ComparePage() {
                       originalBytes={slot.bytes}
                     />
                   )}
-                  <FindingCard prediction={slot.prediction} />
+                  <MultipleFindingsCard prediction={slot.prediction} />
                   <div className="card p-4">
                     <ProbabilityBars prediction={slot.prediction} thresholds={modelInfo?.thresholds} />
                   </div>

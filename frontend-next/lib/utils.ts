@@ -15,6 +15,12 @@ export function formatConfidence(value: number): string {
   return `${(value * 100).toFixed(1)}%`
 }
 
+export function csvCell(value: unknown): string {
+  let text = String(value ?? '')
+  if (/^[\s]*[=+@-]/.test(text) || /^[\t\r\n]/.test(text)) text = `'${text}`
+  return `"${text.replaceAll('"', '""')}"`
+}
+
 export function formatTimestamp(iso: string): string {
   return new Date(iso).toLocaleString('es-PE', {
     day: '2-digit',
@@ -49,9 +55,10 @@ export async function blendImagesOnCanvas(
   const loadImage = (blob: Blob): Promise<HTMLImageElement> =>
     new Promise((resolve, reject) => {
       const img = new Image()
-      img.onload = () => resolve(img)
-      img.onerror = reject
-      img.src = URL.createObjectURL(blob)
+      const url = URL.createObjectURL(blob)
+      img.onload = () => { URL.revokeObjectURL(url); resolve(img) }
+      img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('No se pudo decodificar la imagen para el visor.')) }
+      img.src = url
     })
 
   const [orig, cam] = await Promise.all([
@@ -63,7 +70,8 @@ export async function blendImagesOnCanvas(
   const canvas = document.createElement('canvas')
   canvas.width = size
   canvas.height = size
-  const ctx = canvas.getContext('2d')!
+  const ctx = canvas.getContext('2d')
+  if (!ctx) throw new Error('El navegador no permite generar la visualización.')
 
   ctx.drawImage(orig, 0, 0, size, size)
   ctx.globalAlpha = opacity

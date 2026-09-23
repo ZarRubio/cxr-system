@@ -49,7 +49,7 @@ export const SEVERITY_LABELS: Record<Severity, string> = {
   critical: 'Crítico',
   high:     'Alto',
   moderate: 'Moderado',
-  normal:   'Normal',
+  normal:   'Sin alerta',
 }
 
 export const SEVERITY_COLORS: Record<Severity, { bar: string; text: string; bg: string; border: string }> = {
@@ -74,7 +74,7 @@ export const BADGES: Record<string, string> = {
   Pleural_Thickening: 'ENGROS. PLEURAL',
   Pneumonia:          'NEUMONÍA',
   Pneumothorax:       'NEUMOTÓRAX',
-  'No Finding':       'NORMAL',
+  'No Finding':       'SIN HALLAZGOS SOBRE UMBRAL',
 }
 
 export const DESCRIPTIONS: Record<string, string> = {
@@ -97,9 +97,9 @@ export const DESCRIPTIONS: Record<string, string> = {
   Infiltration:
     'Posible infiltrado pulmonar compatible con consolidación, neumonía o proceso inflamatorio. En contexto HNAL Lima: considerar tamizaje de tuberculosis según protocolo local.',
   Mass:
-    'Lesión mayor de 3 cm detectada. Requiere estudio tomográfico urgente para caracterización y estadificación.',
+    'Resultado para la categoría Mass del conjunto de entrenamiento. El clasificador no mide lesiones ni confirma su presencia o naturaleza.',
   Nodule:
-    'Lesión focal menor de 3 cm. Seguimiento según protocolo de nódulo pulmonar; considerar TC para caracterización.',
+    'Resultado para la categoría Nodule del conjunto de entrenamiento. El clasificador no mide lesiones ni establece una conducta de seguimiento.',
   Pleural_Thickening:
     'Engrosamiento pleural. Correlacionar con antecedentes de exposición, derrame previo o infección.',
   Pneumonia:
@@ -107,7 +107,7 @@ export const DESCRIPTIONS: Record<string, string> = {
   Pneumothorax:
     'Posible neumotórax: ausencia de trama vascular en periferia del campo pulmonar. Verificar línea pleural en radiografía en espiración. Urgencia si es a tensión.',
   'No Finding':
-    'No se detectaron hallazgos patológicos significativos. Campos pulmonares, silueta cardíaca y mediastino dentro de parámetros normales para el modelo.',
+    'Ninguna clase superó el umbral del modelo. Este resultado no confirma normalidad ni excluye enfermedad.',
 }
 
 // Recomendaciones clínicas por hallazgo — para mostrar en la UI y el PDF

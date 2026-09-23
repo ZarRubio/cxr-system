@@ -3,12 +3,15 @@ Pipeline de prediccion: validacion, decodificacion, inferencia, Grad-CAM,
 armado de respuesta, cache y auditoria. Los routers solo parsean parametros
 y delegan aqui.
 """
+import base64
 import hashlib
+import io
 import logging
 import time
 from dataclasses import dataclass
 
 import numpy as np
+from PIL import Image
 from fastapi import HTTPException
 
 from constants.clinical_text import CLASS_DISCLAIMERS, CLASS_EXPLANATIONS, DISCLAIMER
@@ -87,7 +90,7 @@ def image_warnings(
         bot_third = img_f[2 * h // 3 :, :]
         if top_third.mean() > bot_third.mean() * 1.5:
             warnings.append(
-                "Posible hipoinspiración o proyeccion inusual: zona superior más densa que la inferior."
+                "Distribucion de brillo desigual entre zonas superior e inferior. Verificar la imagen; este control no evalua inspiracion."
             )
     except Exception:
         pass
@@ -99,7 +102,7 @@ def image_warnings(
         ratio = max(left_half, right_half) / max(min(left_half, right_half), 1)
         if ratio > 1.6:
             warnings.append(
-                "Posible rotacion del paciente: asimetria significativa entre hemicampos."
+                "Asimetria de brillo entre ambas mitades. Verificar la imagen; este control no determina rotacion del paciente."
             )
     except Exception:
         pass
@@ -160,7 +163,7 @@ def _run_prediction(ensemble: dict, img_array: np.ndarray, options: PredictOptio
     if result["predicted_class"] == "No Finding":
         gradcam_cls = CLASSES_14[result["argmax_label"]]
     else:
-        gradcam_cls = result["positive_findings"][0] if result["positive_findings"] else result["predicted_class"]
+        gradcam_cls = result["predicted_class"]
 
     gradcam_label = CLASSES_14.index(gradcam_cls) if gradcam_cls in CLASSES_14 else 0
     gradcam_image = (
@@ -180,6 +183,10 @@ def _build_response_data(
     elapsed_ms: float,
 ) -> dict:
     predicted_class = result["predicted_class"]
+    # Same decoded pixels and geometry as the Grad-CAM overlay, including DICOM.
+    preview = io.BytesIO()
+    Image.fromarray(img_array).resize((224, 224), Image.Resampling.BILINEAR).save(preview, format="PNG")
+    preview_uri = "data:image/png;base64," + base64.b64encode(preview.getvalue()).decode("ascii")
     return dict(
         predicted_class=predicted_class,
         predicted_label=result["predicted_label"],
@@ -187,7 +194,9 @@ def _build_response_data(
         probabilities=result["probabilities"],
         positive_findings=result["positive_findings"],
         sub_threshold_findings=result["sub_threshold_findings"],
+        decision_support=result["decision_support"],
         gradcam_image=gradcam_image,
+        image_preview=preview_uri,
         gradcam_class=gradcam_cls,
         processing_time_ms=elapsed_ms,
         disclaimer=DISCLAIMER + CLASS_DISCLAIMERS.get(predicted_class, ""),
@@ -279,6 +288,7 @@ def predict_image(
             "image_hash": image_hash,
             "predicted_class": response_data["predicted_class"],
             "positive_findings": result["positive_findings"],
+            "decision_support_status": result["decision_support"]["status"],
             "cxr_screening_status": screening.status,
             "processing_time_ms": elapsed_ms,
             "client_ip": client_ip,
@@ -291,6 +301,8 @@ def predict_image(
             "predicted_class": response_data["predicted_class"],
             "confidence": response_data["confidence"],
             "positive_findings": result["positive_findings"],
+            "decision_support_status": result["decision_support"]["status"],
+            "model_disagreement": result["decision_support"]["model_disagreement"],
             "cxr_screening_status": screening.status,
         }
     )

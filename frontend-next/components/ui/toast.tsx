@@ -47,7 +47,7 @@ export function SuccessToast({ predicted, confidence, onClose }: ToastProps) {
           <p className="text-sm font-bold text-[var(--fg)]">Análisis completado</p>
           <p className="text-xs text-[var(--fg-muted)] mt-0.5">
             <span className="font-semibold" style={{ color: colors.bar }}>{predicted}</span>
-            {' · '}<span className="readout">{(confidence * 100).toFixed(1)}%</span> confianza
+            {' · '}<span className="readout">{(confidence * 100).toFixed(1)}%</span> score IA
           </p>
         </div>
 

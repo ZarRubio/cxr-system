@@ -10,7 +10,7 @@ import { SuccessToast } from '@/components/ui/toast'
 import { AnalyzingOverlay } from '@/components/analyze/AnalyzingOverlay'
 import { StatAlert } from '@/components/analyze/StatAlert'
 import { fetchModelInfo } from '@/lib/api'
-import { STAT_CLASSES } from '@/lib/constants'
+import { criticalFindings } from '@/lib/data/analysis'
 import { useAnalyze } from '@/hooks/useAnalyze'
 
 export default function AnalyzePage() {
@@ -22,15 +22,16 @@ export default function AnalyzePage() {
     handleFile, clearFile, handleLoadDemo, handleAnalyze, handleDownloadPdf, reset,
   } = useAnalyze()
 
-  const { data: modelInfo } = useQuery({
+  const { data: modelInfo, isError: modelInfoError } = useQuery({
     queryKey: ['model-info'],
     queryFn: fetchModelInfo,
     retry: 2,
   })
 
-  const backendError = modelInfo?.error
+  const backendError = modelInfo?.error ?? (modelInfoError ? 'No se pudo consultar el modelo. Verifique la conexión antes de iniciar un estudio.' : undefined)
   const thresholds   = modelInfo?.thresholds
   const activeStep   = prediction ? 3 : fileBytes ? 2 : 1
+  const priorityFinding = prediction ? criticalFindings({ positiveFindings: prediction.positive_findings }).sort((a, b) => (prediction.probabilities[b] ?? 0) - (prediction.probabilities[a] ?? 0))[0] : undefined
 
   const steps = [
     { n: 1, label: 'Cargar imagen',      done: !!fileBytes },
@@ -47,10 +48,10 @@ export default function AnalyzePage() {
         {analyzing ? 'Analizando radiografía…' : prediction ? 'Análisis completado' : ''}
       </div>
 
-      {prediction && STAT_CLASSES.has(prediction.predicted_class) && !statDismissed && (
+      {prediction && priorityFinding && !statDismissed && (
         <StatAlert
-          predictedClass={prediction.predicted_class}
-          confidence={prediction.confidence}
+          predictedClass={priorityFinding}
+          confidence={prediction.probabilities[priorityFinding] ?? prediction.confidence}
           onDismiss={() => setStatDismissed(true)}
         />
       )}
@@ -65,19 +66,19 @@ export default function AnalyzePage() {
 
       <div className="space-y-6">
         {/* Page title */}
-        <div>
+        <div className="page-heading">
           <h1 className="text-2xl font-extrabold text-[var(--fg)] leading-tight">
-            Asistente IA — Radiografía de tórax
+            Nuevo estudio
           </h1>
           <p className="text-sm text-[var(--fg-subtle)] mt-1">
-            Hospital Nacional Arzobispo Loayza · HNAL 2026 · Apoyo al diagnóstico, no reemplaza criterio clínico
+            Radiografía de tórax · Análisis asistido para revisión del radiólogo
           </p>
         </div>
 
         {/* Workflow steps */}
-        <div className="flex items-center gap-2 text-xs text-[var(--fg-subtle)]">
+        <ol aria-label="Estado del estudio" className="flex flex-wrap items-center gap-x-6 gap-y-3 text-xs text-[var(--fg-subtle)]">
           {steps.map(({ n, label, done }, i) => (
-            <div key={n} className="flex items-center gap-2 flex-1 last:flex-none">
+            <li key={n} aria-current={n === activeStep ? 'step' : undefined} className="flex items-center gap-2">
               <span
                 className="flex items-center gap-1.5 font-semibold shrink-0"
                 style={{ color: done || n === activeStep ? 'var(--primary)' : undefined }}
@@ -85,7 +86,7 @@ export default function AnalyzePage() {
                 <span className={[
                   'w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0',
                   done         ? 'bg-[#16A34A] text-white' :
-                  n === activeStep ? 'bg-[var(--primary)] text-white' :
+                  n === activeStep ? 'bg-[var(--action)] text-white' :
                   'bg-[var(--border)] text-[var(--fg-subtle)]',
                 ].join(' ')}>
                   {done ? '✓' : String(n)}
@@ -93,9 +94,9 @@ export default function AnalyzePage() {
                 {label}
               </span>
               {i < steps.length - 1 && <span className="flex-1 h-px bg-[var(--border-subtle)]" />}
-            </div>
+            </li>
           ))}
-        </div>
+        </ol>
 
         {/* Backend warning */}
         {backendError && (
@@ -103,14 +104,15 @@ export default function AnalyzePage() {
             <AlertCircle size={16} className="text-[#D97706] mt-0.5 shrink-0" />
             <div>
               <p className="text-sm font-semibold text-[#92400E] dark:text-[#FCD34D]">Backend no disponible</p>
-              <p className="text-xs text-[#78350F] dark:text-[#92400E] mt-0.5">{backendError}</p>
+              <p className="text-xs text-[#78350F] dark:text-[#FCD34D] mt-0.5">{backendError}</p>
             </div>
           </div>
         )}
 
         {/* Upload card */}
-        <div className="card p-5 space-y-4">
+        <section className="space-y-4" aria-label="Imagen del estudio">
           <UploadArea
+            disabled={analyzing}
             onFile={handleFile}
             currentFilename={fileBytes ? filename : undefined}
             onClear={clearFile}
@@ -124,14 +126,14 @@ export default function AnalyzePage() {
                 className="text-[var(--primary)] font-semibold hover:underline disabled:opacity-50 cursor-pointer"
               >
                 <FlaskConical size={11} className="inline mr-0.5 mb-0.5" />
-                {loadingDemo ? 'Cargando caso de demostración...' : 'Cargar caso de demostración (cardiomegalia)'}
+                {loadingDemo ? 'Cargando muestra...' : 'Usar imagen sintética de demostración'}
               </button>
             </p>
           )}
 
           {fileBytes && (
             <div className="border-t border-[var(--border-subtle)] pt-4 space-y-2">
-              <Button onClick={handleAnalyze} disabled={analyzing} size="lg" className="w-full">
+              <Button onClick={handleAnalyze} disabled={analyzing} size="lg" className="w-full sm:w-auto">
                 <Microscope size={18} />
                 Analizar radiografía
               </Button>
@@ -162,7 +164,7 @@ export default function AnalyzePage() {
               )}
             </div>
           )}
-        </div>
+        </section>
 
         {/* Study metadata — visible once file is loaded */}
         {fileBytes && (
@@ -193,10 +195,8 @@ export default function AnalyzePage() {
 
         {/* Empty state */}
         {!fileBytes && !prediction && (
-          <div className="text-center py-10 text-[var(--fg-subtle)]">
-            <Microscope size={36} className="mx-auto mb-3 opacity-25" />
-            <p className="text-sm font-medium">Cargue una radiografía de tórax PA o AP para iniciar el análisis</p>
-            <p className="text-xs mt-1 opacity-70">Formatos aceptados: PNG · JPG · DICOM (.dcm) · Máx. 15 MB</p>
+          <div className="border-t border-[var(--border-subtle)] pt-5 text-[var(--fg-subtle)]">
+            <p className="text-xs">Uso académico. Los scores y mapas de activación no sustituyen la lectura de la radiografía original.</p>
           </div>
         )}
       </div>

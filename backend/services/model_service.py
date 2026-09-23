@@ -27,6 +27,16 @@ CLASSES_14 = [
 ]
 
 
+def _checkpoint_metadata(checkpoint: dict) -> dict:
+    """Conserva solo evidencia escalar segura incluida en el checkpoint."""
+    keys = ("phase", "epoch", "best_val_auc_macro", "best_val_map", "num_classes", "num_layers")
+    return {
+        key: checkpoint[key]
+        for key in keys
+        if key in checkpoint and isinstance(checkpoint[key], (str, int, float))
+    }
+
+
 def load_ensemble(artifacts_dir: str) -> dict:
     """
     Carga los dos modelos del ensemble y la configuracion.
@@ -70,6 +80,67 @@ def load_ensemble(artifacts_dir: str) -> dict:
         "weight_v2": cfg_ens["weight_v2"],
         "thresholds": thr,
         "device": device,
+        "checkpoint_metrics": {
+            "model_v1": _checkpoint_metadata(ckpt_v1),
+            "model_v2": _checkpoint_metadata(ckpt_v2),
+        },
+    }
+
+
+def _decision_support(
+    probs: np.ndarray,
+    probs_v1: np.ndarray,
+    probs_v2: np.ndarray,
+    thresholds: dict,
+    predicted_class: str,
+    argmax_idx: int,
+) -> dict:
+    """Resume consistencia interna sin presentarla como certeza clinica."""
+    focus_idx = argmax_idx if predicted_class == "No Finding" else CLASSES_14.index(predicted_class)
+    focus_class = CLASSES_14[focus_idx]
+    probability = float(probs[focus_idx])
+    threshold = float(thresholds.get(focus_class, 0.3))
+    margin = abs(probability - threshold)
+    disagreement = abs(float(probs_v1[focus_idx]) - float(probs_v2[focus_idx]))
+
+    reasons: list[str] = []
+    if disagreement >= 0.20:
+        status = "discordant"
+        reasons.append(
+            f"Los dos modelos difieren {disagreement * 100:.1f} puntos porcentuales para {focus_class}."
+        )
+    elif margin <= 0.05 or disagreement >= 0.10:
+        status = "borderline"
+        if margin <= 0.05:
+            reasons.append(
+                f"El score de {focus_class} esta a {margin * 100:.1f} puntos porcentuales del umbral."
+            )
+        if disagreement >= 0.10:
+            reasons.append(
+                f"Los modelos difieren {disagreement * 100:.1f} puntos porcentuales para {focus_class}."
+            )
+    else:
+        status = "stable"
+        reasons.append("Los dos modelos muestran concordancia tecnica para la decision principal.")
+
+    heightened = status != "stable"
+    recommendation = (
+        "Realizar revision radiologica reforzada antes de interpretar este resultado."
+        if heightened
+        else "Mantener la revision radiologica habitual y correlacionar con el contexto clinico."
+    )
+    return {
+        "status": status,
+        "method": "two_model_agreement_v1",
+        "focus_class": focus_class,
+        "ensemble_score": round(probability, 6),
+        "threshold": round(threshold, 6),
+        "threshold_margin": round(margin, 6),
+        "model_disagreement": round(disagreement, 6),
+        "requires_heightened_review": heightened,
+        "calibrated_probability": False,
+        "reasons": reasons,
+        "recommendation": recommendation,
     }
 
 
@@ -118,6 +189,15 @@ def run_ensemble_inference(ensemble: dict, tensor: torch.Tensor) -> dict:
         predicted_label = -1
         confidence      = round(float(1.0 - np.max(probs)), 6)
 
+    decision_support = _decision_support(
+        probs,
+        probs_v1,
+        probs_v2,
+        thresholds,
+        predicted_class,
+        argmax_idx,
+    )
+
     return {
         "predicted_class":       predicted_class,
         "predicted_label":       predicted_label,
@@ -126,4 +206,5 @@ def run_ensemble_inference(ensemble: dict, tensor: torch.Tensor) -> dict:
         "positive_findings":     positive_findings,
         "sub_threshold_findings": sub_threshold_findings,
         "argmax_label":          argmax_idx,
+        "decision_support":      decision_support,
     }

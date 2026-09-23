@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, useMemo, useRef } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Loader2, Thermometer, Maximize2 } from 'lucide-react'
 import { blendImagesOnCanvas, decodeDataUri } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -19,15 +19,16 @@ export function GradCamView({ prediction, originalBytes, onPredictionUpdate }: G
   const [loading, setLoading]       = useState(false)
   const [generating, setGenerating] = useState(false)
   const [lightbox, setLightbox]     = useState(false)
-  const prevRef = useRef<string>('')
+  const [error, setError] = useState<string | null>(null)
 
   const gradcamUri = prediction.gradcam_image
+  const displayBytes = useMemo(() => prediction.image_preview ? decodeDataUri(prediction.image_preview) : originalBytes, [prediction.image_preview, originalBytes])
 
   // URL de objeto para la imagen original; el effect solo revoca al desmontar
   const originalSrc = useMemo(() => {
-    if (!originalBytes) return null
-    return URL.createObjectURL(new Blob([originalBytes.buffer as ArrayBuffer]))
-  }, [originalBytes])
+    if (!displayBytes) return null
+    return URL.createObjectURL(new Blob([new Uint8Array(displayBytes)]))
+  }, [displayBytes])
 
   useEffect(() => {
     if (!originalSrc) return
@@ -36,17 +37,19 @@ export function GradCamView({ prediction, originalBytes, onPredictionUpdate }: G
 
   // Blend original + Grad-CAM whenever opacity or gradcam changes
   useEffect(() => {
-    if (!gradcamUri || !originalBytes) return
-    const key = `${gradcamUri.slice(0, 32)}_${opacity}`
-    if (prevRef.current === key) return
-    prevRef.current = key
-
-    setLoading(true)
-    const camBytes = decodeDataUri(gradcamUri)
-    blendImagesOnCanvas(originalBytes, camBytes, opacity)
-      .then(setBlended)
-      .finally(() => setLoading(false))
-  }, [gradcamUri, originalBytes, opacity])
+    if (!gradcamUri || !displayBytes) return
+    let cancelled = false
+    Promise.resolve().then(() => {
+      if (cancelled) return null
+      setError(null)
+      setLoading(true)
+      return blendImagesOnCanvas(displayBytes, decodeDataUri(gradcamUri), opacity)
+    })
+      .then(value => { if (!cancelled) setBlended(value) })
+      .catch(() => { if (!cancelled) { setBlended(null); setError('No se pudo combinar la imagen. Se muestra el mapa recibido del servicio.') } })
+      .finally(() => { if (!cancelled) setLoading(false) })
+    return () => { cancelled = true }
+  }, [gradcamUri, displayBytes, opacity])
 
   const handleGenerate = async () => {
     setGenerating(true)
@@ -54,7 +57,7 @@ export function GradCamView({ prediction, originalBytes, onPredictionUpdate }: G
       const updated = await predict(originalBytes, prediction.gradcam_class ?? 'image.png', 'gradcam', true)
       onPredictionUpdate?.(updated)
     } catch {
-      // silently fail — user can retry
+      setError('No se pudo generar el mapa de calor. Intente nuevamente.')
     } finally {
       setGenerating(false)
     }
@@ -94,7 +97,7 @@ export function GradCamView({ prediction, originalBytes, onPredictionUpdate }: G
               El análisis rápido no incluye el mapa de calor.
             </p>
             <Button onClick={handleGenerate} loading={generating} size="md">
-              {generating ? 'Generando (~1-2 min)...' : 'Generar mapa de calor'}
+              {generating ? 'Generando...' : 'Generar mapa de calor'}
             </Button>
           </div>
         )}
@@ -103,16 +106,20 @@ export function GradCamView({ prediction, originalBytes, onPredictionUpdate }: G
         {gradcamUri && (
           <>
             <div
-              className="viewport-frame relative w-full aspect-square rounded-lg overflow-hidden bg-gray-900 flex items-center justify-center cursor-zoom-in"
+              className="viewport-frame relative w-full aspect-square rounded-md overflow-hidden bg-[#111111] flex items-center justify-center cursor-zoom-in"
+              role="button"
+              tabIndex={blended ? 0 : -1}
+              aria-label="Ampliar mapa de calor"
+              onKeyDown={e => { if (blended && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); setLightbox(true) } }}
               onClick={() => blended && setLightbox(true)}
               title="Click para ampliar"
             >
-              {(loading || !blended) ? (
+              {loading && !blended ? (
                 <Loader2 size={28} className="text-[var(--primary)] animate-spin" />
               ) : (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
-                  src={blended}
+                  src={blended ?? gradcamUri}
                   alt="Overlay Grad-CAM"
                   className="w-full h-full object-contain"
                 />
@@ -143,12 +150,11 @@ export function GradCamView({ prediction, originalBytes, onPredictionUpdate }: G
                 className="w-full h-2 appearance-none rounded-full cursor-pointer accent-[var(--primary)]"
                 aria-label="Opacidad del mapa de calor"
               />
-              <p className="text-[10px] text-[var(--fg-subtle)]">
-                Solo modifica la visualización — no vuelve a ejecutar el modelo
-              </p>
             </div>
           </>
         )}
+        {error && <p role="alert" className="text-sm badge-high p-3 rounded-md">{error}</p>}
+        <p className="text-xs text-[var(--fg-muted)]">Activación del modelo v2, no segmentación de una lesión. El mapa no confirma la ubicación ni la presencia de enfermedad.</p>
       </div>
 
       {/* Lightbox */}

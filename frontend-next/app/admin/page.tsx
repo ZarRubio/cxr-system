@@ -15,14 +15,14 @@ interface UserRow {
   createdAt: string
 }
 
-function InitialsAvatar({ name, role }: { name: string; role: string }) {
+function InitialsAvatar({ name }: { name: string; role: string }) {
   const initials = name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
   return (
     <div
       className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
       style={{
-        background: role === 'admin' ? 'rgba(220,38,38,0.12)' : 'color-mix(in srgb, var(--primary) 12%, transparent)',
-        color:      role === 'admin' ? '#B91C1C' : 'var(--primary)',
+        background: 'var(--surface2)',
+        color: 'var(--fg-muted)',
       }}
     >
       {initials}
@@ -33,6 +33,7 @@ function InitialsAvatar({ name, role }: { name: string; role: string }) {
 export default function AdminPage() {
   const [users,   setUsers]   = useState<UserRow[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
   const [showForm, setShowForm] = useState(false)
   const [toast,   setToast]   = useState<{ type: 'ok' | 'err'; msg: string } | null>(null)
 
@@ -44,13 +45,19 @@ export default function AdminPage() {
   const fetchUsers = useCallback(async () => {
     try {
       const res  = await fetch('/api/admin/users')
+      setLoadError('')
       const data = await res.json()
+      if (!res.ok || !Array.isArray(data)) throw new Error('No se pudieron cargar los usuarios.')
       setUsers(data)
+    } catch {
+      setLoadError('No se pudieron cargar los usuarios. Verifique su conexión.')
     } finally {
       setLoading(false)
     }
   }, [])
 
+  // Synchronize with remote users; state updates occur after the request settles.
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { fetchUsers() }, [fetchUsers])
 
   const showToast = (type: 'ok' | 'err', msg: string) => {
@@ -59,6 +66,7 @@ export default function AdminPage() {
   }
 
   const handleToggle = async (user: UserRow) => {
+    try {
     const res = await fetch(`/api/admin/users/${user.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -69,6 +77,9 @@ export default function AdminPage() {
       showToast('ok', `${user.name} ${!user.active ? 'activado' : 'desactivado'}`)
     } else {
       showToast('err', 'No se pudo cambiar el estado.')
+    }
+    } catch {
+      showToast('err', 'No se pudo conectar con el servicio. El estado no cambió.')
     }
   }
 
@@ -90,6 +101,8 @@ export default function AdminPage() {
       setForm({ name: '', username: '', email: '', cmp: '', specialty: 'Radiología', password: '', confirm: '' })
       setShowForm(false)
       showToast('ok', `Dr./Dra. ${data.name} creado correctamente.`)
+    } catch {
+      setFormErr('No se pudo confirmar la creación. Revise la lista antes de reintentar.')
     } finally {
       setSaving(false)
     }
@@ -117,7 +130,7 @@ export default function AdminPage() {
       )}
 
       {/* Header */}
-      <div className="flex items-start justify-between gap-4">
+      <div className="page-heading flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-extrabold text-[var(--fg)] leading-tight">
             Gestión de radiólogos
@@ -129,7 +142,7 @@ export default function AdminPage() {
         <button
           onClick={() => setShowForm(true)}
           className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold text-white shrink-0"
-          style={{ background: 'var(--primary)' }}
+          style={{ background: 'var(--action)' }}
         >
           <UserPlus size={16} />
           Nuevo radiólogo
@@ -137,18 +150,20 @@ export default function AdminPage() {
       </div>
 
       {/* KPIs */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-3 gap-3 border-b border-[var(--border-subtle)] pb-4">
         {[
           { label: 'Usuarios totales', value: total,   color: '#0F172A' },
           { label: 'Activos',          value: active,  color: '#16A34A' },
           { label: 'Administradores',  value: admins,  color: '#B91C1C' },
-        ].map(({ label, value, color }) => (
-          <div key={label} className="card p-4 text-center">
-            <p className="text-[11px] font-bold text-[var(--fg-subtle)] uppercase tracking-wider mb-1">{label}</p>
-            <p className="text-3xl font-extrabold" style={{ color }}>{value}</p>
+        ].map(({ label, value }) => (
+          <div key={label} className="min-w-0 py-2">
+            <p className="text-xs text-[var(--fg-muted)] mb-1">{label}</p>
+            <p className="readout text-2xl font-semibold">{loading || loadError ? '—' : value}</p>
           </div>
         ))}
       </div>
+
+      {loadError && <div role="alert" className="badge-high p-3 rounded-md text-sm">{loadError} <button onClick={fetchUsers} className="underline cursor-pointer">Reintentar</button></div>}
 
       {/* Table */}
       <div className="card overflow-hidden p-0">
@@ -163,7 +178,7 @@ export default function AdminPage() {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full min-w-[900px] text-sm">
               <thead>
                 <tr className="bg-[var(--surface2)] border-b border-[var(--border-subtle)]">
                   {['Radiólogo', 'Usuario', 'Correo', 'CMP', 'Especialidad', 'Rol', 'Estado'].map(h => (

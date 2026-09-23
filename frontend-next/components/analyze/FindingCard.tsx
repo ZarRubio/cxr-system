@@ -1,221 +1,55 @@
-import { cn } from '@/lib/utils'
+import { Info } from 'lucide-react'
 import { getSeverity } from '@/lib/utils'
-import { BADGES, DESCRIPTIONS, DIFFERENTIALS, SEVERITY_COLORS, SEVERITY_LABELS } from '@/lib/constants'
-import { AlertTriangle, CheckCircle2, AlertCircle, Info, GitBranch } from 'lucide-react'
+import { BADGES, DESCRIPTIONS, SEVERITY_LABELS } from '@/lib/constants'
 import type { Prediction } from '@/lib/types'
 
-const SEVERITY_ICONS = {
-  critical: AlertTriangle,
-  high:     AlertCircle,
-  moderate: Info,
-  normal:   CheckCircle2,
-}
-
-const STRIPE_CLASSES = {
-  critical: 'finding-stripe-critical',
-  high:     'finding-stripe-high',
-  moderate: 'finding-stripe-moderate',
-  normal:   'finding-stripe-normal',
-}
-
-function ConfidenceSignal({ confidence }: { confidence: number }) {
-  let level: 'high' | 'medium' | 'low'
-  if (confidence >= 0.75) level = 'high'
-  else if (confidence >= 0.50) level = 'medium'
-  else level = 'low'
-
-  const config = {
-    high:   { label: 'Probabilidad alta',                          color: '#16A34A', bg: '#DCFCE7' },
-    medium: { label: 'Probabilidad moderada',                      color: '#D97706', bg: '#FEF3C7' },
-    low:    { label: 'Probabilidad baja · confirmar con criterio clínico', color: '#DC2626', bg: '#FEE2E2' },
-  }[level]
-
-  return (
-    <span
-      className="inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold"
-      style={{ background: config.bg, color: config.color }}
-    >
-      {config.label}
-    </span>
-  )
-}
-
-interface FindingCardProps {
-  prediction: Prediction
-  compact?: boolean
-}
-
-export function FindingCard({ prediction, compact = false }: FindingCardProps) {
+export function FindingCard({ prediction, compact = false }: { prediction: Prediction; compact?: boolean }) {
   const cls = prediction.predicted_class
+  if (cls === 'No Finding') return <NoFindingCard />
   const severity = getSeverity(cls)
-  const colors = SEVERITY_COLORS[severity]
-  const badge = BADGES[cls] ?? cls.toUpperCase()
-  const desc = DESCRIPTIONS[cls] ?? ''
-  const Icon = SEVERITY_ICONS[severity]
-
-  if (compact) {
-    return (
-      <div
-        className={cn('card p-4', STRIPE_CLASSES[severity])}
-        style={{ background: colors.bg + '33' }}
-      >
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2 min-w-0">
-            <span
-              className="shrink-0 inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-extrabold uppercase tracking-widest"
-              style={{ background: colors.bar, color: '#fff' }}
-            >
-              {badge}
-            </span>
-            <span className="text-sm font-bold text-[var(--fg)] truncate">{cls}</span>
-          </div>
-          <span className="readout text-lg font-extrabold shrink-0" style={{ color: colors.bar }}>
-            {((prediction.probabilities?.[cls] ?? prediction.confidence) * 100).toFixed(1)}%
-          </span>
-        </div>
-      </div>
-    )
-  }
-
+  const score = prediction.probabilities?.[cls] ?? prediction.confidence
   return (
-    <div className={cn('card overflow-hidden', STRIPE_CLASSES[severity])}>
-      <div className="p-5">
-        {/* Badge + severity */}
-        <div className="flex items-start justify-between gap-3 mb-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <span
-              className="inline-flex items-center rounded px-2 py-0.5 text-[11px] font-extrabold uppercase tracking-widest"
-              style={{ background: colors.bar, color: '#fff' }}
-            >
-              {badge}
-            </span>
-            <span
-              className="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-bold border"
-              style={{ background: colors.bg, color: colors.text, borderColor: colors.border }}
-            >
-              {SEVERITY_LABELS[severity]}
-            </span>
-          </div>
-          <Icon size={20} style={{ color: colors.bar }} className="shrink-0 mt-0.5" />
+    <article className={`card finding-stripe-${severity} ${compact ? 'p-4' : 'p-5'}`}>
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <h3 className={`${compact ? 'text-sm' : 'text-lg'} font-semibold text-[var(--fg)]`}>{BADGES[cls] ?? cls}</h3>
+          <p className="text-xs text-[var(--fg-subtle)] mt-1">{cls}</p>
         </div>
-
-        {/* Class name + confidence */}
-        <h2 className="text-2xl font-bold mb-1" style={{ color: colors.text }}>{cls}</h2>
-        <div className="flex items-baseline gap-2 mb-3">
-          <span className="readout text-4xl font-extrabold" style={{ color: colors.bar }}>
-            {(prediction.confidence * 100).toFixed(1)}%
-          </span>
-          <span className="tech-label">Score IA</span>
+        <div className="text-right shrink-0">
+          <p className="readout text-xl font-semibold">{(score * 100).toFixed(1)}%</p>
+          <p className="text-xs text-[var(--fg-muted)]">Score IA</p>
         </div>
-
-        {/* Confidence signal */}
-        <div className="mb-4">
-          <ConfidenceSignal confidence={prediction.confidence} />
-        </div>
-
-        {/* Description */}
-        {desc && (
-          <p className="text-sm text-[var(--fg-muted)] leading-6">{desc}</p>
-        )}
-
-        {/* Diagnóstico diferencial */}
-        {DIFFERENTIALS[cls] && DIFFERENTIALS[cls].length > 0 && (
-          <div className="mt-4 pt-3 border-t border-[var(--border-subtle)]">
-            <div className="flex items-center gap-1.5 mb-2">
-              <GitBranch size={13} className="text-[var(--fg-subtle)]" />
-              <span className="tech-label">
-                Diagnóstico diferencial
-              </span>
-            </div>
-            <div className="flex flex-wrap gap-1.5">
-              {DIFFERENTIALS[cls].map((d) => (
-                <span
-                  key={d}
-                  className="text-[11px] px-2 py-0.5 rounded-full border border-[var(--border-subtle)] text-[var(--fg-muted)] bg-[var(--surface2)]"
-                >
-                  {d}
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
       </div>
-
-      {/* Image warnings */}
-      {prediction.image_warnings && prediction.image_warnings.length > 0 && (
-        <div className="border-t border-[var(--border-subtle)] px-5 py-3 bg-[#FEF3C7] dark:bg-[#451A03]">
-          {prediction.image_warnings.map((w, i) => (
-            <p key={i} className="text-xs text-[#92400E] dark:text-[#FCD34D] flex items-center gap-1.5">
-              <AlertTriangle size={12} />
-              {w}
-            </p>
-          ))}
-        </div>
-      )}
-    </div>
+      {!compact && <>
+        <p className={`badge-${severity} inline-block mt-4 rounded px-2 py-1 text-xs font-medium`}>{SEVERITY_LABELS[severity]}</p>
+        <p className="text-xs text-[var(--fg-muted)] mt-3">Score no calibrado. No representa la probabilidad clínica de enfermedad.</p>
+        {DESCRIPTIONS[cls] && <p className="text-sm leading-6 text-[var(--fg-muted)] border-t border-[var(--border-subtle)] mt-4 pt-4">{DESCRIPTIONS[cls]}</p>}
+      </>}
+      {!compact && prediction.image_warnings?.map((warning, index) => <p key={index} className="badge-high rounded p-3 mt-3 text-xs">{warning}</p>)}
+    </article>
   )
 }
 
-/* Card for "No Finding" */
 export function NoFindingCard() {
   return (
-    <div className={cn('card overflow-hidden finding-stripe-normal')}>
-      <div className="p-5">
-        <div className="flex items-center gap-2 mb-3">
-          <span className="inline-flex items-center rounded px-2 py-0.5 text-[11px] font-extrabold uppercase tracking-widest bg-[#16A34A] text-white">
-            NORMAL
-          </span>
-        </div>
-        <h2 className="text-2xl font-bold text-[#166534] dark:text-[#86EFAC] mb-2">Sin hallazgos patológicos</h2>
-        <p className="text-sm text-[var(--fg-muted)] leading-6">{DESCRIPTIONS['No Finding']}</p>
-      </div>
-    </div>
+    <section className="card p-5">
+      <div className="flex gap-3 items-start"><Info size={20} className="text-[var(--fg-muted)] shrink-0 mt-1" /><h3 className="text-lg font-semibold">Sin hallazgos sobre umbral</h3></div>
+      <p className="text-sm text-[var(--fg-muted)] leading-6 mt-3">Ninguna de las clases evaluadas superó el umbral del modelo. Esto no confirma una radiografía normal ni descarta enfermedad.</p>
+      <p className="text-xs text-[var(--fg-subtle)] mt-3">La revisión del radiólogo sigue siendo necesaria.</p>
+    </section>
   )
 }
 
-/* Card for multiple findings */
 export function MultipleFindingsCard({ prediction }: { prediction: Prediction }) {
   const positive = prediction.positive_findings ?? []
-  if (positive.length === 0) return <NoFindingCard />
-  if (positive.length === 1) return <FindingCard prediction={prediction} />
-
-  const primary    = prediction.predicted_class
-  const secondary  = positive.filter((c) => c !== primary)
-
+  if (!positive.length) return <NoFindingCard />
+  const secondary = positive.filter(cls => cls !== prediction.predicted_class)
   return (
     <div className="space-y-3">
-      <div className="flex items-center gap-2 px-1">
-        <AlertTriangle size={16} className="text-[#D97706]" />
-        <span className="text-sm font-bold text-[var(--fg)]">
-          {positive.length} hallazgos sobre umbral diagnóstico
-        </span>
-      </div>
-
-      {/* Primary finding — full card */}
-      <div>
-        <p className="tech-label px-1 mb-1.5">
-          Hallazgo principal
-        </p>
-        <FindingCard prediction={prediction} />
-      </div>
-
-      {/* Secondary findings — compact */}
-      {secondary.length > 0 && (
-        <div>
-          <p className="tech-label px-1 mb-1.5">
-            Hallazgos adicionales
-          </p>
-          <div className="space-y-2">
-            {secondary.map((cls) => (
-              <FindingCard
-                key={cls}
-                compact
-                prediction={{ ...prediction, predicted_class: cls }}
-              />
-            ))}
-          </div>
-        </div>
-      )}
+      <h3 className="section-heading">{positive.length === 1 ? 'Hallazgo sobre umbral' : `${positive.length} hallazgos sobre umbral`}</h3>
+      <FindingCard prediction={prediction} />
+      {secondary.length > 0 && <p className="text-sm text-[var(--fg-muted)] pt-2">Hallazgos adicionales</p>}
+      {secondary.map(cls => <FindingCard key={cls} compact prediction={{ ...prediction, predicted_class: cls }} />)}
     </div>
   )
 }

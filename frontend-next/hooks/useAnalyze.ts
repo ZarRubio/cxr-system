@@ -74,7 +74,7 @@ export function useAnalyze() {
   }
 
   const handleAnalyze = async () => {
-    if (!fileBytes || !filename) return
+    if (!fileBytes || !filename || analyzing) return
     setAnalyzing(true)
     setError(null)
     try {
@@ -119,8 +119,8 @@ export function useAnalyze() {
       }
       const bytes = await buildPdf(filename, fileBytes, prediction, notes, meta)
       downloadBlob(bytes, `${studyMeta.studyId}_reporte_cxr.pdf`, 'application/pdf')
-    } catch (e) {
-      console.error('PDF error:', e)
+    } catch {
+      setError('No se pudo generar el PDF. El resultado del estudio se conserva; intente nuevamente.')
     } finally {
       setPdfLoading(false)
     }

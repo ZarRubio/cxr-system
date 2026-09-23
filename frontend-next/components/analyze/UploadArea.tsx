@@ -6,15 +6,16 @@ import { cn } from '@/lib/utils'
 
 const MAX_BYTES = 15 * 1024 * 1024
 const MIN_BYTES = 1 * 1024
-const ACCEPTED = { 'image/png': ['.png'], 'image/jpeg': ['.jpg', '.jpeg'], 'application/octet-stream': ['.dcm'] }
+const ACCEPTED = { 'image/png': ['.png'], 'image/jpeg': ['.jpg', '.jpeg'], 'application/dicom': ['.dcm'], 'application/octet-stream': ['.dcm'] }
 
 interface UploadAreaProps {
   onFile: (bytes: Uint8Array, filename: string) => void
   currentFilename?: string
   onClear?: () => void
+  disabled?: boolean
 }
 
-export function UploadArea({ onFile, currentFilename, onClear }: UploadAreaProps) {
+export function UploadArea({ onFile, currentFilename, onClear, disabled = false }: UploadAreaProps) {
   const [error, setError] = useState<string | null>(null)
 
   const onDrop = useCallback((accepted: File[]) => {
@@ -25,6 +26,7 @@ export function UploadArea({ onFile, currentFilename, onClear }: UploadAreaProps
     if (file.size > MAX_BYTES) { setError('La imagen supera el límite de 15 MB.'); return }
 
     const reader = new FileReader()
+    reader.onerror = () => setError('No se pudo leer el archivo. Vuelva a seleccionarlo.')
     reader.onload = (e) => {
       const bytes = new Uint8Array(e.target!.result as ArrayBuffer)
       onFile(bytes, file.name)
@@ -37,6 +39,13 @@ export function UploadArea({ onFile, currentFilename, onClear }: UploadAreaProps
     accept: ACCEPTED,
     maxFiles: 1,
     multiple: false,
+    minSize: MIN_BYTES,
+    maxSize: MAX_BYTES,
+    disabled,
+    onDropRejected: (files) => {
+      const code = files[0]?.errors[0]?.code
+      setError(code === 'file-too-large' ? 'La imagen supera el límite de 15 MB.' : code === 'file-too-small' ? 'El archivo es demasiado pequeño.' : 'Seleccione una imagen PNG, JPG o DICOM a la vez.')
+    },
   })
 
   if (currentFilename) {
@@ -46,7 +55,8 @@ export function UploadArea({ onFile, currentFilename, onClear }: UploadAreaProps
         <span className="text-sm text-[var(--fg)] font-medium flex-1 truncate">{currentFilename}</span>
         <button
           onClick={onClear}
-          className="text-[var(--fg-subtle)] hover:text-[var(--fg)] transition-colors p-1 rounded cursor-pointer"
+          className="icon-button disabled:opacity-50"
+          disabled={disabled}
           aria-label="Quitar imagen"
         >
           <X size={16} />
@@ -58,34 +68,33 @@ export function UploadArea({ onFile, currentFilename, onClear }: UploadAreaProps
   return (
     <div className="space-y-2">
       <div
-        {...getRootProps()}
+        {...getRootProps({ role: 'button' })}
+        aria-disabled={disabled}
         aria-label="Zona de carga: arrastra una radiografía de tórax o haz clic para seleccionar"
         className={cn(
-          'card flex flex-col items-center justify-center gap-3 py-10 px-6 cursor-pointer transition-all duration-150',
-          'border-2 border-dashed hover:border-[var(--primary)] hover:bg-[#F0FDFA]',
-          isDragActive && 'border-[var(--primary)] bg-[#E0F7FA] scale-[1.01]',
-          'dark:hover:bg-[color-mix(in_srgb,var(--primary)_5%,transparent)] dark:border-dashed',
+          'flex flex-col items-center justify-center gap-4 min-h-56 py-8 px-6 rounded-md border border-dashed border-[var(--border)] bg-[var(--surface)] cursor-pointer transition-colors',
+          'hover:border-[var(--primary)] hover:bg-[var(--surface2)]',
+          isDragActive && 'border-[var(--primary)] bg-[var(--surface2)]',
+          disabled && 'opacity-50 pointer-events-none',
         )}
       >
         <input {...getInputProps()} aria-label="Cargar radiografía de tórax" />
         <div className={cn(
-          'w-12 h-12 rounded-full flex items-center justify-center transition-colors',
-          isDragActive ? 'bg-[var(--primary)] text-white' : 'bg-[var(--muted,#E8F1F6)] text-[var(--primary)]',
+          'w-10 h-10 flex items-center justify-center text-[var(--primary)]',
         )}>
           <Upload size={22} />
         </div>
         <div className="text-center">
           <p className="text-sm font-semibold text-[var(--fg)]">
-            {isDragActive ? 'Suelta la imagen aquí' : 'Arrastra una radiografía o haz clic'}
+            {isDragActive ? 'Soltar radiografía' : 'Seleccionar radiografía'}
           </p>
           <p className="text-xs text-[var(--fg-subtle)] mt-1">
             PNG · JPG · DICOM (.dcm) · Máx. 15 MB
           </p>
-          <p className="text-xs text-[var(--fg-subtle)]">La imagen no se almacena en el servidor</p>
         </div>
       </div>
       {error && (
-        <div className="flex items-center gap-2 text-sm text-[#DC2626] bg-[#FEE2E2] rounded-lg px-3 py-2">
+        <div role="alert" className="flex items-center gap-2 text-sm badge-critical rounded-md px-3 py-2">
           <AlertCircle size={15} />
           {error}
         </div>

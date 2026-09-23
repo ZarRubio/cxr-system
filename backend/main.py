@@ -14,7 +14,7 @@ from routers import predict
 from settings import settings
 from utils.cache import LRUCache
 
-__version__ = "2.2.0"
+__version__ = "2.3.0"
 
 if RATE_LIMITING_AVAILABLE:
     from slowapi import _rate_limit_exceeded_handler
@@ -78,6 +78,7 @@ async def lifespan(app: FastAPI):
     global _MODEL_LOAD_SECONDS
     t0 = time.perf_counter()
     app.state.startup_error = None
+    app.state.calibration_configured = False
 
     if settings.skip_model_load:
         app.state.ensemble = None
@@ -88,6 +89,7 @@ async def lifespan(app: FastAPI):
                 (_ARTIFACTS_DIR / "thresholds_14.json").read_text(encoding="utf-8")
             )
             app.state.ensemble["temperature"] = thr_config.get("temperature", 1.0)
+            app.state.calibration_configured = "temperature" in thr_config
         except Exception as exc:
             app.state.ensemble = None
             app.state.startup_error = f"No se pudo cargar el ensemble: {exc}"
@@ -173,8 +175,11 @@ async def health(request: Request):
 async def model_info(request: Request):
     cfg = getattr(request.app.state, "model_config", {})
     ens_cfg = getattr(request.app.state, "ensemble_config", {})
+    ensemble = getattr(request.app.state, "ensemble", None) or {}
     thresholds = getattr(request.app.state, "thresholds", {})
     cache_size = len(getattr(request.app.state, "prediction_cache", {}))
+    calibration_configured = getattr(request.app.state, "calibration_configured", False)
+    temperature = ensemble.get("temperature", 1.0)
 
     return {
         "type": "ensemble",
@@ -198,8 +203,30 @@ async def model_info(request: Request):
         "classes": LABELS_14,
         "thresholds": thresholds,
         "metrics": AUC_METRICS,
+        "metrics_provenance": "project_reported",
         "auc_macro": ens_cfg.get("test_auc_macro", 0.8045),
         "val_auc_macro": ens_cfg.get("val_auc_macro", 0.7950),
+        "checkpoint_metrics": ensemble.get("checkpoint_metrics", {}),
+        "score_semantics": "uncalibrated_sigmoid_ensemble_score",
+        "decision_support": {
+            "version": "two_model_agreement_v1",
+            "signals": ["model disagreement", "distance to class threshold"],
+            "statuses": ["stable", "borderline", "discordant"],
+        },
+        "evaluation_status": {
+            "calibration": "configured" if calibration_configured else "not_verified",
+            "temperature": temperature,
+            "external_hnal_validation": "not_documented",
+            "patient_level_split": "not_documented_in_repository",
+            "threshold_optimization": "not_documented_in_repository",
+            "unavailable_metrics": [
+                "per_class_sensitivity",
+                "per_class_specificity",
+                "per_class_precision",
+                "per_class_f1",
+                "calibration_error",
+            ],
+        },
         "reference": "Wang et al. 2017 (AUC macro: 0.7452)",
         "cache_entries": cache_size,
         "rate_limiting": RATE_LIMITING_AVAILABLE,

@@ -303,6 +303,33 @@ class TestRunEnsembleInference:
         assert "Atelectasis" in sub_classes
         assert "Atelectasis" not in result["positive_findings"]
 
+    def test_decision_support_is_stable_when_models_agree_far_from_threshold(self):
+        result = run_ensemble_inference(
+            _make_ensemble(_effusion_logits(), _effusion_logits()), self._TENSOR
+        )
+        support = result["decision_support"]
+        assert support["status"] == "stable"
+        assert support["requires_heightened_review"] is False
+        assert support["calibrated_probability"] is False
+
+    def test_decision_support_detects_model_disagreement(self):
+        result = run_ensemble_inference(
+            _make_ensemble(_effusion_logits(), _low_logits()), self._TENSOR
+        )
+        support = result["decision_support"]
+        assert support["status"] == "discordant"
+        assert support["model_disagreement"] > 0.9
+        assert support["requires_heightened_review"] is True
+
+    def test_decision_support_detects_score_close_to_threshold(self):
+        logits = _low_logits()
+        logits[_EFFUSION_IDX] = -0.8  # sigmoid ~= 0.31; threshold 0.30
+        result = run_ensemble_inference(_make_ensemble(logits, logits), self._TENSOR)
+        support = result["decision_support"]
+        assert support["status"] == "borderline"
+        assert support["threshold_margin"] < 0.02
+        assert support["requires_heightened_review"] is True
+
 
 # ══════════════════════════════════════════════════════════════════════════════
 # 6. Router helpers
@@ -436,6 +463,9 @@ class TestModelInfoEndpoint:
         assert "thresholds" in data
         assert "metrics" in data
         assert data["input_screening"]["version"] == "visual_heuristics_v1"
+        assert data["score_semantics"] == "uncalibrated_sigmoid_ensemble_score"
+        assert data["evaluation_status"]["external_hnal_validation"] == "not_documented"
+        assert data["decision_support"]["version"] == "two_model_agreement_v1"
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -456,6 +486,7 @@ class TestPredictEndpoint:
             "positive_findings", "gradcam_image", "gradcam_class",
             "processing_time_ms", "disclaimer", "image_hash", "cached",
             "image_warnings", "cxr_screening", "explanation",
+            "decision_support",
         }
         assert required.issubset(set(data))
 

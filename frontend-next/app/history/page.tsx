@@ -5,7 +5,7 @@ import { useSearchParams } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { fetchAnalyses } from '@/lib/api'
 import { filterAnalyses, type AnalysisFilters, type AnalysisRecord, type FeedbackFilter } from '@/lib/data/analysis'
-import { formatTimestamp, formatConfidence, downloadBlob, cn } from '@/lib/utils'
+import { formatTimestamp, formatConfidence, downloadBlob, cn, csvCell } from '@/lib/utils'
 import { SEVERITY_COLORS, BADGES, SEVERITY_LABELS } from '@/lib/constants'
 import { Button } from '@/components/ui/button'
 import { buildPdf, type StudyMeta } from '@/lib/pdf'
@@ -13,6 +13,7 @@ import { ClipboardList, Download, ChevronDown, ChevronUp, Search, Check, X, Cloc
 import { ProbabilityBars } from '@/components/analyze/ProbabilityBars'
 import { FeedbackCard } from '@/components/analyze/FeedbackCard'
 import { EmailAlertStatus } from '@/components/EmailAlertStatus'
+import { DecisionSupportAlert } from '@/components/analyze/DecisionSupportAlert'
 import type { Prediction, Severity } from '@/lib/types'
 
 /**
@@ -51,7 +52,7 @@ function HistoryContent() {
   const [lastUrlQ, setLastUrlQ] = useState(urlQ)
   if (urlQ !== lastUrlQ) {
     setLastUrlQ(urlQ)
-    if (urlQ) setQ(urlQ)
+    setQ(urlQ)
   }
   const [severity, setSeverity] = useState<Severity | ''>('')
   const [feedback, setFeedback] = useState<FeedbackFilter | ''>('')
@@ -92,7 +93,7 @@ function HistoryContent() {
         a.feedback?.actualFinding ?? '', a.imageHash ?? '',
       ]),
     ]
-    const csv = rows.map((r) => r.map((c) => `"${String(c).replaceAll('"', '""')}"`).join(',')).join('\n')
+    const csv = rows.map((r) => r.map(csvCell).join(',')).join('\n')
     downloadBlob(csv, 'cxr_historial.csv', 'text/csv')
   }
 
@@ -102,10 +103,10 @@ function HistoryContent() {
 
   return (
     <div className="space-y-6">
-      <div>
+      <div className="page-heading">
         <h1 className="text-2xl font-extrabold text-[var(--fg)]">Historial de análisis</h1>
         <p className="text-sm text-[var(--fg-subtle)] mt-1">
-          {isAdmin ? 'Todos los análisis del servicio (vista administrador)' : 'Sus análisis, persistentes entre sesiones'}
+          {isAdmin ? 'Análisis del servicio' : 'Sus análisis'} · Hasta 500 registros recientes
         </p>
       </div>
 
@@ -127,12 +128,13 @@ function HistoryContent() {
       ) : (
         <>
           {/* Toolbar: búsqueda + export arriba, filtros compactos debajo */}
-          <div className="card p-3 space-y-3">
-            <div className="flex items-center gap-2">
-              <div className="relative flex-1 min-w-[180px]">
+          <div className="space-y-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="relative flex-1 min-w-0 basis-full sm:basis-auto">
                 <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--fg-subtle)]" />
                 <input
                   type="text"
+                  aria-label="Buscar estudios"
                   placeholder="Buscar por estudio, lote, hallazgo, archivo…"
                   value={q}
                   onChange={(e) => setQ(e.target.value)}
@@ -235,7 +237,7 @@ function HistoryContent() {
           </div>
 
           {/* Table - desktop */}
-          <div className="hidden sm:block card overflow-hidden p-0">
+          <div className="hidden sm:block border-y border-[var(--border-subtle)] overflow-x-auto p-0">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-[var(--border-subtle)] bg-[var(--surface2)]">
@@ -245,7 +247,7 @@ function HistoryContent() {
                   <th className="tech-label text-left px-4 py-3">Hallazgo</th>
                   <th className="tech-label text-left px-4 py-3">Severidad</th>
                   <th className="tech-label text-left px-4 py-3">Validación</th>
-                  <th className="tech-label text-right px-4 py-3">Confianza</th>
+                  <th className="tech-label text-right px-4 py-3">Score IA</th>
                   <th className="px-4 py-3" />
                 </tr>
               </thead>
@@ -387,21 +389,19 @@ function HistoryRow({ analysis, isAdmin, canValidate, expanded, onToggle, onBatc
 }
 
 function HistoryCard({ analysis, canValidate, expanded, onToggle }: RowProps) {
-  const c = SEVERITY_COLORS[analysis.severity]
   return (
     <div className="card overflow-hidden">
-      <button className="w-full p-4 flex items-center gap-3 cursor-pointer text-left" onClick={onToggle}>
+      <button className="w-full p-4 flex flex-wrap items-center gap-3 cursor-pointer text-left" onClick={onToggle} aria-expanded={expanded}>
         <span
-          className="shrink-0 inline-flex items-center rounded px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-widest"
-          style={{ background: c.bar, color: '#fff' }}
+          className={`badge-${analysis.severity} inline-flex items-center rounded px-2 py-1 text-xs font-medium`}
         >
           {BADGES[analysis.predictedClass] ?? analysis.predictedClass}
         </span>
-        <div className="flex-1 min-w-0">
-          <div className="readout text-xs font-bold text-[var(--primary)] truncate">
+        <div className="order-first basis-full min-w-0">
+          <div className="readout text-sm font-medium text-[var(--primary)] break-all">
             {analysis.studyId ?? analysis.filename}
           </div>
-          <div className="readout text-[10px] text-[var(--fg-subtle)] truncate">{formatTimestamp(analysis.createdAt)}</div>
+          <div className="text-xs text-[var(--fg-subtle)] mt-1">{formatTimestamp(analysis.createdAt)}</div>
         </div>
         <FeedbackChip analysis={analysis} />
         {expanded ? <ChevronUp size={14} className="text-[var(--fg-subtle)]" /> : <ChevronDown size={14} className="text-[var(--fg-subtle)]" />}
@@ -429,6 +429,9 @@ function HistoryDetail({ analysis, canValidate }: { analysis: AnalysisRecord; ca
     processing_time_ms: analysis.processingTimeMs ?? 0,
     image_hash: analysis.imageHash ?? undefined,
     model_version: analysis.modelVersion ?? undefined,
+    decision_support: analysis.decisionSupport ?? undefined,
+    image_warnings: analysis.imageWarnings ?? [],
+    cxr_screening: analysis.cxrScreening ?? undefined,
   }
 
   const handleDownloadPdf = async () => {
@@ -454,6 +457,7 @@ function HistoryDetail({ analysis, canValidate }: { analysis: AnalysisRecord; ca
   return (
     <div className="space-y-4">
       <EmailAlertStatus alert={analysis.emailAlert} />
+      <DecisionSupportAlert support={prediction.decision_support} />
       <div className="flex flex-wrap items-center gap-x-6 gap-y-1 text-xs text-[var(--fg-subtle)] pb-3 border-b border-[var(--border-subtle)]">
         {analysis.studyId && (
           <span>Estudio <span className="readout font-bold text-[var(--fg)]">{analysis.studyId}</span></span>

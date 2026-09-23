@@ -41,6 +41,9 @@ export interface AnalysisRecord {
   modelVersion: string | null
   processingTimeMs: number | null
   feedback: AnalysisFeedback | null
+  decisionSupport?: Prediction['decision_support'] | null
+  imageWarnings?: string[]
+  cxrScreening?: Prediction['cxr_screening'] | null
 }
 
 export type DeliveryStatus = 'sending' | 'sent' | 'failed' | 'pending_email' | 'not_configured'
@@ -56,6 +59,12 @@ export interface EmailAlert {
 
 export function criticalFindings(record: Pick<AnalysisRecord, 'positiveFindings'>): string[] {
   return [...new Set(record.positiveFindings)].filter((finding) => SEVERITY_MAP[finding] === 'critical')
+}
+
+export function predictionSeverity(prediction: Pick<Prediction, 'positive_findings' | 'predicted_class'>): Severity {
+  const findings = prediction.positive_findings ?? []
+  if (!findings.length) return SEVERITY_MAP[prediction.predicted_class] ?? 'normal'
+  return findings.map(f => SEVERITY_MAP[f] ?? 'moderate').sort((a, b) => SEVERITY_RANK[a] - SEVERITY_RANK[b])[0]
 }
 
 export type FeedbackFilter = 'pending' | 'agree' | 'disagree'
@@ -100,14 +109,16 @@ export function buildAnalysisRecord(
     dicomStudyHash: prediction.dicom_meta?.study_hash ?? null,
     predictedClass: prediction.predicted_class,
     confidence: prediction.confidence,
-    severity: criticalFindings({ positiveFindings: prediction.positive_findings ?? [] }).length
-      ? 'critical' : SEVERITY_MAP[prediction.predicted_class] ?? 'normal',
+    severity: predictionSeverity(prediction),
     probabilities: prediction.probabilities ?? {},
     positiveFindings: prediction.positive_findings ?? [],
     imageHash: prediction.image_hash ?? null,
     modelVersion: prediction.model_version ?? null,
     processingTimeMs: prediction.processing_time_ms ?? null,
     feedback: null,
+    decisionSupport: prediction.decision_support ?? null,
+    imageWarnings: prediction.image_warnings ?? [],
+    cxrScreening: prediction.cxr_screening ?? null,
   }
 }
 

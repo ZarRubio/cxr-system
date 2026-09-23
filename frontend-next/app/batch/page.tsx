@@ -9,8 +9,8 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { predictBatch, type BatchResultItem } from '@/lib/api'
-import { triageRank } from '@/lib/data/analysis'
-import { SEVERITY_MAP, SEVERITY_COLORS, SEVERITY_LABELS, BADGES } from '@/lib/constants'
+import { triageRank, predictionSeverity } from '@/lib/data/analysis'
+import { SEVERITY_COLORS, SEVERITY_LABELS, BADGES } from '@/lib/constants'
 import { formatConfidence, cn } from '@/lib/utils'
 import type { Severity } from '@/lib/types'
 
@@ -60,10 +60,14 @@ export default function BatchPage() {
     accept: ACCEPTED,
     multiple: true,
     maxFiles: MAX_FILES,
+    disabled: analyzing,
+    maxSize: MAX_BYTES,
+    minSize: 1024,
+    onDropRejected: () => setError('Uno o más archivos fueron rechazados. Límite: 8 imágenes PNG, JPG o DICOM de hasta 15 MB.'),
   })
 
   const handleAnalyze = async () => {
-    if (queue.length === 0) return
+    if (queue.length === 0 || analyzing) return
     setAnalyzing(true)
     setError(null)
     try {
@@ -92,25 +96,25 @@ export default function BatchPage() {
       if (!a.result && !b.result) return 0
       if (!a.result) return 1
       if (!b.result) return -1
-      const sa = SEVERITY_MAP[a.result.predicted_class] ?? 'normal'
-      const sb = SEVERITY_MAP[b.result.predicted_class] ?? 'normal'
+      const sa = predictionSeverity(a.result)
+      const sb = predictionSeverity(b.result)
       return triageRank(sa, a.result.confidence) - triageRank(sb, b.result.confidence)
     })
   }, [results])
 
   const criticalCount = triaged.filter(
-    (r) => r.result && (SEVERITY_MAP[r.result.predicted_class] ?? 'normal') === 'critical',
+    (r) => r.result && predictionSeverity(r.result) === 'critical',
   ).length
 
   return (
     <div className="space-y-6">
-      <div>
+      <div className="page-heading">
         <h1 className="text-2xl font-extrabold text-[var(--fg)] flex items-center gap-2">
           <Layers size={22} className="text-[var(--primary)]" />
-          Análisis por lote — Triage
+          Carga por lote
         </h1>
         <p className="text-sm text-[var(--fg-subtle)] mt-1">
-          Hasta {MAX_FILES} placas por pasada. Los resultados se ordenan por severidad para priorizar la lectura.
+          Hasta {MAX_FILES} estudios. La prioridad del sistema es orientativa y requiere revisión clínica.
         </p>
       </div>
 
@@ -122,8 +126,8 @@ export default function BatchPage() {
             aria-label="Zona de carga: arrastra hasta 8 radiografías o haz clic para seleccionar"
             className={cn(
               'card flex flex-col items-center justify-center gap-3 py-10 px-6 cursor-pointer transition-all duration-150',
-              'border-2 border-dashed hover:border-[var(--primary)] hover:bg-[#F0FDFA]',
-              isDragActive && 'border-[var(--primary)] bg-[#E0F7FA] scale-[1.01]',
+              'border border-dashed hover:border-[var(--primary)] hover:bg-[var(--surface2)]',
+              isDragActive && 'border-[var(--primary)] bg-[var(--surface2)]',
               'dark:hover:bg-[color-mix(in_srgb,var(--primary)_5%,transparent)]',
             )}
           >
@@ -220,7 +224,7 @@ export default function BatchPage() {
                   <th className="tech-label text-left px-4 py-3">Archivo</th>
                   <th className="tech-label text-left px-4 py-3">Hallazgo</th>
                   <th className="tech-label text-left px-4 py-3">Severidad</th>
-                  <th className="tech-label text-right px-4 py-3">Confianza</th>
+                  <th className="tech-label text-right px-4 py-3">Score IA</th>
                 </tr>
               </thead>
               <tbody>
@@ -262,7 +266,7 @@ function TriageRow({ item, position }: { item: BatchResultItem; position: number
     )
   }
 
-  const severity: Severity = SEVERITY_MAP[item.result.predicted_class] ?? 'normal'
+  const severity: Severity = predictionSeverity(item.result)
   const c = SEVERITY_COLORS[severity]
 
   return (

@@ -8,6 +8,7 @@ import { ProbabilityBars } from '@/components/analyze/ProbabilityBars'
 import { GradCamView } from '@/components/analyze/GradCamView'
 import { SecondaryFindings } from '@/components/analyze/SecondaryFindings'
 import { CXRScreeningAlert } from '@/components/analyze/CXRScreeningAlert'
+import { DecisionSupportAlert } from '@/components/analyze/DecisionSupportAlert'
 import { Button } from '@/components/ui/button'
 import type { Prediction } from '@/lib/types'
 
@@ -41,16 +42,10 @@ export function ResultsSection({
     <div
       ref={resultsRef}
       className="space-y-5"
-      style={{ animation: 'results-enter 400ms cubic-bezier(0.16,1,0.3,1) both' }}
     >
       {/* Nuevo análisis */}
       <div className="flex items-center justify-between">
-        <p className="text-xs text-[var(--fg-subtle)]">
-          Análisis completado ·{' '}
-          <span className="readout">
-            {new Date().toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' })}
-          </span>
-        </p>
+        <h2 className="section-heading">Resultado del estudio</h2>
         <button
           onClick={onNewAnalysis}
           className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border border-[var(--border)] text-[var(--fg-subtle)] hover:text-[var(--fg)] hover:border-[var(--primary)] hover:bg-[color-mix(in_srgb,var(--primary)_6%,transparent)] transition-all cursor-pointer"
@@ -61,12 +56,17 @@ export function ResultsSection({
       </div>
 
       <CXRScreeningAlert screening={prediction.cxr_screening} />
+      <DecisionSupportAlert support={prediction.decision_support} />
 
       {/* Row 1: Finding + Grad-CAM */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.25fr)] gap-6 items-start">
         <div className="space-y-4">
           <MultipleFindingsCard prediction={prediction} />
-          <ClinicalRecommendations prediction={prediction} />
+          <details className="workspace-section">
+            <summary className="text-sm font-medium cursor-pointer">Información orientativa del hallazgo</summary>
+            <p className="text-xs text-[var(--fg-muted)] my-3">Contenido de referencia, no una indicación de tratamiento. Requiere validación clínica independiente.</p>
+            <ClinicalRecommendations prediction={prediction} />
+          </details>
         </div>
         <GradCamView
           prediction={prediction}
@@ -84,7 +84,7 @@ export function ResultsSection({
       )}
 
       {/* Row 3: Notes + PDF */}
-      <div className="card p-4 space-y-3">
+      <div className="workspace-section space-y-3">
         <label
           htmlFor="clinical-notes"
           className="tech-label flex items-center gap-2"
@@ -96,14 +96,14 @@ export function ResultsSection({
           id="clinical-notes"
           value={notes}
           onChange={(e) => onNotesChange(e.target.value)}
-          placeholder="Correlación clínica, hallazgos adicionales, recomendaciones… (se incluirán como impresión diagnóstica en el PDF)"
+          placeholder="Observaciones e interpretación del radiólogo"
           rows={3}
           className="w-full resize-none rounded-lg border border-[var(--border)] bg-[var(--surface2)] text-sm text-[var(--fg)] placeholder:text-[var(--fg-subtle)] px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-[var(--ring)] transition-shadow leading-relaxed"
         />
         <Button
           variant="secondary"
           size="lg"
-          className="w-full"
+          className="w-full sm:w-auto"
           loading={pdfLoading}
           onClick={onDownloadPdf}
         >
@@ -127,7 +127,7 @@ export function ResultsSection({
       </details>
 
       {prediction.disclaimer && (
-        <p className="text-[10px] text-[var(--fg-subtle)] italic leading-4 px-1">
+        <p className="text-xs text-[var(--fg-subtle)] leading-5 px-1">
           {prediction.disclaimer}
         </p>
       )}

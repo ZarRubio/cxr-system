@@ -95,13 +95,13 @@ export default function StatsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
+      <div className="page-heading">
         <h1 className="text-2xl font-extrabold text-[var(--fg)] flex items-center gap-2">
           <TrendingUp size={22} className="text-[var(--primary)]" />
           Estadísticas del servicio
         </h1>
         <p className="text-sm text-[var(--fg-subtle)] mt-1">
-          Clic en cualquier barra o fila para filtrar todo el panel · clic de nuevo para quitar el filtro
+          Actividad de los últimos 500 registros disponibles. No equivale a rendimiento diagnóstico.
         </p>
       </div>
 

@@ -7,6 +7,8 @@ export interface Prediction {
   probabilities: Record<string, number>
   positive_findings: string[]
   gradcam_image?: string
+  /** Decoded display image; not persisted in study records. */
+  image_preview?: string
   gradcam_class?: string
   processing_time_ms: number
   image_hash?: string
@@ -21,6 +23,19 @@ export interface Prediction {
     score: number
     method: string
     reasons: string[]
+  }
+  decision_support?: {
+    status: 'stable' | 'borderline' | 'discordant'
+    method: string
+    focus_class: string
+    ensemble_score: number
+    threshold: number
+    threshold_margin: number
+    model_disagreement: number
+    requires_heightened_review: boolean
+    calibrated_probability: false
+    reasons: string[]
+    recommendation: string
   }
   explanation?: {
     summary?: string
@@ -47,15 +62,35 @@ export interface ModelInfo {
   num_layers?: number
   mlp_dim?: number
   dropout?: number
+  num_classes?: number
+  classes?: Record<string, string>
   thresholds?: Record<string, number>
   metrics?: Record<string, ClassMetrics>
+  metrics_provenance?: string
+  checkpoint_metrics?: Record<string, {
+    phase?: string
+    epoch?: number
+    best_val_auc_macro?: number
+    best_val_map?: number
+    num_classes?: number
+    num_layers?: number
+  }>
+  score_semantics?: string
+  evaluation_status?: {
+    calibration?: string
+    temperature?: number
+    external_hnal_validation?: string
+    patient_level_split?: string
+    threshold_optimization?: string
+    unavailable_metrics?: string[]
+  }
   error?: string
 }
 
 export interface ClassMetrics {
-  auc: number
-  sensitivity: number
-  specificity: number
+  auc?: number
+  sensitivity?: number
+  specificity?: number
 }
 
 export type Severity = 'critical' | 'high' | 'moderate' | 'normal'

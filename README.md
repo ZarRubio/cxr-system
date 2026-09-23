@@ -27,6 +27,7 @@ Cuando ninguna clase supera su umbral, el sistema reporta **No Finding**.
 ## Producción
 
 Manual funcional: [`docs/MANUAL_USUARIO.md`](docs/MANUAL_USUARIO.md).
+Plan de validación del modelo: [`docs/MODEL_VALIDATION_PLAN.md`](docs/MODEL_VALIDATION_PLAN.md).
 
 | Servicio | URL |
 |---|---|
@@ -65,6 +66,9 @@ Manual funcional: [`docs/MANUAL_USUARIO.md`](docs/MANUAL_USUARIO.md).
   color, relación de aspecto y distribución de intensidades. Rechaza modalidades inequívocas
   como CT, MR o US y fotografías claramente cromáticas; los casos dudosos se procesan con una
   advertencia visible. Es un control técnico heurístico y no certifica calidad diagnóstica.
+- **Consistencia del ensemble**: cada resultado informa si los dos modelos son concordantes,
+  si la decisión está cerca del umbral o si existe desacuerdo relevante. Este indicador activa
+  revisión reforzada, pero no es una probabilidad clínica calibrada.
 - **Triage por lote** (`/batch`): hasta 8 placas por pasada, resultados ordenados por severidad
   (críticos primero) para priorizar la lectura; cada análisis queda en el historial.
 - **Panel de estadísticas** (`/admin/stats`, solo admin): volumen diario, distribución por
@@ -94,6 +98,17 @@ Manual funcional: [`docs/MANUAL_USUARIO.md`](docs/MANUAL_USUARIO.md).
 
 - **AUC macro (test):** 0.8045 · **AUC macro (validación):** 0.7950 · Referencia Wang et al. 2017: 0.7452
 - Inferencia: promedio ponderado de sigmoid scores; umbral per-clase (Infiltration y Pneumonia usan 0.25 por alta incidencia TB en HNAL).
+
+### Estado de validación
+
+- Los checkpoints reportan AUC macro de validación 0.7899 (v1) y 0.7950 (v2), con mAP
+  0.1598 y 0.1568 respectivamente.
+- Los scores sigmoid actuales no tienen calibración verificable en el repositorio y no deben
+  interpretarse como probabilidad clínica.
+- No están documentados en el repositorio la partición por paciente, la optimización reproducible
+  de umbrales ni sensibilidad, especificidad, precisión y F1 por clase.
+- La validación externa con estudios HNAL está pendiente. El sistema continúa siendo académico
+  y requiere revisión radiológica de todos los resultados.
 
 ## Configuración inicial
 
@@ -210,7 +225,7 @@ nombre de archivo, indicación clínica ni datos demográficos del paciente.
 - El secreto de GitHub solo estará disponible tras desplegar el nuevo workflow. En local, configurar SMTP en `.env.local` y `AUTH_URL`.
 
 ```bash
-# Backend: 90 tests
+# Backend: 100 tests
 cd backend
 CXR_SKIP_MODEL_LOAD=1 python -m pytest tests/ -q
 python -m ruff check .

@@ -19,6 +19,22 @@ class CXRScreening(BaseModel):
     reasons: list[str] = []
 
 
+class DecisionSupport(BaseModel):
+    """Consistencia interna del ensemble; no equivale a certeza clinica."""
+
+    status: str  # stable / borderline / discordant
+    method: str
+    focus_class: str
+    ensemble_score: float
+    threshold: float
+    threshold_margin: float
+    model_disagreement: float
+    requires_heightened_review: bool
+    calibrated_probability: bool = False
+    reasons: list[str] = []
+    recommendation: str
+
+
 class PredictionResponse(BaseModel):
     predicted_class: str
     predicted_label: int              # -1 si No Finding
@@ -27,6 +43,7 @@ class PredictionResponse(BaseModel):
     positive_findings: list[str]      # clases sobre threshold
     sub_threshold_findings: list[dict[str, str | float]] = []  # clases entre 0.10 y threshold
     gradcam_image: str
+    image_preview: str = ""
     gradcam_class: str
     processing_time_ms: float
     disclaimer: str
@@ -35,6 +52,7 @@ class PredictionResponse(BaseModel):
     cached: bool = False
     image_warnings: list[str] = []
     cxr_screening: CXRScreening
+    decision_support: DecisionSupport
     explanation: dict[str, str] | None = None
     dicom_meta: DicomMeta | None = None
 

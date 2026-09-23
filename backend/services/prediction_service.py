@@ -11,8 +11,8 @@ import time
 from dataclasses import dataclass
 
 import numpy as np
-from PIL import Image
 from fastapi import HTTPException
+from PIL import Image
 
 from constants.clinical_text import CLASS_DISCLAIMERS, CLASS_EXPLANATIONS, DISCLAIMER
 from schemas.prediction import PredictionResponse

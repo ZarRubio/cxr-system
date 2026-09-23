@@ -1,12 +1,12 @@
 import base64
 import io
-from unittest.mock import patch
 from types import SimpleNamespace
+from unittest.mock import patch
 
 import numpy as np
 from PIL import Image
 
-from services.prediction_service import PredictOptions, _run_prediction, _build_response_data
+from services.prediction_service import PredictOptions, _build_response_data, _run_prediction
 
 
 def test_gradcam_targets_primary_finding_not_list_order():

@@ -31,8 +31,8 @@ Plan de validación del modelo: [`docs/MODEL_VALIDATION_PLAN.md`](docs/MODEL_VAL
 
 | Servicio | URL |
 |---|---|
-| Frontend | <https://cxr-frontend-35fld7nofa-uc.a.run.app> |
-| Backend (health) | <https://cxr-backend-35fld7nofa-uc.a.run.app/health> |
+| Frontend | Se obtiene al completar el despliegue de Cloud Run |
+| Backend (health) | Se obtiene al completar el despliegue de Cloud Run |
 
 ## Arquitectura
 
@@ -122,7 +122,7 @@ cd cxr-system
 Los checkpoints **no están en git**. Descárgalos a `backend/artifacts/`:
 `sprint4ml_v1.pt`, `sprint4ml_v2.pt`, `ensemble_config.json`, `model_config_14.json`,
 `thresholds_14.json`, `labels_14.json`. En producción se descargan desde GCS en el CI/CD
-(bucket `cxr-model-artifacts-55733445282`).
+(bucket `cxr-model-artifacts-730619653471`).
 
 ### 2. Desarrollo (sin Docker)
 
@@ -245,20 +245,22 @@ Secrets requeridos en el repositorio de GitHub:
 
 | Secret | Cómo generarlo |
 |---|---|
-| `GCP_WORKLOAD_IDENTITY_PROVIDER` | (ya configurado) |
-| `GCP_SERVICE_ACCOUNT` | (ya configurado) |
 | `CXR_API_KEY` | `openssl rand -hex 32` |
 | `AUTH_SECRET` | `openssl rand -base64 32` |
+| `SMTP_PASSWORD` | Contraseña de aplicación de Gmail para `Adcejuma@gmail.com` |
+
+Workload Identity Federation usa el proveedor y la cuenta de servicio del proyecto
+definidos en `.github/workflows/deploy.yml`; no requiere guardar llaves JSON en GitHub.
 
 Además, los artefactos del modelo deben existir en el bucket y la cuenta de servicio
 del deploy necesita permiso de lectura sobre él:
 
 ```bash
 gcloud storage cp backend/artifacts/{sprint4ml_v1.pt,sprint4ml_v2.pt,ensemble_config.json,model_config_14.json,thresholds_14.json,labels_14.json} \
-  gs://cxr-model-artifacts-55733445282/artifacts/
+  gs://cxr-model-artifacts-730619653471/artifacts/
 
-gcloud storage buckets add-iam-policy-binding gs://cxr-model-artifacts-55733445282 \
-  --member="serviceAccount:github-actions@project-20fbf8b2-6971-4ef9-8b1.iam.gserviceaccount.com" \
+gcloud storage buckets add-iam-policy-binding gs://cxr-model-artifacts-730619653471 \
+  --member="serviceAccount:github-actions@project-962d2332-8a63-46b3-92e.iam.gserviceaccount.com" \
   --role="roles/storage.objectViewer"
 ```
 

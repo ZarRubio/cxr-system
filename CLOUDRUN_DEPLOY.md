@@ -13,7 +13,7 @@
 ## 1. Configurar proyecto y región
 
 ```bash
-gcloud config set project project-20fbf8b2-6971-4ef9-8b1
+gcloud config set project project-962d2332-8a63-46b3-92e
 gcloud config set run/region us-central1
 
 # Habilitar APIs necesarias
@@ -37,15 +37,15 @@ gcloud auth configure-docker us-central1-docker.pkg.dev
 ```bash
 cd backend
 
-docker build -t us-central1-docker.pkg.dev/project-20fbf8b2-6971-4ef9-8b1/cxr/backend:latest .
-docker push us-central1-docker.pkg.dev/project-20fbf8b2-6971-4ef9-8b1/cxr/backend:latest
+docker build -t us-central1-docker.pkg.dev/project-962d2332-8a63-46b3-92e/cxr/backend:latest .
+docker push us-central1-docker.pkg.dev/project-962d2332-8a63-46b3-92e/cxr/backend:latest
 ```
 
 ## 4. Desplegar backend en Cloud Run
 
 ```bash
 gcloud run deploy cxr-backend \
-  --image us-central1-docker.pkg.dev/project-20fbf8b2-6971-4ef9-8b1/cxr/backend:latest \
+  --image us-central1-docker.pkg.dev/project-962d2332-8a63-46b3-92e/cxr/backend:latest \
   --region us-central1 \
   --cpu 2 \
   --memory 4Gi \
@@ -55,10 +55,15 @@ gcloud run deploy cxr-backend \
   --max-instances 3 \
   --no-cpu-throttling \
   --allow-unauthenticated \
-  --set-env-vars "CXR_CORS_ORIGINS=https://cxr-frontend-35fld7nofa-uc.a.run.app,CXR_API_KEY=<la-misma-key-que-el-frontend>"
+  --set-env-vars "CXR_CORS_ORIGINS=<URL-frontend>,CXR_API_KEY=<la-misma-key-que-el-frontend>"
 ```
 
-Backend URL: `https://cxr-backend-35fld7nofa-uc.a.run.app`
+Obtén las URLs asignadas por Cloud Run:
+
+```bash
+gcloud run services describe cxr-backend --region us-central1 --format='value(status.url)'
+gcloud run services describe cxr-frontend --region us-central1 --format='value(status.url)'
+```
 
 ## 5. Build y push del frontend (Next.js)
 
@@ -69,17 +74,17 @@ La URL del backend ya no se hornea en el bundle: se pasa como env var de runtime
 cd ../frontend-next
 
 docker build \
-  -t us-central1-docker.pkg.dev/project-20fbf8b2-6971-4ef9-8b1/cxr/frontend:latest \
+  -t us-central1-docker.pkg.dev/project-962d2332-8a63-46b3-92e/cxr/frontend:latest \
   .
 
-docker push us-central1-docker.pkg.dev/project-20fbf8b2-6971-4ef9-8b1/cxr/frontend:latest
+docker push us-central1-docker.pkg.dev/project-962d2332-8a63-46b3-92e/cxr/frontend:latest
 ```
 
 ## 6. Desplegar frontend en Cloud Run
 
 ```bash
 gcloud run deploy cxr-frontend \
-  --image us-central1-docker.pkg.dev/project-20fbf8b2-6971-4ef9-8b1/cxr/frontend:latest \
+  --image us-central1-docker.pkg.dev/project-962d2332-8a63-46b3-92e/cxr/frontend:latest \
   --region us-central1 \
   --cpu 1 \
   --memory 512Mi \
@@ -88,14 +93,14 @@ gcloud run deploy cxr-frontend \
   --min-instances 0 \
   --max-instances 3 \
   --allow-unauthenticated \
-  --set-env-vars "HOSTNAME=0.0.0.0,BACKEND_URL=https://cxr-backend-35fld7nofa-uc.a.run.app,BACKEND_API_KEY=<la-misma-key-que-el-backend>,AUTH_SECRET=<openssl rand -base64 32>,AUTH_TRUST_HOST=true"
+  --set-env-vars "HOSTNAME=0.0.0.0,BACKEND_URL=<URL-backend>,BACKEND_API_KEY=<la-misma-key-que-el-backend>,AUTH_SECRET=<openssl rand -base64 32>,AUTH_TRUST_HOST=true"
 ```
 
 ## 7. Verificación final
 
 ```bash
 # Backend health
-curl https://cxr-backend-35fld7nofa-uc.a.run.app/health
+curl <URL-backend>/health
 
 # Frontend URL
 gcloud run services describe cxr-frontend --region us-central1 --format='value(status.url)'

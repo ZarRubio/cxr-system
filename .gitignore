@@ -3,6 +3,7 @@ backend/artifacts/*.pt
 backend/artifacts/*.pth
 backend/artifacts/*.bin
 backend/artifacts/*.ckpt
+backend/artifacts/model_manifest.json
 
 # Python
 __pycache__/

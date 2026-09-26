@@ -8,7 +8,9 @@ from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
 from auth import require_api_key
+from evaluation_evidence import evidence_for_manifest
 from middleware import RequestContextMiddleware
+from model_manifest import build_manifest, verify_manifest
 from rate_limit import RATE_LIMITING_AVAILABLE, limiter
 from routers import predict
 from settings import settings
@@ -53,37 +55,31 @@ LABELS_14 = {
     "11": "Pleural_Thickening", "12": "Pneumonia", "13": "Pneumothorax",
 }
 
-AUC_METRICS = {
-    "Atelectasis":        {"auc": 0.716},
-    "Cardiomegaly":       {"auc": 0.877},
-    "Consolidation":      {"auc": 0.703},
-    "Edema":              {"auc": 0.835},
-    "Effusion":           {"auc": 0.864},
-    "Emphysema":          {"auc": 0.892},
-    "Fibrosis":           {"auc": 0.805},
-    "Hernia":             {"auc": 0.916},
-    "Infiltration":       {"auc": 0.695},
-    "Mass":               {"auc": 0.823},
-    "Nodule":             {"auc": 0.757},
-    "Pleural_Thickening": {"auc": 0.784},
-    "Pneumonia":          {"auc": 0.768},
-    "Pneumothorax":       {"auc": 0.871},
-}
-
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    from services.model_service import load_ensemble
+    from services.model_service import CLASSES_14, load_ensemble
 
     global _MODEL_LOAD_SECONDS
     t0 = time.perf_counter()
     app.state.startup_error = None
     app.state.calibration_configured = False
+    app.state.model_manifest = None
+    app.state.model_manifest_verified = False
 
     if settings.skip_model_load:
         app.state.ensemble = None
     else:
         try:
+            manifest = verify_manifest(
+                _ARTIFACTS_DIR, required=settings.require_model_manifest
+            )
+            app.state.model_manifest_verified = manifest is not None
+            if manifest is None:
+                manifest = build_manifest(_ARTIFACTS_DIR)
+            labels = json.loads((_ARTIFACTS_DIR / "labels_14.json").read_text(encoding="utf-8"))
+            if [labels.get(str(index)) for index in range(14)] != CLASSES_14:
+                raise ValueError("El orden de etiquetas no coincide con el codigo de inferencia")
+            app.state.model_manifest = manifest
             app.state.ensemble = load_ensemble(str(_ARTIFACTS_DIR))
             thr_config = json.loads(
                 (_ARTIFACTS_DIR / "thresholds_14.json").read_text(encoding="utf-8")
@@ -161,6 +157,7 @@ async def health(request: Request):
         "status": "ok" if ensemble_loaded else "degraded",
         "version": __version__,
         "ensemble_loaded": ensemble_loaded,
+        "model_manifest_verified": getattr(request.app.state, "model_manifest_verified", False),
         "num_classes": 14,
         "model_type": "ensemble",
         "cache_entries": len(getattr(request.app.state, "prediction_cache", {})),
@@ -176,6 +173,10 @@ async def model_info(request: Request):
     cfg = getattr(request.app.state, "model_config", {})
     ens_cfg = getattr(request.app.state, "ensemble_config", {})
     ensemble = getattr(request.app.state, "ensemble", None) or {}
+    evidence = (
+        evidence_for_manifest(getattr(request.app.state, "model_manifest", None))
+        if ensemble else None
+    )
     thresholds = getattr(request.app.state, "thresholds", {})
     cache_size = len(getattr(request.app.state, "prediction_cache", {}))
     calibration_configured = getattr(request.app.state, "calibration_configured", False)
@@ -202,11 +203,16 @@ async def model_info(request: Request):
         },
         "classes": LABELS_14,
         "thresholds": thresholds,
-        "metrics": AUC_METRICS,
-        "metrics_provenance": "project_reported",
-        "auc_macro": ens_cfg.get("test_auc_macro", 0.8045),
-        "val_auc_macro": ens_cfg.get("val_auc_macro", 0.7950),
+        "metrics": evidence["metrics"] if evidence else {},
+        "metrics_provenance": (
+            "local_reproduced_historical_test" if evidence else "not_linked_to_running_artifacts"
+        ),
+        "auc_macro": evidence["auc_macro"] if evidence else None,
+        "val_auc_macro": evidence["val_auc_macro"] if evidence else None,
+        "test_map": evidence["map"] if evidence else None,
+        "test_images": evidence["n_test_images"] if evidence else None,
         "checkpoint_metrics": ensemble.get("checkpoint_metrics", {}),
+        "artifact_provenance": getattr(request.app.state, "model_manifest", None),
         "score_semantics": "uncalibrated_sigmoid_ensemble_score",
         "decision_support": {
             "version": "two_model_agreement_v1",
@@ -217,7 +223,10 @@ async def model_info(request: Request):
             "calibration": "configured" if calibration_configured else "not_verified",
             "temperature": temperature,
             "external_hnal_validation": "not_documented",
-            "patient_level_split": "not_documented_in_repository",
+            "patient_level_split": (
+                "historical_split_documented_local_audit"
+                if evidence else "not_linked_to_running_artifacts"
+            ),
             "threshold_optimization": "not_documented_in_repository",
             "unavailable_metrics": [
                 "per_class_sensitivity",
@@ -227,7 +236,7 @@ async def model_info(request: Request):
                 "calibration_error",
             ],
         },
-        "reference": "Wang et al. 2017 (AUC macro: 0.7452)",
+        "reference": "Wang et al. 2017 (different test protocol; not a controlled comparison)",
         "cache_entries": cache_size,
         "rate_limiting": RATE_LIMITING_AVAILABLE,
         "startup_error": getattr(request.app.state, "startup_error", None),

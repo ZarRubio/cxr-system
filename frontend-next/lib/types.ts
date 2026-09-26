@@ -53,8 +53,10 @@ export interface Prediction {
 
 export interface ModelInfo {
   type?: string
-  auc_macro?: number
-  val_auc_macro?: number
+  auc_macro?: number | null
+  val_auc_macro?: number | null
+  test_map?: number | null
+  test_images?: number | null
   cache_entries?: number
   startup_error?: string
   embedding_dim?: number
@@ -89,6 +91,8 @@ export interface ModelInfo {
 
 export interface ClassMetrics {
   auc?: number
+  ap?: number
+  n_positive?: number
   sensitivity?: number
   specificity?: number
 }

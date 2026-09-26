@@ -28,6 +28,10 @@ Cuando ninguna clase supera su umbral, el sistema reporta **No Finding**.
 
 Manual funcional: [`docs/MANUAL_USUARIO.md`](docs/MANUAL_USUARIO.md).
 Plan de validación del modelo: [`docs/MODEL_VALIDATION_PLAN.md`](docs/MODEL_VALIDATION_PLAN.md).
+Protocolo de reentrenamiento: [`docs/RETRAINING_PROTOCOL_2026-09-25.md`](docs/RETRAINING_PROTOCOL_2026-09-25.md).
+Reproducción del test histórico: [`docs/MODEL_REPRODUCTION_2026-09-25.md`](docs/MODEL_REPRODUCTION_2026-09-25.md).
+Auditoría de datos y procedencia: [`docs/MODEL_PROVENANCE_AUDIT.md`](docs/MODEL_PROVENANCE_AUDIT.md).
+Resultado de la auditoría local NIH: [`docs/NIH_AUDIT_2026-09-25.md`](docs/NIH_AUDIT_2026-09-25.md).
 
 | Servicio | URL |
 |---|---|
@@ -96,17 +100,21 @@ Plan de validación del modelo: [`docs/MODEL_VALIDATION_PLAN.md`](docs/MODEL_VAL
 | Capas ViT | 4 | 6 |
 | Peso en ensemble | 0.3 | 0.7 |
 
-- **AUC macro (test):** 0.8045 · **AUC macro (validación):** 0.7950 · Referencia Wang et al. 2017: 0.7452
+- **AUC macro del test histórico reproducido localmente:** 0.8045 · **AUC macro de validación reportado por el checkpoint v2:** 0.7950 · Referencia bibliográfica Wang et al. 2017: 0.7452 (test distinto; no es comparación controlada)
 - Inferencia: promedio ponderado de sigmoid scores; umbral per-clase (Infiltration y Pneumonia usan 0.25 por alta incidencia TB en HNAL).
 
 ### Estado de validación
 
 - Los checkpoints reportan AUC macro de validación 0.7899 (v1) y 0.7950 (v2), con mAP
   0.1598 y 0.1568 respectivamente.
+- El ensemble se volvió a evaluar sobre el test histórico: AUC macro 0.8044989
+  frente a 0.8045062 archivado. Los hashes de los artefactos desplegados aún no
+  se han cotejado con los locales.
 - Los scores sigmoid actuales no tienen calibración verificable en el repositorio y no deben
   interpretarse como probabilidad clínica.
-- No están documentados en el repositorio la partición por paciente, la optimización reproducible
-  de umbrales ni sensibilidad, especificidad, precisión y F1 por clase.
+- La partición histórica por paciente y una nueva partición para entrenamiento futuro se
+  describen en la auditoría NIH; falta documentar la selección de umbrales,
+  sensibilidad, especificidad, precisión y F1 por clase.
 - La validación externa con estudios HNAL está pendiente. El sistema continúa siendo académico
   y requiere revisión radiológica de todos los resultados.
 
@@ -239,7 +247,8 @@ npm run lint && npx tsc --noEmit && npm run build
 
 - **`ci.yml`**: en cada PR — ruff + pytest (backend), eslint + tsc + build (frontend).
 - **`deploy.yml`**: en cada push a `master` — corre CI como gate, descarga checkpoints de GCS,
-  construye imágenes, publica en Artifact Registry y despliega a Cloud Run (`us-central1`).
+  genera y verifica un manifiesto SHA-256, construye imágenes, publica en Artifact Registry y
+  despliega a Cloud Run (`us-central1`).
 
 Secrets requeridos en el repositorio de GitHub:
 

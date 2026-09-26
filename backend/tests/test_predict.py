@@ -30,6 +30,7 @@ from PIL import Image
 from pydicom.dataset import FileDataset, FileMetaDataset
 from pydicom.uid import ExplicitVRLittleEndian, SecondaryCaptureImageStorage, generate_uid
 
+from evaluation_evidence import EXPECTED_SHA256
 from main import app
 from routers.predict import _parse_gradcam_method
 from services.cxr_screening_service import classify_cxr
@@ -466,6 +467,20 @@ class TestModelInfoEndpoint:
         assert data["score_semantics"] == "uncalibrated_sigmoid_ensemble_score"
         assert data["evaluation_status"]["external_hnal_validation"] == "not_documented"
         assert data["decision_support"]["version"] == "two_model_agreement_v1"
+
+    def test_hides_unlinked_historical_metrics(self, client: TestClient):
+        data = client.get("/model-info").json()
+        assert data["metrics"] == {}
+        assert data["auc_macro"] is None
+        assert data["metrics_provenance"] == "not_linked_to_running_artifacts"
+
+    def test_exposes_metrics_only_for_matching_artifact_hashes(self, client: TestClient):
+        app.state.model_manifest = {"artifact_sha256": dict(EXPECTED_SHA256)}
+        data = client.get("/model-info").json()
+        assert data["metrics_provenance"] == "local_reproduced_historical_test"
+        assert data["auc_macro"] == pytest.approx(0.8044989191922561)
+        assert data["val_auc_macro"] == pytest.approx(0.7990317790600593)
+        assert data["metrics"]["Pneumonia"]["n_positive"] == 25
 
 
 # ══════════════════════════════════════════════════════════════════════════════

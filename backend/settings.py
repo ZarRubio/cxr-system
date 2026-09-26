@@ -6,6 +6,7 @@ class Settings(BaseSettings):
 
     cors_origins: str = "http://localhost:3000"
     skip_model_load: bool = False
+    require_model_manifest: bool = False
     rate_limit_predict: str = "20/minute"
     audit_log_path: str = "logs/audit.jsonl"
 

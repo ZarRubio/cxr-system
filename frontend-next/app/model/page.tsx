@@ -34,12 +34,9 @@ export default function ModelPage() {
 
   const aucTest = info?.auc_macro
   const aucValidation = info?.val_auc_macro
+  const linkedEvidence = info?.metrics_provenance === 'local_reproduced_historical_test'
   const live = info?.metrics ?? {}
   const thresholds = info?.thresholds ?? {}
-  const checkpointMaps = Object.values(info?.checkpoint_metrics ?? {})
-    .map((item) => item.best_val_map)
-    .filter((value): value is number => typeof value === 'number')
-  const bestMap = checkpointMaps.length ? Math.max(...checkpointMaps) : undefined
   const evaluation = info?.evaluation_status
   const classes = Object.values(info?.classes ?? {}).length
     ? Object.values(info?.classes ?? {})
@@ -48,10 +45,12 @@ export default function ModelPage() {
   const rows = classes.map((cls) => ({
     cls,
     auc: live[cls]?.auc,
+    ap: live[cls]?.ap,
+    positives: live[cls]?.n_positive,
     sensitivity: live[cls]?.sensitivity,
     specificity: live[cls]?.specificity,
     color: CLASS_COLORS[cls] ?? 'var(--primary)',
-  })).sort((a, b) => (b.auc ?? -1) - (a.auc ?? -1))
+  })).sort((a, b) => linkedEvidence ? (a.auc ?? 1) - (b.auc ?? 1) : CLASS_NAMES.indexOf(a.cls) - CLASS_NAMES.indexOf(b.cls))
 
   return (
     <div className="space-y-8">
@@ -73,9 +72,9 @@ export default function ModelPage() {
 
       {/* KPIs */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <MetricCard label="AUC macro · prueba" value={aucTest?.toFixed(3) ?? '—'} sub="Reportado por el proyecto" />
-        <MetricCard label="AUC macro · validación" value={aucValidation?.toFixed(3) ?? '—'} sub="Reportado por el proyecto" />
-        <MetricCard label="Mejor mAP · checkpoint" value={bestMap?.toFixed(3) ?? '—'} sub="Validación del modelo individual" />
+        <MetricCard label="AUROC macro · prueba NIH" value={aucTest?.toFixed(3) ?? '—'} sub={linkedEvidence ? 'Test histórico reproducido' : 'Sin vínculo por hash'} />
+        <MetricCard label="AUROC macro · validación NIH" value={aucValidation?.toFixed(3) ?? '—'} sub={linkedEvidence ? 'Peso elegido antes de prueba' : 'Sin vínculo por hash'} />
+        <MetricCard label="AUPRC macro · prueba NIH" value={info?.test_map?.toFixed(3) ?? '—'} sub={linkedEvidence ? `${info?.test_images ?? 4023} estudios en prueba` : 'Sin vínculo por hash'} />
         <MetricCard label="Validación HNAL" value="Pendiente" sub="No documentada" />
       </div>
 
@@ -86,42 +85,48 @@ export default function ModelPage() {
             <h2 className="text-sm font-bold">Estado de evidencia clínica</h2>
             <p className="mt-1 text-xs leading-5">
               Calibración: <strong>{evaluation?.calibration === 'configured' ? 'configurada' : 'no verificada'}</strong>
-              {' · '}Partición por paciente: <strong>no documentada en el repositorio</strong>
+              {' · '}Partición por paciente: <strong>{linkedEvidence ? 'auditada para el test histórico' : 'sin vínculo con los artefactos cargados'}</strong>
               {' · '}Validación externa HNAL: <strong>pendiente</strong>.
             </p>
             <p className="mt-1 text-[11px] leading-4">
-              Los scores sigmoid sirven para ordenar señales del modelo, pero no deben interpretarse como probabilidad clínica hasta completar calibración y validación externa.
+              {linkedEvidence
+                ? 'Estas métricas corresponden al test NIH histórico, no a pacientes HNAL. Los scores sigmoid no son probabilidades clínicas calibradas.'
+                : 'No se muestran métricas históricas hasta comprobar que los checkpoints y la configuración cargados coinciden con los evaluados.'}
             </p>
           </div>
         </div>
       </div>
 
-      {/* AUC bars */}
-      <div className="card p-5 space-y-4">
-        <div className="flex items-center gap-2 mb-1">
+      <div className="card overflow-hidden p-0">
+        <div className="px-5 py-4 border-b border-[var(--border-subtle)] flex items-center gap-2">
           <BarChart3 size={16} className="text-[var(--primary)]" />
-          <h3 className="text-sm font-bold text-[var(--fg)]">Área bajo la curva ROC por clase</h3>
+          <h3 className="text-sm font-bold text-[var(--fg)]">Rendimiento por hallazgo · test NIH histórico</h3>
         </div>
-        {rows.map(({ cls, auc: a, color }) => (
-          <div key={cls} className="flex items-center gap-3">
-            <div className="w-36 shrink-0 flex items-center gap-1.5">
-              <span className="text-xs font-medium truncate text-[var(--fg)]">{cls}</span>
-            </div>
-            <div className="flex-1 h-2.5 rounded-full bg-[var(--border-subtle)]">
-              {a !== undefined && (
-                <div
-                  className="h-2.5 rounded-full transition-all duration-700"
-                  style={{ width: `${(a * 100).toFixed(1)}%`, background: color }}
-                />
-              )}
-            </div>
-            <span className="readout w-12 text-right text-xs font-semibold text-[var(--fg)]">
-              {a?.toFixed(3) ?? '—'}
-            </span>
-          </div>
-        ))}
-        <p className="text-[10px] text-[var(--fg-subtle)] pt-1">
-          AUC por clase reportado por el proyecto. El repositorio aún no contiene el conjunto de evaluación ni un script que reproduzca estas cifras.
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-[var(--surface2)] border-b border-[var(--border-subtle)]">
+                {['Hallazgo', 'AUROC', 'AUPRC', 'Positivos'].map((heading) => (
+                  <th key={heading} scope="col" className="tech-label text-left px-4 py-3">{heading}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map(({ cls, auc, ap, positives }) => (
+                <tr key={cls} className="border-b border-[var(--border-subtle)]">
+                  <th scope="row" className="px-4 py-3 text-left font-medium text-[var(--fg)]">{cls}</th>
+                  <td className="readout px-4 py-3 text-[var(--fg)]">{auc?.toFixed(3) ?? '—'}</td>
+                  <td className="readout px-4 py-3 text-[var(--fg)]">{ap?.toFixed(3) ?? '—'}</td>
+                  <td className="readout px-4 py-3 text-[var(--fg)]">{positives ?? '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p className="px-5 py-3 text-xs text-[var(--fg-subtle)]">
+          {linkedEvidence
+            ? '4 023 imágenes de prueba, una por paciente. AUROC mide discriminación; AUPRC debe leerse junto al número de positivos. No hay validación clínica externa.'
+            : 'Las métricas por clase se ocultan porque esta versión no está vinculada por hash a la evaluación local.'}
         </p>
       </div>
 
@@ -210,14 +215,14 @@ export default function ModelPage() {
               <span className="text-[#1D4ED8] font-bold">DenseNet121</span> →
               feature maps 7×7 →{' '}
               <span className="text-[#15803D] font-bold">49 patches</span> →{' '}
-              <span className="text-[#7C3AED] font-bold">ViT (4 bloques, 8 heads)</span> →
+              <span className="text-[#7C3AED] font-bold">ViT (4 y 6 bloques, 8 heads)</span> →
               sigmoid multi-label →{' '}
               <span className="text-[#B91C1C] font-bold">14 scores independientes no calibrados</span>
             </div>
 
             <p className="text-[11px] text-[var(--fg-subtle)]">
               Ensemble: 0.3 × modelo v1 (4 capas) + 0.7 × modelo v2 (6 capas).
-              Métricas reportadas por el proyecto. No constituyen aprobación clínica ni regulatoria.
+              Evaluación NIH histórica vinculada por hash solo cuando los artefactos coinciden. No constituye aprobación clínica ni regulatoria.
             </p>
           </div>
         )}

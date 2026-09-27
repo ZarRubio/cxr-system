@@ -54,7 +54,7 @@ function seedDefaultAdmin(database: Database.Database): void {
       `INSERT INTO users (id, name, username, password, role, cmp, specialty, active, createdAt)
        VALUES (?, ?, ?, ?, 'admin', NULL, 'Administración del sistema', 1, ?)`,
     )
-    .run('usr_admin', 'Administrador HNAL', 'admin', bcrypt.hashSync(password, 10), new Date().toISOString())
+    .run('usr_admin', 'Administrador', 'admin', bcrypt.hashSync(password, 10), new Date().toISOString())
 }
 
 export function getDb(): Database.Database {
@@ -87,6 +87,7 @@ export function getDb(): Database.Database {
   if (!columns.some((column) => column.name === 'email')) db.exec('ALTER TABLE users ADD COLUMN email TEXT')
   seedFromLegacyJson(db)
   seedDefaultAdmin(db)
+  db.prepare("UPDATE users SET name = 'Administrador' WHERE id = 'usr_admin' AND name = ?").run('Administrador HNAL')
   db.prepare("UPDATE users SET email = ? WHERE role = 'admin' AND (email IS NULL OR email = '')").run(DEFAULT_ADMIN_EMAIL)
   return db
 }

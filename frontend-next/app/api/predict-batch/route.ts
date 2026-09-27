@@ -57,12 +57,15 @@ export async function POST(request: NextRequest) {
     try {
       await store.createAnalysis(record)
       item.result.analysis_id = record.id
+      item.result.persistence = { status: 'saved' }
       try {
         item.result.email_alert = await notifyCriticalAnalysis(record)
       } catch {
+        item.result.notification_error = true
         console.error('[predict-batch] no se pudo completar la alerta', { analysisId: record.id })
       }
     } catch (e) {
+      item.result.persistence = { status: 'failed', message: 'No se guardó este estudio ni se enviaron sus notificaciones.' }
       console.error('[predict-batch] no se pudo persistir el análisis:', e)
     }
   }))

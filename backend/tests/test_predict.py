@@ -465,7 +465,7 @@ class TestModelInfoEndpoint:
         assert "metrics" in data
         assert data["input_screening"]["version"] == "visual_heuristics_v1"
         assert data["score_semantics"] == "uncalibrated_sigmoid_ensemble_score"
-        assert data["evaluation_status"]["external_hnal_validation"] == "not_documented"
+        assert data["evaluation_status"]["external_validation"] == "not_documented"
         assert data["decision_support"]["version"] == "two_model_agreement_v1"
 
     def test_hides_unlinked_historical_metrics(self, client: TestClient):

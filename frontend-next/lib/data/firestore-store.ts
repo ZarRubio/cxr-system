@@ -3,7 +3,7 @@ import bcrypt from 'bcryptjs'
 import type { CXRUser } from '@/lib/types'
 import type { AnalysisFeedback, AnalysisRecord } from './analysis'
 import type { DataStore } from './store'
-import { fsClaimEmailAlert, fsDeleteDoc, fsGetDoc, fsQuery, fsSetDoc, fsUpdateFields } from './firestore-rest'
+import { fsClaimEmailAlert, fsClaimEmailRetry, fsDeleteDoc, fsGetDoc, fsQuery, fsSetDoc, fsSetEmailDelivery, fsUpdateFields } from './firestore-rest'
 import { DEFAULT_ADMIN_EMAIL } from '@/lib/email-address'
 
 /**
@@ -33,12 +33,13 @@ function ensureSeed(): Promise<void> {
     const admin = await fsGetDoc(USERS, 'usr_admin')
     if (admin) {
       if (!admin.email) await fsUpdateFields(USERS, 'usr_admin', { email: DEFAULT_ADMIN_EMAIL })
+      if (admin.name === 'Administrador HNAL') await fsUpdateFields(USERS, 'usr_admin', { name: 'Administrador' })
       return
     }
     const password = process.env.SEED_ADMIN_PASSWORD ?? 'hnal2026'
     const user: CXRUser = {
       id: 'usr_admin',
-      name: 'Administrador HNAL',
+      name: 'Administrador',
       username: 'admin',
       password: bcrypt.hashSync(password, 10),
       role: 'admin',
@@ -117,8 +118,16 @@ export const firestoreStore: DataStore = {
     return fsClaimEmailAlert(id, alert)
   },
 
+  async claimEmailRetry(id, role, now) {
+    return fsClaimEmailRetry(id, role, now)
+  },
+
   async setEmailAlert(id, alert) {
     await fsUpdateFields(ANALYSES, id, { emailAlert: alert as unknown as Record<string, unknown> })
+  },
+
+  async setEmailDelivery(id, role, delivery) {
+    await fsSetEmailDelivery(id, role, delivery)
   },
 
   async listAnalyses({ userId, limit = 500 }) {
@@ -133,6 +142,10 @@ export const firestoreStore: DataStore = {
 
   async setAnalysisFeedback(id, feedback: AnalysisFeedback) {
     await fsUpdateFields(ANALYSES, id, { feedback: feedback as unknown as Record<string, unknown> })
+    return this.getAnalysis(id)
+  },
+  async setAnalysisNotes(id, notes) {
+    await fsUpdateFields(ANALYSES, id, { notes, notesUpdatedAt: new Date().toISOString() })
     return this.getAnalysis(id)
   },
 }

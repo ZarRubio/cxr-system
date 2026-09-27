@@ -18,8 +18,8 @@ export function Header() {
     <header className="shrink-0 flex items-center justify-between gap-3 px-4 sm:px-8 min-h-16 border-b border-[var(--border-subtle)] bg-[var(--surface)]">
       <div className="min-w-0">
         <p className="lg:hidden font-semibold text-sm">CXR Classifier</p>
-        <p className="hidden lg:block text-sm text-[var(--fg-muted)]">Hospital Nacional Arzobispo Loayza</p>
-        <p className="lg:hidden text-xs text-[var(--fg-subtle)]">HNAL · Investigación</p>
+        <p className="hidden lg:block text-sm text-[var(--fg-muted)]">Proyecto de investigación</p>
+        <p className="lg:hidden text-xs text-[var(--fg-subtle)]">Investigación académica</p>
       </div>
       <div className="flex items-center gap-1">
         <button className="icon-button" title={dark ? 'Modo claro' : 'Modo oscuro'} aria-label={dark ? 'Activar modo claro' : 'Activar modo oscuro'} onClick={() => setTheme(dark ? 'light' : 'dark')}>

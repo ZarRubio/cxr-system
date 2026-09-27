@@ -84,7 +84,7 @@ rendimiento y no deben confundirse con la evaluacion completa.
 6. Evaluar por separado proyeccion PA/AP y otros subgrupos disponibles, sin
    presentar diferencias exploratorias como concluyentes. Documentar errores
    de etiqueta, fallos de calidad y las clases con pocos positivos.
-7. Evaluar externamente en HNAL solo tras aprobacion institucional, con
+7. Evaluar en una cohorte clínica externa solo tras aprobacion institucional, con
    desidentificacion, criterio de referencia del radiologo y muestra definida
    antes de observar resultados. No recalibrar con la cohorte reservada para
    prueba externa; si se adapta el modelo, crear otra cohorte de evaluacion.

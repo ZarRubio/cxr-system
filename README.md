@@ -5,7 +5,7 @@
 ![Next.js 16](https://img.shields.io/badge/Next.js-16-000000?logo=nextdotjs&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)
 
-**Hospital Nacional Arzobispo Loayza (HNAL) — Lima, Perú**
+**Proyecto académico de investigación en radiografía de tórax**
 Tesis de Ingeniería de Software · 2026
 
 ## Descripción
@@ -101,7 +101,7 @@ Resultado de la auditoría local NIH: [`docs/NIH_AUDIT_2026-09-25.md`](docs/NIH_
 | Peso en ensemble | 0.3 | 0.7 |
 
 - **AUC macro del test histórico reproducido localmente:** 0.8045 · **AUC macro de validación reportado por el checkpoint v2:** 0.7950 · Referencia bibliográfica Wang et al. 2017: 0.7452 (test distinto; no es comparación controlada)
-- Inferencia: promedio ponderado de sigmoid scores; umbral per-clase (Infiltration y Pneumonia usan 0.25 por alta incidencia TB en HNAL).
+- Inferencia: promedio ponderado de sigmoid scores; umbral per-clase (Infiltration y Pneumonia usan 0.25 como configuración exploratoria histórica; su utilidad clínica no ha sido validada).
 
 ### Estado de validación
 
@@ -115,7 +115,7 @@ Resultado de la auditoría local NIH: [`docs/NIH_AUDIT_2026-09-25.md`](docs/NIH_
 - La partición histórica por paciente y una nueva partición para entrenamiento futuro se
   describen en la auditoría NIH; falta documentar la selección de umbrales,
   sensibilidad, especificidad, precisión y F1 por clase.
-- La validación externa con estudios HNAL está pendiente. El sistema continúa siendo académico
+- La validación externa con estudios de una cohorte clínica externa está pendiente. El sistema continúa siendo académico
   y requiere revisión radiológica de todos los resultados.
 
 ## Configuración inicial
@@ -308,4 +308,4 @@ cxr-system/
 
 > Este sistema es de uso exclusivamente académico.
 > No reemplaza el criterio clínico del radiólogo.
-> Desarrollado para el Hospital Nacional Arzobispo Loayza (HNAL), Lima, Perú.
+> Proyecto de investigación académica en radiografía de tórax, sin afiliación hospitalaria específica.

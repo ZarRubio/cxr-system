@@ -127,7 +127,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="CXR Classification API",
-    description="Clasificacion de radiografias de torax — HNAL 2026",
+    description="Clasificacion de radiografias de torax — Proyecto academico",
     version=__version__,
     lifespan=lifespan,
 )
@@ -222,7 +222,7 @@ async def model_info(request: Request):
         "evaluation_status": {
             "calibration": "configured" if calibration_configured else "not_verified",
             "temperature": temperature,
-            "external_hnal_validation": "not_documented",
+            "external_validation": "not_documented",
             "patient_level_split": (
                 "historical_split_documented_local_audit"
                 if evidence else "not_linked_to_running_artifacts"

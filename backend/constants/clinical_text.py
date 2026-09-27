@@ -1,21 +1,21 @@
 """
 Textos clinicos que acompanan cada prediccion: disclaimer general,
 advertencias por clase y explicaciones del mapa Grad-CAM.
-Contexto: Hospital Nacional Arzobispo Loayza (HNAL), Lima, Peru.
+Contexto: investigacion academica en radiografia de torax.
 """
 
 DISCLAIMER = (
     "Uso academico. Este sistema no reemplaza el criterio clinico del radiologo. "
-    "Desarrollado para el Hospital Nacional Arzobispo Loayza (HNAL), Lima, Peru."
+    "Proyecto de investigacion academica en radiografia de torax."
 )
 
 CLASS_DISCLAIMERS = {
     "Infiltration": (
         " Para Infiltration, considerar correlacion clinica y tamizaje de TB segun "
-        "protocolo local HNAL."
+        "protocolo clinico vigente."
     ),
     "Pneumonia": (
-        " Para Pneumonia, en contexto HNAL Lima, descartar tuberculosis segun protocolo local."
+        " Para Pneumonia, descartar tuberculosis segun protocolo local."
     ),
 }
 
@@ -63,7 +63,7 @@ CLASS_EXPLANATIONS = {
     "Infiltration": {
         "summary": "El modelo puede estar respondiendo a opacidades pulmonares compatibles con infiltrado.",
         "visual": "Revise si el mapa se concentra en campos pulmonares con aumento de densidad.",
-        "clinical": "En contexto HNAL, correlacionar con sospecha de neumonia o tuberculosis.",
+        "clinical": "correlacionar con sospecha de neumonia o tuberculosis.",
     },
     "Mass": {
         "summary": "El modelo puede estar respondiendo a lesion pulmonar mayor de 3 cm.",
@@ -83,7 +83,7 @@ CLASS_EXPLANATIONS = {
     "Pneumonia": {
         "summary": "El modelo puede estar respondiendo a consolidacion neumofica.",
         "visual": "Revise si el mapa resalta area de consolidacion lobar o segmentaria.",
-        "clinical": "En contexto HNAL Lima, considerar tamizaje de tuberculosis.",
+        "clinical": "considerar tamizaje de tuberculosis.",
     },
     "Pneumothorax": {
         "summary": "El modelo puede estar respondiendo a linea pleural y ausencia de trama vascular.",

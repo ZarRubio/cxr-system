@@ -1,4 +1,7 @@
 export interface Prediction {
+  persistence?: { status: 'saved' | 'failed'; message?: string }
+  notification_error?: boolean
+  feedback?: import('./data/analysis').AnalysisFeedback | null
   email_alert?: import('./data/analysis').EmailAlert
   /** ID del registro persistido en el historial (lo añade /api/predict) */
   analysis_id?: string
@@ -81,7 +84,7 @@ export interface ModelInfo {
   evaluation_status?: {
     calibration?: string
     temperature?: number
-    external_hnal_validation?: string
+    external_validation?: string
     patient_level_split?: string
     threshold_optimization?: string
     unavailable_metrics?: string[]

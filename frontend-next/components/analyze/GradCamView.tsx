@@ -8,12 +8,13 @@ import { predict } from '@/lib/api'
 import type { Prediction } from '@/lib/types'
 
 interface GradCamViewProps {
+  filename?: string
   prediction: Prediction
   originalBytes: Uint8Array
   onPredictionUpdate?: (updated: Prediction) => void
 }
 
-export function GradCamView({ prediction, originalBytes, onPredictionUpdate }: GradCamViewProps) {
+export function GradCamView({ prediction, originalBytes, filename = 'image.png', onPredictionUpdate }: GradCamViewProps) {
   const [opacity, setOpacity]       = useState(0.65)
   const [blended, setBlended]       = useState<string | null>(null)
   const [loading, setLoading]       = useState(false)
@@ -52,10 +53,14 @@ export function GradCamView({ prediction, originalBytes, onPredictionUpdate }: G
   }, [gradcamUri, displayBytes, opacity])
 
   const handleGenerate = async () => {
+    if (!prediction.analysis_id) {
+      setError('El estudio debe estar guardado para generar su mapa sin crear otro registro.')
+      return
+    }
     setGenerating(true)
     try {
-      const updated = await predict(originalBytes, prediction.gradcam_class ?? 'image.png', 'gradcam', true)
-      onPredictionUpdate?.(updated)
+      const updated = await predict(originalBytes, filename, 'gradcam', true, { explanationId: prediction.analysis_id })
+      onPredictionUpdate?.({ ...prediction, gradcam_image: updated.gradcam_image, gradcam_class: updated.gradcam_class, image_preview: updated.image_preview ?? prediction.image_preview })
     } catch {
       setError('No se pudo generar el mapa de calor. Intente nuevamente.')
     } finally {

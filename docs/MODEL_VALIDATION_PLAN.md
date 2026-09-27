@@ -37,7 +37,7 @@ se recalculo localmente sobre el test historico como **0.8044989**, dentro de
 - Intervalos de confianza y analisis por edad, sexo y proyeccion AP/PA.
 - Calibracion por clase: Brier score, ECE y curvas de confiabilidad.
 - Metodo reproducible usado para seleccionar cada umbral.
-- Validacion externa con estudios del HNAL y lectura de referencia.
+- Validacion externa con estudios de una cohorte clínica externa y lectura de referencia.
 
 ## Protocolo recomendado
 
@@ -48,7 +48,7 @@ se recalculo localmente sobre el test historico como **0.8044989**, dentro de
 5. Calcular sensibilidad, especificidad, precision, NPV y F1 con los umbrales actuales.
 6. Ajustar calibracion y umbrales solamente con validacion; no tocar el conjunto de prueba.
 7. Congelar modelo, calibracion y umbrales y evaluarlos una sola vez en prueba.
-8. Repetir el analisis en una cohorte externa HNAL, con intervalos de confianza bootstrap.
+8. Repetir el analisis en una cohorte clínica externa independiente, con intervalos de confianza bootstrap.
 9. Revisar por separado falsos negativos de Pneumothorax, Edema, Mass y Pneumonia.
 
 Para una evaluacion NIH independiente con un modelo nuevo, evitar un backbone
@@ -59,7 +59,7 @@ nuevo: ya vieron NIH bajo el protocolo historico.
 ## Cuando reentrenar
 
 Reentrenar si existe una brecha relevante de sensibilidad/AUPRC en clases prioritarias, deriva
-entre NIH y HNAL, fuga por paciente o errores sistematicos de proyeccion y calidad. Antes de
+entre NIH y una cohorte clínica externa, fuga por paciente o errores sistematicos de proyeccion y calidad. Antes de
 cambiar la arquitectura, priorizar limpieza de etiquetas, balance de clases, muestreo por
 paciente y aumentos compatibles con radiografia.
 
@@ -71,5 +71,5 @@ objetivo clinico, ajustar umbrales en validacion y documentar el costo en falsos
 
 El modelo solo deberia presentarse como validado cuando las metricas puedan reproducirse desde
 un conjunto congelado, no exista solapamiento de pacientes, los umbrales esten justificados y
-la cohorte HNAL confirme el rendimiento esperado. La aprobacion final requiere participacion
+la cohorte clínica externa confirme el rendimiento esperado. La aprobacion final requiere participacion
 del radiologo responsable y asesoria estadistica.

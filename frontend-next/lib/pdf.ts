@@ -1,8 +1,10 @@
 import type { Prediction } from './types'
 import type { AnalysisFeedback } from './data/analysis'
-import { DESCRIPTIONS, BADGES, SEVERITY_MAP, SEVERITY_LABELS, CLASSES_INFO } from './constants'
+import { BADGES, SEVERITY_MAP, CLASSES_INFO } from './constants'
+import { predictionSeverity, criticalFindings } from './data/analysis'
 
 export interface StudyMeta {
+  analyzedAt?: string
   studyId:            string
   projection:         string
   clinicalIndication: string
@@ -39,23 +41,6 @@ const LH: Record<number, number> = {
   9.5: 17,
 }
 
-function scoreLabel(pct: number): string {
-  if (pct >= 85) return 'Score alto'
-  if (pct >= 70) return 'Score moderado'
-  if (pct >= 50) return 'Score bajo'
-  return 'Score muy bajo'
-}
-
-function scoreInterpretation(pct: number): string {
-  if (pct >= 85)
-    return 'Score elevado del modelo para este patrón. No representa una probabilidad clínica calibrada y requiere revisión de la imagen por el radiólogo.'
-  if (pct >= 70)
-    return 'Score intermedio-alto del modelo. Revisar localización, calidad de imagen y correlación clínica antes de interpretarlo.'
-  if (pct >= 50)
-    return 'Score intermedio y potencialmente limítrofe. Se recomienda revisión radiológica reforzada.'
-  return 'Score bajo o resultado sin hallazgo sobre umbral. No descarta patología y exige evaluación clínica completa.'
-}
-
 export async function buildPdf(
   filename: string,
   /** null cuando se genera desde el historial: las imágenes no se almacenan */
@@ -73,11 +58,12 @@ export async function buildPdf(
   const COL  = 170   // key column width
   const FOOT = 56    // footer reserved height
 
-  const severity = SEVERITY_MAP[prediction.predicted_class] ?? 'normal'
+  const severity = predictionSeverity(prediction)
   const sevRgb   = SEVERITY_RGB[severity]
   const sevBg    = SEVERITY_BG_RGB[severity]
   const confPct  = prediction.confidence * 100
-  const now      = new Date().toLocaleString('es-PE', { dateStyle: 'short', timeStyle: 'short' })
+  const now      = new Date().toLocaleString('es-PE', { dateStyle: 'short', timeStyle: 'short', timeZone: 'America/Lima' })
+  doc.setProperties({ title: 'Reporte académico CXR', subject: 'Resultados automáticos sujetos a revisión profesional', creator: 'CXR Classifier' })
 
   // ── Core helpers ──────────────────────────────────────────────────────────
 
@@ -115,7 +101,10 @@ export async function buildPdf(
    * Both label and first value line share the same baseline.
    */
   const kvRow = (label: string, value: string, y: number): number => {
-    y = pb(y, 20)
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(8.5)
+    const lines: string[] = doc.splitTextToSize(value, W - M - (M + COL) - 4)
+    y = pb(y, Math.min(lines.length * LH[8.5] + 2, H - FOOT - 56))
     doc.setFont('helvetica', 'bold')
     doc.setFontSize(8.5)
     doc.setTextColor(100, 116, 139)
@@ -123,9 +112,12 @@ export async function buildPdf(
 
     doc.setFont('helvetica', 'normal')
     doc.setTextColor(15, 23, 42)
-    const lines = doc.splitTextToSize(value, W - M - (M + COL) - 4)
-    drawLines(lines, M + COL, y, LH[8.5])
-    return y + lines.length * LH[8.5] + 2
+    for (const line of lines) {
+      y = pb(y, LH[8.5])
+      doc.text(line, M + COL, y)
+      y += LH[8.5]
+    }
+    return y + 2
   }
 
   // ── 1. Header bar ─────────────────────────────────────────────────────────
@@ -135,17 +127,17 @@ export async function buildPdf(
   doc.setTextColor(255, 255, 255)
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(16)
-  doc.text('Reporte de Análisis CXR', M, 32)
+  doc.text('Reporte académico de radiografía de tórax', M, 32)
 
   doc.setFont('helvetica', 'normal')
   doc.setFontSize(8)
   doc.setTextColor(148, 163, 184)
-  doc.text('Sistema de apoyo diagnóstico por IA — Hospital Nacional Arzobispo Loayza · HNAL 2026', M, 48)
-  doc.text(`Generado: ${now}`, W - M, 48, { align: 'right' })
+  doc.text('Proyecto de investigación académica · Análisis de radiografía de tórax', M, 48)
+  doc.text(`Generado (Lima): ${now}`, M, 64)
 
   if (prediction.model_version) {
     doc.setFontSize(7)
-    doc.setTextColor(100, 116, 139)
+    doc.setTextColor(148, 163, 184)
     doc.text(`Modelo: ${prediction.model_version}`, W - M, 62, { align: 'right' })
   }
 
@@ -167,7 +159,14 @@ export async function buildPdf(
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(7.5)
   doc.setTextColor(255, 255, 255)
-  doc.text(SEVERITY_LABELS[severity].toUpperCase(), M + 49, y + 21, { align: 'center' })
+  doc.text(severity === 'critical' ? 'ALERTA IA' : 'RESULTADO IA', M + 49, y + 21, { align: 'center' })
+  const triggering = criticalFindings({ positiveFindings: prediction.positive_findings })
+  if (triggering.length) {
+    doc.setFontSize(7)
+    doc.setTextColor(...sevRgb)
+    const alertLines: string[] = doc.splitTextToSize(`Activada por: ${triggering.map(f => BADGES[f] ?? f).join(', ')}`, W - M * 2 - 210)
+    drawLines(alertLines.slice(0, 2), M + 92, y + 16, 10)
+  }
 
   // Finding name
   doc.setFont('helvetica', 'bold')
@@ -205,10 +204,15 @@ export async function buildPdf(
   if (meta?.projection)         y = kvRow('Proyección',          meta.projection, y)
   if (meta?.clinicalIndication) y = kvRow('Indicación clínica',  meta.clinicalIndication, y)
   y = kvRow('Fecha del informe', now, y)
+  if (prediction.analysis_id) y = kvRow('ID de análisis', prediction.analysis_id, y)
+  y = kvRow('Revisión profesional', feedback ? 'Concordancia o discrepancia registrada; no equivale a firma del informe.' : 'Pendiente de validación del radiólogo.', y)
+  if (meta?.analyzedAt) y = kvRow('Fecha del análisis', new Date(meta.analyzedAt).toLocaleString('es-PE', { timeZone: 'America/Lima' }), y)
+  if (!originalBytes) y = kvRow('Tipo de reporte', 'Resumen histórico sin imágenes (no se almacenan).', y)
+  if (prediction.persistence?.status === 'failed') y = kvRow('Historial', 'Resultado no guardado. Notificaciones no enviadas.', y)
   y = kvRow('Archivo de imagen', filename, y)
   y = kvRow('Modelo IA',         prediction.model_version ?? 'CXR-Ensemble (DenseNet121 + ViT)', y)
   y = kvRow('Tiempo de proceso', `${prediction.processing_time_ms.toFixed(0)} ms`, y)
-  if (prediction.image_hash) y = kvRow('Hash imagen', `${prediction.image_hash.slice(0, 40)}…`, y)
+  if (prediction.image_hash) y = kvRow('SHA-256 de imagen', prediction.image_hash, y)
   y += 14
 
   // ── 4. Positive findings ───────────────────────────────────────────────────
@@ -217,11 +221,11 @@ export async function buildPdf(
 
     const primary    = prediction.predicted_class
     const secondary  = prediction.positive_findings.filter((f) => f !== primary)
-    const allInOrder = [primary, ...secondary]
+    const allInOrder = prediction.positive_findings.includes(primary) ? [primary, ...secondary] : secondary
 
     for (const finding of allInOrder) {
       const isPrimary = finding === primary
-      const rowH      = isPrimary ? 34 : 22
+      const rowH      = isPrimary ? 48 : 36
       y = pb(y, rowH)
 
       const prob    = prediction.probabilities[finding]
@@ -242,11 +246,10 @@ export async function buildPdf(
 
       // Short description (same baseline)
       if (clsInfo) {
-        const descX = M + 20 + doc.getTextWidth(label) + 4
         doc.setFont('helvetica', 'normal')
         doc.setFontSize(7.5)
         doc.setTextColor(107, 114, 128)
-        doc.text(`(${clsInfo})`, descX, y)
+        doc.text(doc.splitTextToSize(clsInfo, W - M * 2 - 100), M + 20, y + 12)
       }
 
       // Probability right
@@ -262,12 +265,79 @@ export async function buildPdf(
         doc.setFont('helvetica', 'italic')
         doc.setFontSize(7)
         doc.setTextColor(107, 114, 128)
-        doc.text('Hallazgo principal', M + 20, y + 14)
+        doc.text('Mayor score entre las clases señaladas', M + 20, y + 26)
       }
 
       y += rowH
     }
     y += 10
+  }
+
+  // ── 11. Observaciones e impresión diagnóstica ─────────────────────────────
+  y = pb(y, 80)
+  y = sectionHeader('Observaciones del radiólogo', y)
+
+  const NOTE_LINE_H = 18
+  const impressionText = notes && notes.trim()
+    ? notes.trim()
+    : 'No se registraron observaciones del radiólogo. Este reporte resume resultados automáticos y no constituye una impresión diagnóstica. Ningún umbral superado no equivale a ausencia de enfermedad.'
+
+  const impLines = doc.splitTextToSize(impressionText, W - M * 2 - 24)
+  // Paginate long notes instead of drawing a box taller than the page.
+  let offset = 0
+  while (offset < impLines.length) {
+    y = pb(y, NOTE_LINE_H + 42)
+    const capacity = Math.max(1, Math.floor((H - FOOT - y - 42) / NOTE_LINE_H))
+    const chunk = impLines.slice(offset, offset + capacity)
+    const impBoxH = chunk.length * NOTE_LINE_H + 32
+    doc.setFillColor(240, 253, 250)
+    doc.roundedRect(M, y, W - M * 2, impBoxH, 4, 4, 'F')
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(9)
+    doc.setTextColor(55, 65, 81)
+    drawLines(chunk, M + 12, y + 18, NOTE_LINE_H)
+    y += impBoxH + 20
+    offset += chunk.length
+  }
+
+  // ── 11b. Validación del radiólogo (concordancia registrada) ───────────────
+  if (feedback) {
+    y = pb(y, 60)
+    y = sectionHeader('Validación del radiólogo', y)
+
+    const fbColor: RGB = feedback.agrees ? [22, 101, 52] : [146, 64, 14]
+    const fbBg: RGB    = feedback.agrees ? [220, 252, 231] : [254, 243, 199]
+    const fbText = feedback.agrees
+      ? `CONCORDANCIA REGISTRADA: el radiólogo concuerda con el resultado principal del modelo (${BADGES[prediction.predicted_class] ?? prediction.predicted_class}). No constituye por sí sola una confirmación diagnóstica.`
+      : `DISCREPANCIA: el radiólogo indica como hallazgo real ${BADGES[feedback.actualFinding ?? ''] ?? feedback.actualFinding ?? '—'} (el modelo propuso ${BADGES[prediction.predicted_class] ?? prediction.predicted_class}).`
+
+    const fbLines = doc.splitTextToSize(fbText, W - M * 2 - 24)
+    const extraLines = feedback.comment ? doc.splitTextToSize(`Comentario: ${feedback.comment}`, W - M * 2 - 24) : []
+    const fbBoxH = (fbLines.length + extraLines.length) * LH[9] + 28
+    y = pb(y, fbBoxH + 10)
+
+    doc.setFillColor(...fbBg)
+    doc.roundedRect(M, y, W - M * 2, fbBoxH, 4, 4, 'F')
+    doc.setFillColor(...fbColor)
+    doc.roundedRect(M, y, 4, fbBoxH, 2, 2, 'F')
+
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(9)
+    doc.setTextColor(...fbColor)
+    drawLines(fbLines, M + 12, y + 16, LH[9])
+    if (extraLines.length > 0) {
+      doc.setFont('helvetica', 'italic')
+      doc.setTextColor(55, 65, 81)
+      drawLines(extraLines, M + 12, y + 16 + fbLines.length * LH[9], LH[9])
+    }
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(7)
+    doc.setTextColor(107, 114, 128)
+    doc.text(
+      `Registrado el ${new Date(feedback.createdAt).toLocaleString('es-PE', { dateStyle: 'short', timeStyle: 'short', timeZone: 'America/Lima' })}`,
+      W - M - 8, y + fbBoxH - 8, { align: 'right' },
+    )
+    y += fbBoxH + 20
   }
 
   // ── 5. Score interpretation ────────────────────────────────────────────────
@@ -283,14 +353,14 @@ export async function buildPdf(
   doc.setFontSize(8.5)
   doc.setTextColor(...sevRgb)
   // Baseline at vertical center of chip (y + CHIP_H*0.65)
-  doc.text(scoreLabel(confPct), M + 62, y + 13, { align: 'center' })
+  doc.text('No calibrado', M + 62, y + 13, { align: 'center' })
 
   y += CHIP_H + 12  // below chip + gap
 
   doc.setFont('helvetica', 'normal')
   doc.setFontSize(9)
   doc.setTextColor(55, 65, 81)
-  const interpLines = doc.splitTextToSize(scoreInterpretation(confPct), W - M * 2 - 12)
+  const interpLines = doc.splitTextToSize('El score indica la respuesta del modelo, no la probabilidad clínica de enfermedad. Cada clase se evalúa de manera independiente con su umbral. No superar un umbral no descarta patología.', W - M * 2 - 12)
   drawLines(interpLines, M + 6, y, LH[9])
   y += interpLines.length * LH[9] + 10
 
@@ -332,6 +402,35 @@ export async function buildPdf(
   }
 
   y += 12
+
+  y = pb(y, 102)
+  y = sectionHeader('Scores por clase - resultados automáticos', y)
+  const tableHeader = () => {
+    doc.setFillColor(241, 245, 249)
+    doc.rect(M, y - 11, W - M * 2, 24, 'F')
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(8)
+    doc.setTextColor(55, 65, 81)
+    doc.text('Clase', M + 8, y)
+    doc.text('Score IA', M + 300, y, { align: 'right' })
+    doc.text('Criterio del análisis', M + 340, y)
+    y += 27
+  }
+  y = pb(y, 52)
+  tableHeader()
+  for (const [finding, score] of Object.entries(prediction.probabilities).sort((a, b) => b[1] - a[1])) {
+    if (y + 24 > H - FOOT) { y = pb(y, 52); tableHeader() }
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(8)
+    doc.setTextColor(15, 23, 42)
+    doc.text(BADGES[finding] ?? finding, M + 8, y)
+    doc.text(`${(score * 100).toFixed(1)}%`, M + 300, y, { align: 'right' })
+    doc.text(finding === 'No Finding' ? 'Indicador derivado' : prediction.positive_findings.includes(finding) ? 'Sobre umbral' : 'Sin superar umbral', M + 340, y)
+    doc.setDrawColor(226, 232, 240)
+    doc.line(M, y + 8, W - M, y + 8)
+    y += 24
+  }
+  y += 14
 
   // ── 6. Images ──────────────────────────────────────────────────────────────
   if (originalBytes) {
@@ -392,7 +491,11 @@ export async function buildPdf(
     drawLines(capLines, M, y, LH[7.5])
     y += capLines.length * LH[7.5] + 14
   } catch {
-    y += 8
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(8)
+    doc.setTextColor(146, 64, 14)
+    doc.text('No fue posible incluir las imágenes. Revise el archivo original.', M, y)
+    y += 22
   }
   } else {
     // Reporte regenerado desde el historial: sin imágenes por diseño
@@ -406,49 +509,6 @@ export async function buildPdf(
     )
     drawLines(noImg, M, y, LH[8])
     y += noImg.length * LH[8] + 14
-  }
-
-  // ── 8. Clinical description ────────────────────────────────────────────────
-  const desc = DESCRIPTIONS[prediction.predicted_class]
-  if (desc) {
-    y = pb(y, 50)
-    y = sectionHeader('Texto de referencia de la clase (no observación del estudio)', y)
-    doc.setFont('helvetica', 'normal')
-    doc.setFontSize(9)
-    doc.setTextColor(55, 65, 81)
-    const descLines = doc.splitTextToSize(desc, W - M * 2 - 12)
-    y = pb(y, descLines.length * LH[9] + 4)
-    drawLines(descLines, M + 6, y, LH[9])
-    y += descLines.length * LH[9] + 14
-  }
-
-  // ── 9. Model explanation ───────────────────────────────────────────────────
-  const exp = prediction.explanation
-  if (exp && (exp.summary || exp.visual || exp.clinical)) {
-    y = pb(y, 40)
-    y = sectionHeader('Texto predefinido de la clase (no generado desde la imagen)', y)
-
-    for (const [label, text] of [
-      ['Resumen',          exp.summary],
-      ['Región visual',    exp.visual],
-      ['Contexto clínico', exp.clinical],
-    ] as [string, string | undefined][]) {
-      if (!text) continue
-      y = pb(y, 34)
-      doc.setFont('helvetica', 'bold')
-      doc.setFontSize(8.5)
-      doc.setTextColor(100, 116, 139)
-      doc.text(`${label}:`, M + 6, y)
-      y += LH[8.5]  // one full line height between bold label and content
-
-      doc.setFont('helvetica', 'normal')
-      doc.setFontSize(9)
-      doc.setTextColor(15, 23, 42)
-      const lines = doc.splitTextToSize(text, W - M * 2 - 12)
-      y = pb(y, lines.length * LH[9])
-      drawLines(lines, M + 6, y, LH[9])
-      y += lines.length * LH[9] + 14
-    }
   }
 
   // ── 10. Image quality warnings ─────────────────────────────────────────────
@@ -470,72 +530,6 @@ export async function buildPdf(
     y += 10
   }
 
-  // ── 11. Observaciones e impresión diagnóstica ─────────────────────────────
-  y = pb(y, 80)
-  y = sectionHeader('Observaciones del radiólogo', y)
-
-  const NOTE_LINE_H = 18
-  const impressionText = notes && notes.trim()
-    ? notes.trim()
-    : 'No se registraron observaciones del radiólogo. Este reporte resume resultados automáticos y no constituye una impresión diagnóstica. Ningún umbral superado no equivale a ausencia de enfermedad.'
-
-  const impLines = doc.splitTextToSize(impressionText, W - M * 2 - 24)
-  const impBoxH  = impLines.length * NOTE_LINE_H + 32
-  y = pb(y, impBoxH + 10)
-
-  doc.setFillColor(240, 253, 250)
-  doc.roundedRect(M, y, W - M * 2, impBoxH, 4, 4, 'F')
-  doc.setFillColor(8, 145, 178)
-  doc.roundedRect(M, y, 4, impBoxH, 2, 2, 'F')
-  doc.setDrawColor(203, 213, 225)
-  doc.setLineWidth(0.5)
-  doc.roundedRect(M, y, W - M * 2, impBoxH, 4, 4, 'S')
-
-  doc.setFont('helvetica', 'normal')
-  doc.setFontSize(9)
-  doc.setTextColor(55, 65, 81)
-  drawLines(impLines, M + 12, y + 18, NOTE_LINE_H)
-  y += impBoxH + 20
-
-  // ── 11b. Validación del radiólogo (concordancia registrada) ───────────────
-  if (feedback) {
-    y = pb(y, 60)
-    y = sectionHeader('Validación del radiólogo', y)
-
-    const fbColor: RGB = feedback.agrees ? [22, 101, 52] : [146, 64, 14]
-    const fbBg: RGB    = feedback.agrees ? [220, 252, 231] : [254, 243, 199]
-    const fbText = feedback.agrees
-      ? `CONCORDANCIA: el radiólogo confirma el hallazgo principal del modelo (${BADGES[prediction.predicted_class] ?? prediction.predicted_class}).`
-      : `DISCREPANCIA: el radiólogo indica como hallazgo real ${BADGES[feedback.actualFinding ?? ''] ?? feedback.actualFinding ?? '—'} (el modelo propuso ${BADGES[prediction.predicted_class] ?? prediction.predicted_class}).`
-
-    const fbLines = doc.splitTextToSize(fbText, W - M * 2 - 24)
-    const extraLines = feedback.comment ? doc.splitTextToSize(`Comentario: ${feedback.comment}`, W - M * 2 - 24) : []
-    const fbBoxH = (fbLines.length + extraLines.length) * LH[9] + 28
-    y = pb(y, fbBoxH + 10)
-
-    doc.setFillColor(...fbBg)
-    doc.roundedRect(M, y, W - M * 2, fbBoxH, 4, 4, 'F')
-    doc.setFillColor(...fbColor)
-    doc.roundedRect(M, y, 4, fbBoxH, 2, 2, 'F')
-
-    doc.setFont('helvetica', 'bold')
-    doc.setFontSize(9)
-    doc.setTextColor(...fbColor)
-    drawLines(fbLines, M + 12, y + 16, LH[9])
-    if (extraLines.length > 0) {
-      doc.setFont('helvetica', 'italic')
-      doc.setTextColor(55, 65, 81)
-      drawLines(extraLines, M + 12, y + 16 + fbLines.length * LH[9], LH[9])
-    }
-    doc.setFont('helvetica', 'normal')
-    doc.setFontSize(7)
-    doc.setTextColor(107, 114, 128)
-    doc.text(
-      `Validado el ${new Date(feedback.createdAt).toLocaleString('es-PE', { dateStyle: 'short', timeStyle: 'short' })}`,
-      W - M - 8, y + fbBoxH - 8, { align: 'right' },
-    )
-    y += fbBoxH + 20
-  }
 
   // ── 12. Signature block ────────────────────────────────────────────────────
   y = pb(y, 80)
@@ -609,6 +603,18 @@ export async function buildPdf(
     'Los scores no son probabilidades clínicas calibradas. La validación externa y la reproducibilidad de los umbrales deben documentarse.'
   const methLines = doc.splitTextToSize(methText, W - M * 2 - 12)
   drawLines(methLines, M + 6, y, LH[8])
+  y += methLines.length * LH[8] + 18
+
+  const disclaimer = prediction.disclaimer
+    ?? 'USO ACADÉMICO. Este sistema no reemplaza el criterio clínico del radiólogo certificado.'
+  doc.setFont('helvetica', 'bolditalic')
+  doc.setFontSize(7.5)
+  const disclaimerLines: string[] = doc.splitTextToSize(disclaimer, W - M * 2)
+  for (const line of disclaimerLines) {
+    y = pb(y, LH[7.5])
+    doc.text(line, M, y)
+    y += LH[7.5]
+  }
 
   // ── Footer on all pages ────────────────────────────────────────────────────
   const totalPages = doc.getNumberOfPages()
@@ -619,18 +625,9 @@ export async function buildPdf(
     doc.line(M, H - FOOT + 4, W - M, H - FOOT + 4)
     doc.setFont('helvetica', 'normal')
     doc.setFontSize(7)
-    doc.setTextColor(148, 163, 184)
-    doc.text('Hospital Nacional Arzobispo Loayza · Sistema CXR — Apoyo diagnóstico IA · No constituye diagnóstico independiente', M, H - FOOT + 17)
+    doc.setTextColor(100, 116, 139)
+    doc.text('Proyecto de investigación · Sistema CXR — Apoyo diagnóstico IA · No constituye diagnóstico independiente', M, H - FOOT + 17)
     doc.text(`Pág. ${p} / ${totalPages}`, W - M, H - FOOT + 17, { align: 'right' })
-    if (p === totalPages) {
-      const discl = prediction.disclaimer
-        ?? 'USO ACADÉMICO. Este sistema no reemplaza el criterio clínico del radiólogo certificado.'
-      doc.setFont('helvetica', 'bolditalic')
-      doc.setFontSize(7.5)
-      doc.setTextColor(107, 114, 128)
-      const dl = doc.splitTextToSize(discl, W - M * 2)
-      drawLines(dl, M, H - FOOT + 31, LH[7.5])
-    }
   }
 
   return new Uint8Array(doc.output('arraybuffer') as unknown as ArrayBuffer)

@@ -2,7 +2,7 @@
 
 **Sistema académico de apoyo al análisis de radiografías de tórax**
 
-Hospital Nacional Arzobispo Loayza - HNAL, Lima, Perú
+Proyecto académico de investigación en radiografía de tórax, Lima, Perú
 
 Versión del manual: 1.0 - septiembre de 2026
 
@@ -145,6 +145,25 @@ concordancia clínica, aplicando filtros por fecha.
 - No se leen ni guardan nombre, identificador ni fechas del paciente.
 - Cada análisis conserva responsable, versión del modelo, tiempo, scores y hash de imagen.
 - La auditoría registra eventos sin bytes de imagen ni identidad del paciente.
+- Las observaciones se conservan al pulsar **Guardar observaciones**. No incluya nombres, documentos ni otros identificadores del paciente en el texto libre.
+
+### Estado del estudio y del correo
+
+El resultado muestra si se guardó en el historial. Una inferencia completada no garantiza
+que el guardado haya funcionado. Si aparece **no guardado**, no se envían alertas de ese
+estudio: conserve el PDF y verifique el servicio antes de repetir el análisis.
+
+El correo distingue el estado del administrador y del radiólogo. **Enviado al servidor**
+significa que el servicio aceptó el mensaje, no que llegó a la bandeja de entrada. Si no
+se pudo confirmar el estado, revise el historial antes de repetir un envío.
+
+El PDF histórico recupera las observaciones guardadas y la validación profesional.
+No incluye imágenes porque no se almacenan. Los cambios sin guardar solo aparecen
+en el PDF descargado desde la sesión actual.
+
+Generar un mapa después del análisis utiliza el registro original, verifica la huella
+de la imagen y no crea otro registro ni otro correo. Ajustar su opacidad es una operación
+visual en el navegador.
 
 ## 10. Solución de problemas
 
@@ -162,8 +181,8 @@ concordancia clínica, aplicando filtros por fecha.
 1. Iniciar sesión con una cuenta de prueba autorizada.
 2. Cargar una radiografía desidentificada.
 3. Revisar hallazgo principal, probabilidades y advertencias.
-4. Cambiar clase, método y opacidad del mapa de calor.
-5. Descargar el PDF.
+4. Revisar el mapa de calor y ajustar su opacidad.
+5. Guardar las observaciones y descargar el PDF.
 6. Abrir el historial y registrar concordancia o discrepancia.
 7. Mostrar el procesamiento por lote y su priorización.
 8. Con una cuenta administradora, revisar estadísticas y usuarios.

@@ -3,13 +3,13 @@ import { Suspense, useMemo, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSearchParams } from 'next/navigation'
 import { useSession } from 'next-auth/react'
-import { fetchAnalyses } from '@/lib/api'
+import { fetchAnalyses, retryAnalysisEmail } from '@/lib/api'
 import { filterAnalyses, type AnalysisFilters, type AnalysisRecord, type FeedbackFilter } from '@/lib/data/analysis'
 import { formatTimestamp, formatConfidence, downloadBlob, cn, csvCell } from '@/lib/utils'
 import { SEVERITY_COLORS, BADGES, SEVERITY_LABELS } from '@/lib/constants'
 import { Button } from '@/components/ui/button'
 import { buildPdf, type StudyMeta } from '@/lib/pdf'
-import { ClipboardList, Download, ChevronDown, ChevronUp, Search, Check, X, Clock, Loader2, FileText, SlidersHorizontal, Calendar } from 'lucide-react'
+import { ClipboardList, Download, ChevronDown, ChevronUp, Search, Check, X, Clock, Loader2, FileText, SlidersHorizontal, Calendar, RotateCcw } from 'lucide-react'
 import { ProbabilityBars } from '@/components/analyze/ProbabilityBars'
 import { FeedbackCard } from '@/components/analyze/FeedbackCard'
 import { EmailAlertStatus } from '@/components/EmailAlertStatus'
@@ -380,7 +380,7 @@ function HistoryRow({ analysis, isAdmin, canValidate, expanded, onToggle, onBatc
       {expanded && (
         <tr>
           <td colSpan={isAdmin ? 8 : 7} className="px-4 py-4 bg-[var(--surface2)] border-b border-[var(--border-subtle)]">
-            <HistoryDetail analysis={analysis} canValidate={canValidate} />
+            <HistoryDetail analysis={analysis} canValidate={canValidate} isAdmin={Boolean(isAdmin)} />
           </td>
         </tr>
       )}
@@ -388,7 +388,7 @@ function HistoryRow({ analysis, isAdmin, canValidate, expanded, onToggle, onBatc
   )
 }
 
-function HistoryCard({ analysis, canValidate, expanded, onToggle }: RowProps) {
+function HistoryCard({ analysis, isAdmin, canValidate, expanded, onToggle }: RowProps) {
   return (
     <div className="card overflow-hidden">
       <button className="w-full p-4 flex flex-wrap items-center gap-3 cursor-pointer text-left" onClick={onToggle} aria-expanded={expanded}>
@@ -408,20 +408,36 @@ function HistoryCard({ analysis, canValidate, expanded, onToggle }: RowProps) {
       </button>
       {expanded && (
         <div className="border-t border-[var(--border-subtle)] p-4">
-          <HistoryDetail analysis={analysis} canValidate={canValidate} />
+          <HistoryDetail analysis={analysis} canValidate={canValidate} isAdmin={Boolean(isAdmin)} />
         </div>
       )}
     </div>
   )
 }
 
-function HistoryDetail({ analysis, canValidate }: { analysis: AnalysisRecord; canValidate: boolean }) {
+function HistoryDetail({ analysis, canValidate, isAdmin }: { analysis: AnalysisRecord; canValidate: boolean; isAdmin: boolean }) {
   const queryClient = useQueryClient()
   const [pdfLoading, setPdfLoading] = useState(false)
+  const [retrying, setRetrying] = useState<'admin' | 'radiologist' | null>(null)
+  const [retryError, setRetryError] = useState<string | null>(null)
+
+  const retryEmail = async (role: 'admin' | 'radiologist') => {
+    if (!window.confirm('El envío anterior pudo haber llegado aunque figure como fallido. ¿Reintentar?')) return
+    setRetrying(role)
+    setRetryError(null)
+    try {
+      await retryAnalysisEmail(analysis.id, role)
+      await queryClient.invalidateQueries({ queryKey: ['analyses'] })
+    } catch (error) {
+      setRetryError(error instanceof Error ? error.message : 'No se pudo reintentar el envío.')
+    } finally { setRetrying(null) }
+  }
 
   // Pseudo-predicción para reutilizar los componentes de resultados.
   // El historial no guarda imágenes ni Grad-CAM (privacidad): solo scores.
   const prediction: Prediction = {
+    analysis_id: analysis.id,
+    persistence: { status: 'saved' },
     predicted_class: analysis.predictedClass,
     confidence: analysis.confidence,
     probabilities: analysis.probabilities,
@@ -438,6 +454,7 @@ function HistoryDetail({ analysis, canValidate }: { analysis: AnalysisRecord; ca
     setPdfLoading(true)
     try {
       const meta: StudyMeta = {
+        analyzedAt: analysis.createdAt,
         studyId:            analysis.studyId ?? analysis.dicomStudyHash ?? '',
         projection:         analysis.projection ?? '',
         clinicalIndication: analysis.clinicalIndication ?? '',
@@ -445,7 +462,7 @@ function HistoryDetail({ analysis, canValidate }: { analysis: AnalysisRecord; ca
         patientAge:         analysis.patientAge,
         patientSex:         analysis.patientSex,
       }
-      const bytes = await buildPdf(analysis.filename, null, prediction, '', meta, analysis.feedback)
+      const bytes = await buildPdf(analysis.filename, null, prediction, analysis.notes ?? '', meta, analysis.feedback)
       downloadBlob(bytes, `${meta.studyId || analysis.id.slice(0, 8)}_reporte_cxr.pdf`, 'application/pdf')
     } catch (e) {
       console.error('PDF error:', e)
@@ -457,6 +474,20 @@ function HistoryDetail({ analysis, canValidate }: { analysis: AnalysisRecord; ca
   return (
     <div className="space-y-4">
       <EmailAlertStatus alert={analysis.emailAlert} />
+      {analysis.emailAlert && (
+        <div className="flex flex-wrap gap-2 text-xs">
+          {(['admin', 'radiologist'] as const).map(role => {
+            if (role === 'admin' && !isAdmin) return null
+            if (role === 'radiologist' && !isAdmin && !canValidate) return null
+            const delivery = analysis.emailAlert?.[role]
+            if (!delivery || !['failed', 'pending_email', 'not_configured'].includes(delivery.status) || (delivery.attempts ?? 0) >= 3) return null
+            return <Button key={role} variant="secondary" size="sm" disabled={!!retrying} loading={retrying === role} onClick={() => retryEmail(role)}>
+              <RotateCcw size={13} /> Reintentar correo al {role === 'admin' ? 'administrador' : 'radiólogo'}
+            </Button>
+          })}
+        </div>
+      )}
+      {retryError && <p role="alert" className="text-xs badge-high p-2">{retryError}</p>}
       <DecisionSupportAlert support={prediction.decision_support} />
       <div className="flex flex-wrap items-center gap-x-6 gap-y-1 text-xs text-[var(--fg-subtle)] pb-3 border-b border-[var(--border-subtle)]">
         {analysis.studyId && (
@@ -491,6 +522,7 @@ function HistoryDetail({ analysis, canValidate }: { analysis: AnalysisRecord; ca
           <ProbabilityBars prediction={prediction} />
         </div>
         <div className="space-y-4">
+          {analysis.notes && <section className="space-y-2"><h3 className="tech-label">Observaciones del radiólogo</h3><p className="text-sm text-[var(--fg)] whitespace-pre-wrap break-words">{analysis.notes}</p></section>}
           {canValidate ? (
             <FeedbackCard
               analysisId={analysis.id}

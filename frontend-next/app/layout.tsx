@@ -19,8 +19,8 @@ const plexMono = IBM_Plex_Mono({
 })
 
 export const metadata: Metadata = {
-  title: 'CXR Classifier — HNAL',
-  description: 'Sistema académico de apoyo diagnóstico en radiografía de tórax — Hospital Nacional Arzobispo Loayza 2026',
+  title: 'CXR Classifier — Investigación',
+  description: 'Sistema académico de apoyo diagnóstico en radiografía de tórax — Proyecto de investigación académica',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

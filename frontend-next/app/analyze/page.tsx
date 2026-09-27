@@ -4,7 +4,6 @@ import { Microscope, AlertCircle, FlaskConical, RotateCcw } from 'lucide-react'
 import { UploadArea } from '@/components/analyze/UploadArea'
 import { StudyMetaForm } from '@/components/analyze/StudyMetaForm'
 import { ResultsSection } from '@/components/analyze/ResultsSection'
-import { EmailAlertStatus } from '@/components/EmailAlertStatus'
 import { Button } from '@/components/ui/button'
 import { SuccessToast } from '@/components/ui/toast'
 import { AnalyzingOverlay } from '@/components/analyze/AnalyzingOverlay'
@@ -20,6 +19,7 @@ export default function AnalyzePage() {
     user, resultsRef, canRetry,
     setNotes, setShowToast, setStatDismissed, setPrediction, setMeta,
     handleFile, clearFile, handleLoadDemo, handleAnalyze, handleDownloadPdf, reset,
+    notesSaving, notesError, notesDirty, handleSaveNotes,
   } = useAnalyze()
 
   const { data: modelInfo, isError: modelInfoError } = useQuery({
@@ -177,13 +177,17 @@ export default function AnalyzePage() {
         )}
 
         {/* Results */}
-        <EmailAlertStatus alert={prediction?.email_alert} />
         {prediction && !('error' in prediction) && (
           <ResultsSection
             prediction={prediction}
             fileBytes={fileBytes!}
             thresholds={thresholds}
             notes={notes}
+            filename={filename}
+            notesSaving={notesSaving}
+            notesError={notesError}
+            notesDirty={notesDirty}
+            onSaveNotes={handleSaveNotes}
             onNotesChange={setNotes}
             pdfLoading={pdfLoading}
             onDownloadPdf={handleDownloadPdf}

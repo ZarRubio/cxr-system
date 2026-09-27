@@ -1,7 +1,8 @@
 'use client'
 import { useState, useCallback, useRef } from 'react'
 import { useSession } from 'next-auth/react'
-import { predict } from '@/lib/api'
+import { predict, saveAnalysisNotes } from '@/lib/api'
+import { useQueryClient } from '@tanstack/react-query'
 import { useSessionStore } from '@/store/session'
 import { buildPdf } from '@/lib/pdf'
 import { downloadBlob } from '@/lib/utils'
@@ -21,6 +22,7 @@ function genStudyId() {
  * reintentar el análisis con `handleAnalyze` (ver `canRetry`).
  */
 export function useAnalyze() {
+  const queryClient = useQueryClient()
   const { data: session } = useSession()
   const user = session?.user as Record<string, unknown> | undefined
 
@@ -31,6 +33,9 @@ export function useAnalyze() {
   const [error, setError]           = useState<string | null>(null)
   const [pdfLoading, setPdfLoading] = useState(false)
   const [notes, setNotes]           = useState<string>('')
+  const [savedNotes, setSavedNotes] = useState('')
+  const [notesSaving, setNotesSaving] = useState(false)
+  const [notesError, setNotesError] = useState<string | null>(null)
   const [showToast, setShowToast]   = useState(false)
   const [loadingDemo, setLoadingDemo] = useState(false)
   const [statDismissed, setStatDismissed] = useState(false)
@@ -48,6 +53,8 @@ export function useAnalyze() {
     setFilename(name)
     setPrediction(null)
     setNotes('')
+    setSavedNotes('')
+    setNotesError(null)
     setError(null)
     setStudyMeta((m) => ({ ...m, studyId: genStudyId() }))
   }, [])
@@ -84,6 +91,7 @@ export function useAnalyze() {
         clinicalIndication: studyMeta.clinicalIndication,
       })
       setPrediction(result)
+      void queryClient.invalidateQueries({ queryKey: ['analyses'] })
       // DICOM: la proyección real (ViewPosition) reemplaza la del formulario
       if (result.dicom_meta?.view_position) {
         setStudyMeta((m) => ({ ...m, projection: result.dicom_meta!.view_position! }))
@@ -106,6 +114,22 @@ export function useAnalyze() {
     }
   }
 
+  const handleSaveNotes = async (): Promise<boolean> => {
+    if (!prediction?.analysis_id) return false
+    setNotesSaving(true)
+    setNotesError(null)
+    const submitted = notes
+    try {
+      await saveAnalysisNotes(prediction.analysis_id, submitted)
+      setSavedNotes(submitted)
+      void queryClient.invalidateQueries({ queryKey: ['analyses'] })
+      return true
+    } catch (e) {
+      setNotesError(e instanceof Error ? e.message : 'No se pudieron guardar las observaciones.')
+      return false
+    } finally { setNotesSaving(false) }
+  }
+
   const handleDownloadPdf = async () => {
     if (!prediction || !fileBytes) return
     setPdfLoading(true)
@@ -117,7 +141,7 @@ export function useAnalyze() {
         patientAge: prediction.dicom_meta?.patient_age ?? null,
         patientSex: prediction.dicom_meta?.patient_sex ?? null,
       }
-      const bytes = await buildPdf(filename, fileBytes, prediction, notes, meta)
+      const bytes = await buildPdf(filename, fileBytes, prediction, notes, meta, prediction.feedback)
       downloadBlob(bytes, `${studyMeta.studyId}_reporte_cxr.pdf`, 'application/pdf')
     } catch {
       setError('No se pudo generar el PDF. El resultado del estudio se conserva; intente nuevamente.')
@@ -131,6 +155,8 @@ export function useAnalyze() {
     setFilename('')
     setPrediction(null)
     setNotes('')
+    setSavedNotes('')
+    setNotesError(null)
     setError(null)
     setStudyMeta({ studyId: genStudyId(), projection: 'PA', clinicalIndication: '' })
     window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -144,6 +170,7 @@ export function useAnalyze() {
     // estado
     fileBytes, filename, prediction, analyzing, error,
     pdfLoading, notes, showToast, loadingDemo, statDismissed, studyMeta,
+    notesSaving, notesError, notesDirty: notes !== savedNotes, handleSaveNotes,
     user, resultsRef,
     /** true si hay un archivo cargado y se puede reintentar tras un error */
     canRetry: !!fileBytes,

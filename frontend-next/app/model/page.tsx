@@ -57,7 +57,7 @@ export default function ModelPage() {
       <div className="page-heading">
         <h1 className="text-2xl font-semibold text-[var(--fg)]">Modelo y evidencia</h1>
         <p className="text-sm text-[var(--fg-subtle)] mt-1">
-          Evidencia disponible del proyecto · aún sin validación clínica externa HNAL
+          Evidencia disponible del proyecto · aún sin validación clínica externa independiente
         </p>
       </div>
 
@@ -75,7 +75,7 @@ export default function ModelPage() {
         <MetricCard label="AUROC macro · prueba NIH" value={aucTest?.toFixed(3) ?? '—'} sub={linkedEvidence ? 'Test histórico reproducido' : 'Sin vínculo por hash'} />
         <MetricCard label="AUROC macro · validación NIH" value={aucValidation?.toFixed(3) ?? '—'} sub={linkedEvidence ? 'Peso elegido antes de prueba' : 'Sin vínculo por hash'} />
         <MetricCard label="AUPRC macro · prueba NIH" value={info?.test_map?.toFixed(3) ?? '—'} sub={linkedEvidence ? `${info?.test_images ?? 4023} estudios en prueba` : 'Sin vínculo por hash'} />
-        <MetricCard label="Validación HNAL" value="Pendiente" sub="No documentada" />
+        <MetricCard label="Validación externa" value="Pendiente" sub="No documentada" />
       </div>
 
       <div className="rounded-lg border border-[#FCD34D] bg-[#FFFBEB] p-4 text-[#78350F] dark:border-[#92400E] dark:bg-[#451A03] dark:text-[#FDE68A]">
@@ -86,11 +86,11 @@ export default function ModelPage() {
             <p className="mt-1 text-xs leading-5">
               Calibración: <strong>{evaluation?.calibration === 'configured' ? 'configurada' : 'no verificada'}</strong>
               {' · '}Partición por paciente: <strong>{linkedEvidence ? 'auditada para el test histórico' : 'sin vínculo con los artefactos cargados'}</strong>
-              {' · '}Validación externa HNAL: <strong>pendiente</strong>.
+              {' · '}Validación externa independiente: <strong>pendiente</strong>.
             </p>
             <p className="mt-1 text-[11px] leading-4">
               {linkedEvidence
-                ? 'Estas métricas corresponden al test NIH histórico, no a pacientes HNAL. Los scores sigmoid no son probabilidades clínicas calibradas.'
+                ? 'Estas métricas corresponden al test NIH histórico, no a una cohorte clínica externa. Los scores sigmoid no son probabilidades clínicas calibradas.'
                 : 'No se muestran métricas históricas hasta comprobar que los checkpoints y la configuración cargados coinciden con los evaluados.'}
             </p>
           </div>

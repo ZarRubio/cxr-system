@@ -1,4 +1,5 @@
 import 'server-only'
+import { nextEmailRetry, type EmailAlert, type EmailRecipientRole } from './analysis'
 
 /**
  * Cliente mínimo de Firestore (modo nativo) vía REST.
@@ -172,6 +173,33 @@ export async function fsClaimEmailAlert(id: string, alert: unknown): Promise<boo
   if (claimed.status === 409 || claimed.status === 400) return false
   if (!claimed.ok) throw new Error(`Firestore alert claim: ${claimed.status}`)
   return true
+}
+
+/** Compare-and-set ensures only one instance can claim a recipient retry. */
+export async function fsClaimEmailRetry(id: string, role: EmailRecipientRole, now: Date): Promise<EmailAlert | null> {
+  const path = `/analyses/${encodeURIComponent(id)}`
+  const res = await firestoreFetch(path)
+  if (res.status === 404) return null
+  if (!res.ok) throw new Error(`Firestore retry read: ${res.status}`)
+  const doc = await res.json() as { fields?: Record<string, FsValue>; updateTime: string }
+  const current = fromFsFields(doc.fields ?? {}).emailAlert as EmailAlert | undefined
+  if (!current) return null
+  const next = nextEmailRetry(current, role, now)
+  if (!next) return null
+  const claimed = await firestoreFetch(`${path}?updateMask.fieldPaths=emailAlert&currentDocument.updateTime=${encodeURIComponent(doc.updateTime)}`, {
+    method: 'PATCH', body: JSON.stringify({ fields: { emailAlert: toFsValue(next) } }),
+  })
+  if (claimed.status === 409 || claimed.status === 400) return null
+  if (!claimed.ok) throw new Error(`Firestore retry claim: ${claimed.status}`)
+  return next
+}
+
+export async function fsSetEmailDelivery(id: string, role: EmailRecipientRole, delivery: unknown): Promise<void> {
+  const path = `/analyses/${encodeURIComponent(id)}?updateMask.fieldPaths=emailAlert.${role}&currentDocument.exists=true`
+  const res = await firestoreFetch(path, {
+    method: 'PATCH', body: JSON.stringify({ fields: { emailAlert: toFsValue({ [role]: delivery }) } }),
+  })
+  if (!res.ok) throw new Error(`Firestore delivery update: ${res.status}`)
 }
 
 export interface FsQueryOptions {

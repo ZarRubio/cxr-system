@@ -3,6 +3,8 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { GradCamView } from './GradCamView'
 import { blendImagesOnCanvas } from '@/lib/utils'
 import type { Prediction } from '@/lib/types'
+import { predict } from '@/lib/api'
+vi.mock('@/lib/api', () => ({ predict: vi.fn() }))
 
 vi.mock('@/lib/utils', async importOriginal => ({ ...await importOriginal<typeof import('@/lib/utils')>(), blendImagesOnCanvas: vi.fn() }))
 vi.mock('./ImageLightbox', () => ({ ImageLightbox: () => null }))
@@ -29,4 +31,15 @@ it('shows a useful error and the server map when the original cannot be decoded'
   render(<GradCamView prediction={prediction} originalBytes={new Uint8Array([0])} />)
   expect(await screen.findByRole('alert')).toBeTruthy()
   expect(screen.getByAltText('Overlay Grad-CAM').getAttribute('src')).toBe(prediction.gradcam_image)
+})
+
+it('preserves study metadata and email state when generating a map', async () => {
+  const original = { ...prediction, gradcam_image: undefined, analysis_id: 'original-study' }
+  const onUpdate = vi.fn()
+  vi.mocked(predict).mockResolvedValue({ ...prediction, analysis_id: 'must-not-replace' })
+  render(<GradCamView prediction={original} originalBytes={new Uint8Array([0])} filename="scan.dcm" onPredictionUpdate={onUpdate} />)
+  fireEvent.click(screen.getByRole('button', { name: 'Generar mapa de calor' }))
+  await waitFor(() => expect(onUpdate).toHaveBeenCalled())
+  expect(onUpdate.mock.calls[0][0].analysis_id).toBe('original-study')
+  expect(predict).toHaveBeenCalledWith(expect.any(Uint8Array), 'scan.dcm', 'gradcam', true, { explanationId: 'original-study' })
 })

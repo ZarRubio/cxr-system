@@ -13,6 +13,7 @@ export async function fetchModelInfo(): Promise<ModelInfo> {
 }
 
 export interface StudyHeaders {
+  explanationId?: string
   studyId?: string
   projection?: string
   clinicalIndication?: string
@@ -32,6 +33,7 @@ export async function predict(
     gradcam_method: gradcamMethod,
     include_gradcam: String(includeGradcam),
   })
+  if (study?.explanationId) params.set('explain_analysis_id', study.explanationId)
 
   // Metadatos del estudio para el historial persistente. URI-encoded porque
   // los headers HTTP no admiten caracteres fuera de ASCII (tildes, ñ).
@@ -113,4 +115,25 @@ export async function submitFeedback(
     throw new Error(detail?.error ?? `Error ${res.status}`)
   }
   return res.json()
+}
+
+export async function saveAnalysisNotes(analysisId: string, notes: string): Promise<AnalysisRecord> {
+  const res = await fetch(`/api/analyses/${analysisId}/notes`, {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ notes }),
+  })
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}))
+    throw new Error(body.error ?? 'No se pudieron guardar las observaciones.')
+  }
+  return res.json()
+}
+
+export async function retryAnalysisEmail(analysisId: string, role: 'admin' | 'radiologist'): Promise<void> {
+  const res = await fetch(`/api/analyses/${analysisId}/retry-email`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ role }),
+  })
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}))
+    throw new Error(body.error ?? 'No se pudo reintentar el envío.')
+  }
 }

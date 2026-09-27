@@ -76,6 +76,20 @@ describe('sqliteStore — análisis', () => {
     expect(a!.feedback).toBeNull()
   })
 
+  it('saves notes without losing feedback or email state', async () => {
+    const id = 'notes-test'
+    await sqliteStore.createAnalysis(mk({ id, userId: 'notes-user', createdAt: '2020-01-01T00:00:00.000Z' }))
+    await sqliteStore.setAnalysisFeedback(id, { agrees: true, actualFinding: null, comment: null, createdAt: new Date().toISOString() })
+    const alert = { createdAt: new Date().toISOString(), admin: { status: 'sent' as const }, radiologist: { status: 'pending_email' as const } }
+    await sqliteStore.setEmailAlert(id, alert)
+    const updated = await sqliteStore.setAnalysisNotes(id, 'Observación persistente')
+    expect(updated?.notes).toBe('Observación persistente')
+    expect(updated?.notesUpdatedAt).toBeTruthy()
+    expect(updated?.feedback?.agrees).toBe(true)
+    expect(updated?.emailAlert).toEqual(alert)
+    expect(await sqliteStore.setAnalysisNotes('missing', '')).toBeNull()
+  })
+
   it('lista por usuario en orden descendente', async () => {
     const own = await sqliteStore.listAnalyses({ userId: 'u1' })
     expect(own.map((a) => a.id)).toEqual(['an-2', 'an-1'])
@@ -106,5 +120,19 @@ describe('sqliteStore — análisis', () => {
     const saved = await sqliteStore.getAnalysis('an-1')
     expect(saved?.emailAlert?.admin.status).toBe('sent')
     expect(saved?.feedback?.agrees).toBe(true)
+  })
+
+  it('claims a retry atomically and updates only one recipient', async () => {
+    const id = 'retry-test'
+    await sqliteStore.createAnalysis(mk({ id }))
+    const old = '2026-09-27T20:00:00.000Z'
+    await sqliteStore.claimEmailAlert(id, { createdAt: old, admin: { status: 'failed', attempts: 1, lastAttemptAt: old }, radiologist: { status: 'sent' } })
+    const claimed = await sqliteStore.claimEmailRetry(id, 'admin', new Date('2026-09-27T20:02:00.000Z'))
+    expect(claimed?.admin.attempts).toBe(2)
+    expect(await sqliteStore.claimEmailRetry(id, 'admin', new Date('2026-09-27T20:03:00.000Z'))).toBeNull()
+    await sqliteStore.setEmailDelivery(id, 'admin', { ...claimed!.admin, status: 'sent' })
+    const saved = await sqliteStore.getAnalysis(id)
+    expect(saved?.emailAlert?.admin.status).toBe('sent')
+    expect(saved?.emailAlert?.radiologist.status).toBe('sent')
   })
 })

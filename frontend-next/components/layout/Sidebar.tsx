@@ -25,7 +25,7 @@ export function Sidebar() {
     <aside className="hidden lg:flex w-[224px] shrink-0 flex-col h-full bg-[var(--sidebar-bg)] border-r border-[var(--border-subtle)]">
       <Link href="/analyze" className="px-6 py-6 border-b border-[var(--border-subtle)]">
         <span className="block text-lg font-semibold text-[var(--fg)]">CXR Classifier</span>
-        <span className="text-xs text-[var(--sidebar-muted)]">Radiografía de tórax · HNAL</span>
+        <span className="text-xs text-[var(--sidebar-muted)]">Radiografía de tórax · Investigación</span>
       </Link>
       <nav aria-label="Navegación principal" className="flex-1 overflow-y-auto px-3 py-5">
         {[WORKSPACE_NAV, ...(isAdmin ? [ADMIN_NAV] : [])].map((group, index) => (

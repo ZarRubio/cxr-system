@@ -8,7 +8,7 @@ export const STAT_CLASSES = new Set([
   'Pneumonia',
 ])
 
-// Diagnóstico diferencial clínico por clase (orden por frecuencia en contexto HNAL)
+// Diagnóstico diferencial clínico por clase (orden por frecuencia en contexto clínico general)
 export const DIFFERENTIALS: Record<string, string[]> = {
   Atelectasis:        ['Obstrucción bronquial', 'Compresión extrínseca', 'Cicatriz post-TB', 'Post-quirúrgico'],
   Cardiomegaly:       ['Insuficiencia cardíaca', 'Derrame pericárdico', 'Miocardiopatía', 'Proyección AP (pseudo)'],
@@ -95,7 +95,7 @@ export const DESCRIPTIONS: Record<string, string> = {
   Hernia:
     'Posible hernia diafragmática. Confirmar con tomografía computada; evaluar contenido herniado.',
   Infiltration:
-    'Posible infiltrado pulmonar compatible con consolidación, neumonía o proceso inflamatorio. En contexto HNAL Lima: considerar tamizaje de tuberculosis según protocolo local.',
+    'Posible infiltrado pulmonar compatible con consolidación, neumonía o proceso inflamatorio. En considerar tamizaje de tuberculosis según protocolo local.',
   Mass:
     'Resultado para la categoría Mass del conjunto de entrenamiento. El clasificador no mide lesiones ni confirma su presencia o naturaleza.',
   Nodule:
@@ -103,7 +103,7 @@ export const DESCRIPTIONS: Record<string, string> = {
   Pleural_Thickening:
     'Engrosamiento pleural. Correlacionar con antecedentes de exposición, derrame previo o infección.',
   Pneumonia:
-    'Compatible con consolidación neumónica. Correlación clínica recomendada. En contexto HNAL Lima: descartar tuberculosis según protocolo local.',
+    'Compatible con consolidación neumónica. Correlación clínica recomendada. En descartar tuberculosis según protocolo local.',
   Pneumothorax:
     'Posible neumotórax: ausencia de trama vascular en periferia del campo pulmonar. Verificar línea pleural en radiografía en espiración. Urgencia si es a tensión.',
   'No Finding':
@@ -151,7 +151,7 @@ export const RECOMMENDATIONS: Record<string, { urgency: Urgency; actions: string
     urgency: 'urgente',
     actions: [
       'Solicitar hemograma, PCR, hemocultivos y cultivo de esputo',
-      'Descartar tuberculosis pulmonar según protocolo HNAL (BK en esputo)',
+      'Descartar tuberculosis pulmonar según protocolo clínico vigente (BK en esputo)',
       'Calcular índice de gravedad (PSI/CURB-65)',
       'Iniciar antibioticoterapia empírica según guía institucional',
       'Evaluar necesidad de hospitalización vs manejo ambulatorio',
@@ -214,7 +214,7 @@ export const RECOMMENDATIONS: Record<string, { urgency: Urgency; actions: string
   Infiltration: {
     urgency: 'electivo',
     actions: [
-      'Descartar tuberculosis activa según protocolo HNAL (BK × 3)',
+      'Descartar tuberculosis activa según protocolo clínico vigente (BK × 3)',
       'Correlacionar con síntomas: tos, fiebre, sudoración nocturna',
       'Solicitar hemograma y prueba de tuberculina si aplica',
       'Seguimiento en 2-4 semanas con Rx de control',

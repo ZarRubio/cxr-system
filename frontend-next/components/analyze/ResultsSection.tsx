@@ -10,9 +10,16 @@ import { SecondaryFindings } from '@/components/analyze/SecondaryFindings'
 import { CXRScreeningAlert } from '@/components/analyze/CXRScreeningAlert'
 import { DecisionSupportAlert } from '@/components/analyze/DecisionSupportAlert'
 import { Button } from '@/components/ui/button'
+import { EmailAlertStatus } from '@/components/EmailAlertStatus'
+import { StudySaveStatus } from '@/components/StudySaveStatus'
 import type { Prediction } from '@/lib/types'
 
 interface ResultsSectionProps {
+  filename?: string
+  notesSaving?: boolean
+  notesDirty?: boolean
+  notesError?: string | null
+  onSaveNotes?: () => void
   prediction: Prediction
   fileBytes: Uint8Array
   thresholds?: Record<string, number>
@@ -37,6 +44,7 @@ export function ResultsSection({
   onNewAnalysis,
   onPredictionUpdate,
   resultsRef,
+  filename, notesSaving, notesDirty, notesError, onSaveNotes,
 }: ResultsSectionProps) {
   return (
     <div
@@ -55,6 +63,8 @@ export function ResultsSection({
         </button>
       </div>
 
+      <StudySaveStatus prediction={prediction} />
+      <EmailAlertStatus alert={prediction.email_alert} />
       <CXRScreeningAlert screening={prediction.cxr_screening} />
       <DecisionSupportAlert support={prediction.decision_support} />
 
@@ -71,6 +81,7 @@ export function ResultsSection({
         <GradCamView
           prediction={prediction}
           originalBytes={fileBytes}
+          filename={filename}
           onPredictionUpdate={onPredictionUpdate}
         />
       </div>
@@ -80,6 +91,8 @@ export function ResultsSection({
         <FeedbackCard
           analysisId={prediction.analysis_id}
           predictedClass={prediction.predicted_class}
+          initialFeedback={prediction.feedback}
+          onSaved={feedback => onPredictionUpdate({ ...prediction, feedback })}
         />
       )}
 
@@ -98,8 +111,16 @@ export function ResultsSection({
           onChange={(e) => onNotesChange(e.target.value)}
           placeholder="Observaciones e interpretación del radiólogo"
           rows={3}
+          maxLength={5000}
           className="w-full resize-none rounded-lg border border-[var(--border)] bg-[var(--surface2)] text-sm text-[var(--fg)] placeholder:text-[var(--fg-subtle)] px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-[var(--ring)] transition-shadow leading-relaxed"
         />
+        {prediction.analysis_id && onSaveNotes ? (
+          <div className="flex flex-wrap items-center gap-3">
+            <Button variant="secondary" onClick={onSaveNotes} loading={notesSaving} disabled={!notesDirty || notesSaving}>Guardar observaciones</Button>
+            <p role="status" className="text-xs text-[var(--fg-muted)]">{notesDirty ? 'Cambios sin guardar en el historial' : 'Observaciones guardadas en el historial'}</p>
+          </div>
+        ) : <p className="text-xs text-[var(--fg-muted)]">Las observaciones solo se incluirán en este PDF; el estudio no está guardado.</p>}
+        {notesError && <p role="alert" className="text-sm badge-high p-3">{notesError}</p>}
         <Button
           variant="secondary"
           size="lg"

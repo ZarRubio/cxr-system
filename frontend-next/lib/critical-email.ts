@@ -1,6 +1,6 @@
 import 'server-only'
 import nodemailer from 'cxr-smtp'
-import { criticalFindings, type AnalysisRecord, type EmailAlert, type EmailDelivery } from './data/analysis'
+import { criticalFindings, type AnalysisRecord, type EmailAlert, type EmailDelivery, type EmailRecipientRole } from './data/analysis'
 import { getDataStore } from './data/store'
 import { parseEmail } from './email-address'
 
@@ -23,6 +23,70 @@ export function alertText(record: AnalysisRecord, baseUrl: string, missingEmail:
   ].join('\n')
 }
 
+function configured(): boolean {
+  return Boolean(process.env.SMTP_PASSWORD && process.env.SMTP_USER && process.env.AUTH_URL)
+}
+
+function transport() {
+  return nodemailer.createTransport({
+    host: 'smtp.gmail.com', port: 465, secure: true,
+    auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASSWORD },
+    connectionTimeout: 8_000, greetingTimeout: 8_000, socketTimeout: 12_000, dnsTimeout: 5_000,
+  })
+}
+
+function address(value: unknown): string | null {
+  try { return parseEmail(value) } catch { return null }
+}
+
+export class EmailRetryError extends Error {
+  constructor(message: string, readonly status: number) { super(message) }
+}
+
+/** Explicit retry only. A failed SMTP response can still mean uncertain delivery. */
+export async function retryCriticalEmail(record: AnalysisRecord, role: EmailRecipientRole): Promise<EmailAlert> {
+  if (!criticalFindings(record).length) throw new EmailRetryError('El estudio no tiene una alerta crítica.', 409)
+  if (!configured()) throw new EmailRetryError('El servicio de correo no está configurado.', 503)
+  const store = getDataStore()
+  const current = await store.getAnalysis(record.id)
+  if (!current?.emailAlert) throw new EmailRetryError('No existe un intento de alerta registrado para este estudio.', 409)
+  const users = await store.getUsers()
+  const user = role === 'admin'
+    ? users.find(u => u.role === 'admin' && u.active)
+    : users.find(u => u.id === record.userId && u.active)
+  const recipient = address(user?.email)
+  if (!recipient) throw new EmailRetryError('El destinatario debe configurar un correo válido.', 409)
+  const other = role === 'admin' ? 'radiologist' : 'admin'
+  const otherUser = role === 'admin'
+    ? users.find(u => u.id === record.userId && u.active)
+    : users.find(u => u.role === 'admin' && u.active)
+  if (recipient === address(otherUser?.email) && current.emailAlert[other].status === 'sent') {
+    throw new EmailRetryError('Este correo ya fue aceptado para el otro destinatario del mismo estudio.', 409)
+  }
+  const alert = await store.claimEmailRetry(record.id, role, new Date())
+  if (!alert) throw new EmailRetryError('El reintento no está disponible: ya se envió, está en curso, excedió el límite o requiere esperar un minuto.', 409)
+  const mailer = transport()
+  try {
+    try {
+      const info = await mailer.sendMail({
+        from: { name: 'CXR Investigación', address: process.env.SMTP_USER! },
+        to: recipient,
+        subject: `Alerta de IA - Estudio ${(record.studyId || record.id).replace(/[\r\n]/g, ' ')}`,
+        messageId: `<cxr-${record.id}-${role}-${alert[role].attempts}@gmail.com>`,
+        text: alertText(record, process.env.AUTH_URL!, !address(users.find(u => u.id === record.userId)?.email)),
+      })
+      alert[role] = { ...alert[role], status: info.accepted.length > 0 ? 'sent' : 'failed', sentAt: info.accepted.length > 0 ? new Date().toISOString() : undefined }
+    } catch {
+      alert[role] = { ...alert[role], status: 'failed' }
+      console.error('[critical-email] reintento fallido', { analysisId: record.id, role })
+    }
+    await store.setEmailDelivery(record.id, role, alert[role])
+    return alert
+  } finally {
+    mailer.close()
+  }
+}
+
 /** One attempt per persisted analysis. SMTP acceptance is not proof of inbox delivery. */
 export async function notifyCriticalAnalysis(record: AnalysisRecord): Promise<EmailAlert | undefined> {
   if (!criticalFindings(record).length) return undefined
@@ -30,20 +94,16 @@ export async function notifyCriticalAnalysis(record: AnalysisRecord): Promise<Em
   const users = await store.getUsers()
   const responsible = users.find((user) => user.id === record.userId && user.active)
   const admin = users.find((user) => user.role === 'admin' && user.active)
-  const address = (value: unknown) => { try { return parseEmail(value) } catch { return null } }
   const adminEmail = address(admin?.email)
   const radioEmail = address(responsible?.email)
-  const configured = Boolean(process.env.SMTP_PASSWORD && process.env.SMTP_USER && process.env.AUTH_URL)
-  const initial = (email: string | null): EmailDelivery => ({ status: !email ? 'pending_email' : configured ? 'sending' : 'not_configured' })
-  const alert: EmailAlert = { createdAt: new Date().toISOString(), admin: initial(adminEmail), radiologist: initial(radioEmail) }
+  const canSend = configured()
+  const createdAt = new Date().toISOString()
+  const initial = (email: string | null): EmailDelivery => ({ status: !email ? 'pending_email' : canSend ? 'sending' : 'not_configured', ...(email && canSend ? { attempts: 1, lastAttemptAt: createdAt } : {}) })
+  const alert: EmailAlert = { createdAt, admin: initial(adminEmail), radiologist: initial(radioEmail) }
   if (!(await store.claimEmailAlert(record.id, alert))) return (await store.getAnalysis(record.id))?.emailAlert
-  if (!configured) return alert
+  if (!canSend) return alert
 
-  const transport = nodemailer.createTransport({
-    host: 'smtp.gmail.com', port: 465, secure: true,
-    auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASSWORD },
-    connectionTimeout: 8_000, greetingTimeout: 8_000, socketTimeout: 12_000, dnsTimeout: 5_000,
-  })
+  const mailer = transport()
   const outcomes = new Map<string, EmailDelivery>()
   try {
     for (const [role, email] of [['admin', adminEmail], ['radiologist', radioEmail]] as const) {
@@ -52,24 +112,24 @@ export async function notifyCriticalAnalysis(record: AnalysisRecord): Promise<Em
         alert[role] = outcomes.get(email)!
       } else {
         try {
-          const info = await transport.sendMail({
-            from: { name: 'CXR HNAL', address: process.env.SMTP_USER! },
+          const info = await mailer.sendMail({
+            from: { name: 'CXR Investigación', address: process.env.SMTP_USER! },
             to: email,
             subject: `Alerta de IA - Estudio ${(record.studyId || record.id).replace(/[\r\n]/g, ' ')}`,
             messageId: `<cxr-${record.id}-${role}@gmail.com>`,
             text: alertText(record, process.env.AUTH_URL!, !radioEmail),
           })
-          alert[role] = info.accepted.length > 0 ? { status: 'sent', sentAt: new Date().toISOString() } : { status: 'failed' }
+          alert[role] = { ...alert[role], status: info.accepted.length > 0 ? 'sent' : 'failed', sentAt: info.accepted.length > 0 ? new Date().toISOString() : undefined }
         } catch {
-          alert[role] = { status: 'failed' }
+          alert[role] = { ...alert[role], status: 'failed' }
           console.error('[critical-email] envío fallido', { analysisId: record.id, role })
         }
         outcomes.set(email, alert[role])
       }
-      await store.setEmailAlert(record.id, alert)
+      await store.setEmailDelivery(record.id, role, alert[role])
     }
   } finally {
-    transport.close()
+    mailer.close()
   }
   return alert
 }

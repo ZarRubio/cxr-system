@@ -17,6 +17,8 @@ export interface AnalysisFeedback {
 }
 
 export interface AnalysisRecord {
+  notes?: string
+  notesUpdatedAt?: string
   emailAlert?: EmailAlert
   id: string
   userId: string
@@ -50,11 +52,28 @@ export type DeliveryStatus = 'sending' | 'sent' | 'failed' | 'pending_email' | '
 export interface EmailDelivery {
   status: DeliveryStatus
   sentAt?: string
+  attempts?: number
+  lastAttemptAt?: string
 }
 export interface EmailAlert {
   createdAt: string
   admin: EmailDelivery
   radiologist: EmailDelivery
+}
+
+export type EmailRecipientRole = 'admin' | 'radiologist'
+
+/** A failed SMTP call may have reached the server; retries are manual and bounded. */
+export function nextEmailRetry(alert: EmailAlert, role: EmailRecipientRole, now: Date): EmailAlert | null {
+  const current = alert[role]
+  if (!['failed', 'pending_email', 'not_configured'].includes(current.status)) return null
+  const attempts = current.attempts ?? (current.status === 'failed' ? 1 : 0)
+  if (attempts >= 3) return null
+  if (current.status === 'failed' && now.getTime() - Date.parse(current.lastAttemptAt ?? alert.createdAt) < 60_000) return null
+  return {
+    ...alert,
+    [role]: { status: 'sending', attempts: attempts + 1, lastAttemptAt: now.toISOString() },
+  }
 }
 
 export function criticalFindings(record: Pick<AnalysisRecord, 'positiveFindings'>): string[] {

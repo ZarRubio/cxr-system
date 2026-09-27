@@ -33,7 +33,7 @@ la evaluacion ni demuestran calibracion, sensibilidad local o seguridad clinica.
 Las reglas de prioridad por clase tampoco establecen gravedad individual.
 Antes de alegar precision clinica: particion por paciente, evaluacion retenida,
 intervalos de confianza, sensibilidad/especificidad por umbral, calibracion y
-revision externa HNAL. Ver MODEL_VALIDATION_PLAN.md. No se reentreno el modelo.
+revision externa independiente. Ver MODEL_VALIDATION_PLAN.md. No se reentreno el modelo.
 
 ### P2. Inferencia bloqueante
 
@@ -82,7 +82,7 @@ requieren revision del asesor; no son observaciones obtenidas de la imagen.
 - Sin umbral superado ya no se presenta como normalidad confirmada.
 - PDF sin impresion diagnostica automatica inventada cuando faltan notas.
 - Textos predefinidos identificados como tales; eliminadas indicaciones terapeuticas
-  automaticas de la interfaz de recomendaciones y afirmaciones de protocolo HNAL.
+  automaticas de la interfaz de recomendaciones y afirmaciones de protocolo de un hospital específico.
 - Advertencias y consistencia interna conservadas en nuevos registros del historial.
 - CSV protegido contra formulas introducidas en campos de texto.
 

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { filterAnalyses, triageRank, type AnalysisRecord } from './analysis'
+import { filterAnalyses, nextEmailRetry, triageRank, type AnalysisRecord } from './analysis'
 
 function mk(partial: Partial<AnalysisRecord>): AnalysisRecord {
   return {
@@ -27,6 +27,19 @@ function mk(partial: Partial<AnalysisRecord>): AnalysisRecord {
     ...partial,
   }
 }
+
+it('claims only retryable delivery states, with cooldown and a three-attempt limit', () => {
+  const now = new Date('2026-09-27T20:10:00.000Z')
+  const base = { createdAt: '2026-09-27T20:00:00.000Z', admin: { status: 'failed' as const, attempts: 1, lastAttemptAt: '2026-09-27T20:09:30.000Z' }, radiologist: { status: 'sent' as const } }
+  expect(nextEmailRetry(base, 'admin', now)).toBeNull()
+  const next = nextEmailRetry(base, 'admin', new Date('2026-09-27T20:11:00.000Z'))
+  expect(next?.admin).toMatchObject({ status: 'sending', attempts: 2 })
+  expect(next?.radiologist.status).toBe('sent')
+  expect(nextEmailRetry(next!, 'admin', now)).toBeNull()
+  expect(nextEmailRetry({ ...base, admin: { ...base.admin, attempts: 3 } }, 'admin', now)).toBeNull()
+  expect(nextEmailRetry(base, 'radiologist', now)).toBeNull()
+  expect(nextEmailRetry({ ...base, radiologist: { status: 'pending_email' } }, 'radiologist', now)?.radiologist.attempts).toBe(1)
+})
 
 describe('filterAnalyses', () => {
   const records = [

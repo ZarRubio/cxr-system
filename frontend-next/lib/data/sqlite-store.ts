@@ -1,7 +1,7 @@
 import 'server-only'
 import { getDb } from '@/lib/db'
 import type { CXRUser } from '@/lib/types'
-import type { AnalysisFeedback, AnalysisRecord } from './analysis'
+import { nextEmailRetry, type AnalysisFeedback, type AnalysisRecord } from './analysis'
 import type { DataStore } from './store'
 
 /**
@@ -90,9 +90,29 @@ export const sqliteStore: DataStore = {
     })()
   },
 
+  async claimEmailRetry(id, role, now) {
+    return getDb().transaction(() => {
+      const row = getDb().prepare('SELECT data FROM analyses WHERE id = ?').get(id) as { data: string } | undefined
+      if (!row) return null
+      const record = rowToAnalysis(row)
+      if (!record.emailAlert) return null
+      const next = nextEmailRetry(record.emailAlert, role, now)
+      if (!next) return null
+      getDb().prepare("UPDATE analyses SET data = json_set(data, '$.emailAlert', json(?)) WHERE id = ?")
+        .run(JSON.stringify(next), id)
+      return next
+    })()
+  },
+
   async setEmailAlert(id, alert) {
     getDb().prepare("UPDATE analyses SET data = json_set(data, '$.emailAlert', json(?)) WHERE id = ?")
       .run(JSON.stringify(alert), id)
+  },
+
+  async setEmailDelivery(id, role, delivery) {
+    const path = role === 'admin' ? '$.emailAlert.admin' : '$.emailAlert.radiologist'
+    getDb().prepare('UPDATE analyses SET data = json_set(data, ?, json(?)) WHERE id = ?')
+      .run(path, JSON.stringify(delivery), id)
   },
 
   async listAnalyses({ userId, limit = 500 }) {
@@ -105,10 +125,13 @@ export const sqliteStore: DataStore = {
   },
 
   async setAnalysisFeedback(id, feedback: AnalysisFeedback) {
-    const current = await this.getAnalysis(id)
-    if (!current) return null
-    const next: AnalysisRecord = { ...current, feedback }
-    getDb().prepare('UPDATE analyses SET data = ? WHERE id = ?').run(JSON.stringify(next), id)
-    return next
+    getDb().prepare("UPDATE analyses SET data = json_set(data, '$.feedback', json(?)) WHERE id = ?")
+      .run(JSON.stringify(feedback), id)
+    return this.getAnalysis(id)
+  },
+  async setAnalysisNotes(id, notes) {
+    getDb().prepare("UPDATE analyses SET data = json_set(data, '$.notes', ?, '$.notesUpdatedAt', ?) WHERE id = ?")
+      .run(notes, new Date().toISOString(), id)
+    return this.getAnalysis(id)
   },
 }

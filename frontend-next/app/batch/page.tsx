@@ -1,5 +1,6 @@
 'use client'
 import { EmailAlertStatus } from '@/components/EmailAlertStatus'
+import { StudySaveStatus } from '@/components/StudySaveStatus'
 import { useCallback, useMemo, useState } from 'react'
 import { useDropzone } from 'react-dropzone'
 import Link from 'next/link'
@@ -275,6 +276,7 @@ function TriageRow({ item, position }: { item: BatchResultItem; position: number
       <td className="px-4 py-3 max-w-[220px]">
         <span className="text-xs text-[var(--fg)] truncate block">{item.filename}</span>
         <EmailAlertStatus alert={item.result.email_alert} />
+        <StudySaveStatus prediction={item.result} />
         {item.result.dicom_meta?.patient_age != null && (
           <span className="text-[10px] text-[var(--fg-subtle)]">
             {item.result.dicom_meta.patient_age} años{item.result.dicom_meta.patient_sex ? ` · ${item.result.dicom_meta.patient_sex}` : ''}

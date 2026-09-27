@@ -15,6 +15,13 @@ const prediction: Prediction = {
 }
 
 describe('buildPdf desde el historial (sin imagen)', () => {
+  it('paginates long notes and keeps a neutral institutional identity', async () => {
+    const notes = 'Observación del radiólogo. '.repeat(190)
+    const bytes = await buildPdf('img.png', null, prediction, notes)
+    const source = new TextDecoder('latin1').decode(bytes)
+    expect(source).not.toMatch(/Loayza|HNAL|Arzobispo/)
+    expect((source.match(/\/Type \/Page\b/g) ?? []).length).toBeGreaterThan(2)
+  })
   it('genera un PDF válido con originalBytes=null y feedback de discrepancia', async () => {
     const bytes = await buildPdf(
       'torax.dcm',
@@ -48,5 +55,19 @@ describe('buildPdf desde el historial (sin imagen)', () => {
       createdAt: '2026-07-09T12:00:00.000Z',
     })
     expect(String.fromCharCode(...bytes.slice(0, 5))).toBe('%PDF-')
+  })
+  it('includes every class score without arbitrary confidence categories or reference diagnoses', async () => {
+    const bytes = await buildPdf('img.png', null, { ...prediction, analysis_id: 'study-123', explanation: { summary: 'REFERENCE_ONLY' } })
+    const source = new TextDecoder('latin1').decode(bytes)
+    expect(source).toContain('study-123')
+    expect(source).toContain('78.0%')
+    expect(source).toContain('31.0%')
+    expect(source).toContain('5.0%')
+    expect(source).not.toContain('Score moderado')
+    expect(source).not.toContain('REFERENCE_ONLY')
+  })
+  it('flags a secondary critical finding even when the primary is not critical', async () => {
+    const bytes = await buildPdf('img.png', null, { ...prediction, probabilities: { Effusion: .78, Pneumothorax: .6 }, positive_findings: ['Effusion', 'Pneumothorax'] })
+    expect(new TextDecoder('latin1').decode(bytes)).toContain('ALERTA IA')
   })
 })

@@ -2,11 +2,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { buildAnalysisRecord } from './data/analysis'
 
 const mocks = vi.hoisted(() => ({
-  sendMail: vi.fn(), close: vi.fn(), getUsers: vi.fn(), claimEmailAlert: vi.fn(), setEmailAlert: vi.fn(), getAnalysis: vi.fn(),
+  sendMail: vi.fn(), close: vi.fn(), getUsers: vi.fn(), claimEmailAlert: vi.fn(), claimEmailRetry: vi.fn(), setEmailAlert: vi.fn(), setEmailDelivery: vi.fn(), getAnalysis: vi.fn(),
 }))
 vi.mock('cxr-smtp', () => ({ default: { createTransport: () => ({ sendMail: mocks.sendMail, close: mocks.close }) } }))
 vi.mock('./data/store', () => ({ getDataStore: () => mocks }))
-import { alertText, notifyCriticalAnalysis } from './critical-email'
+import { alertText, notifyCriticalAnalysis, retryCriticalEmail } from './critical-email'
 
 const record = () => buildAnalysisRecord({ id: 'radio', name: 'Radiólogo de prueba' }, {
   predicted_class: 'Effusion', confidence: 0.9, positive_findings: ['Effusion', 'Pneumothorax'],
@@ -24,7 +24,7 @@ beforeEach(() => {
   ])
   mocks.claimEmailAlert.mockResolvedValue(true)
   mocks.sendMail.mockResolvedValue({ accepted: ['ok'] })
-  mocks.setEmailAlert.mockResolvedValue(undefined)
+  mocks.setEmailDelivery.mockResolvedValue(undefined)
 })
 
 describe('critical email', () => {
@@ -78,7 +78,7 @@ describe('critical email', () => {
     mocks.sendMail.mockRejectedValue(new Error('SMTP rejected'))
     const alert = await notifyCriticalAnalysis(record())
     expect(alert?.admin.status).toBe('failed')
-    expect(mocks.setEmailAlert).toHaveBeenCalled()
+    expect(mocks.setEmailDelivery).toHaveBeenCalled()
   })
 
   it('records missing server configuration without pretending to send', async () => {
@@ -92,5 +92,28 @@ describe('critical email', () => {
     const text = alertText(study, 'https://cxr.example.com', false)
     expect(text).toContain(`ID de estudio: ${study.id}`)
     expect(text).toContain(`q=${study.id}`)
+  })
+
+  it('retries only the selected recipient without resending a successful admin alert', async () => {
+    const study = record()
+    mocks.getUsers.mockResolvedValue([
+      { id: 'admin', role: 'admin', active: true, email: 'admin@example.com' },
+      { id: 'radio', role: 'radiologist', active: true, email: 'radio@example.com' },
+    ])
+    const alert = { createdAt: '2026-09-27T20:00:00.000Z', admin: { status: 'sent' as const }, radiologist: { status: 'sending' as const, attempts: 2, lastAttemptAt: '2026-09-27T20:02:00.000Z' } }
+    mocks.getAnalysis.mockResolvedValue({ ...study, emailAlert: alert })
+    mocks.claimEmailRetry.mockResolvedValue(alert)
+    expect((await retryCriticalEmail(study, 'radiologist')).radiologist.status).toBe('sent')
+    expect(mocks.sendMail).toHaveBeenCalledTimes(1)
+    expect(mocks.sendMail.mock.calls[0][0].to).toBe('radio@example.com')
+    expect(mocks.setEmailDelivery).toHaveBeenCalledWith(study.id, 'radiologist', expect.objectContaining({ status: 'sent', attempts: 2 }))
+  })
+
+  it('does not send when a retry claim loses a race', async () => {
+    const study = record()
+    mocks.getAnalysis.mockResolvedValue({ ...study, emailAlert: { createdAt: '2026-09-27T20:00:00.000Z', admin: { status: 'failed' }, radiologist: { status: 'pending_email' } } })
+    mocks.claimEmailRetry.mockResolvedValue(null)
+    await expect(retryCriticalEmail(study, 'admin')).rejects.toMatchObject({ status: 409 })
+    expect(mocks.sendMail).not.toHaveBeenCalled()
   })
 })

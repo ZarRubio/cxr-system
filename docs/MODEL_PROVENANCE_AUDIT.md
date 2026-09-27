@@ -79,4 +79,4 @@ Antes de atribuir un checkpoint a un experimento, conservar una tabla verificabl
 con: commit de `cxr-research`, hashes de datos y splits, configuracion de
 entrenamiento, SHA-256 del checkpoint, reporte de evaluacion y metodo de seleccion
 de umbrales. Solo entonces actualizar el manifiesto de procedencia y las metricas
-mostradas por la aplicacion. La validacion externa HNAL sigue siendo independiente.
+mostradas por la aplicacion. La validacion externa independiente sigue siendo independiente.

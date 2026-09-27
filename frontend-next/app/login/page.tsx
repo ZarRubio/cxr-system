@@ -36,7 +36,7 @@ export default function LoginPage() {
     <div className="min-h-dvh flex flex-col">
       <header className="px-6 sm:px-10 py-5 border-b border-[var(--border-subtle)] flex flex-wrap items-center justify-between gap-2">
         <span className="text-lg font-semibold">CXR Classifier</span>
-        <span className="text-sm text-[var(--fg-muted)]">Hospital Nacional Arzobispo Loayza</span>
+        <span className="text-sm text-[var(--fg-muted)]">Proyecto de investigación</span>
       </header>
       <main className="flex-1 flex items-center justify-center px-6 py-12">
         <div className="w-full max-w-sm">
@@ -63,7 +63,7 @@ export default function LoginPage() {
           <p className="mt-8 border-t border-[var(--border-subtle)] pt-5 text-xs leading-5 text-[var(--fg-subtle)]">Uso exclusivamente académico. Los resultados del modelo no constituyen un diagnóstico ni sustituyen la evaluación del especialista.</p>
         </div>
       </main>
-      <footer className="px-6 py-5 text-xs text-[var(--fg-subtle)] border-t border-[var(--border-subtle)]">HNAL · Lima, Perú</footer>
+      <footer className="px-6 py-5 text-xs text-[var(--fg-subtle)] border-t border-[var(--border-subtle)]">Proyecto académico · Lima, Perú</footer>
     </div>
   )
 }

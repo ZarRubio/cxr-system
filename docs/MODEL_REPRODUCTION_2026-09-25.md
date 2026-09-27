@@ -79,7 +79,7 @@ Esta prueba confirma que la cifra agregada es recuperable desde los pesos y el
 test historico. **No** demuestra que los objetos del bucket o el despliegue actual
 tengan estos mismos hashes, ni corrige la exposicion previa a NIH del backbone,
 la calidad de las etiquetas, el bajo numero de positivos en algunas clases o
-la falta de validacion externa HNAL. Los scores no son probabilidades clinicas
+la falta de validacion externa independiente. Los scores no son probabilidades clinicas
 calibradas. La comparacion con Wang 2017 no es controlada si los conjuntos de
 prueba o preprocesamientos difieren.
 

@@ -1,0 +1,53 @@
+name: Firestore backup
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: Create the daily schedule if absent, or verify only
+        required: true
+        type: choice
+        options:
+          - setup
+          - verify
+  schedule:
+    - cron: '17 14 * * 1'
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: projects/730619653471/locations/global/workloadIdentityPools/github-actions/providers/github
+          service_account: github-actions@project-962d2332-8a63-46b3-92e.iam.gserviceaccount.com
+      - uses: google-github-actions/setup-gcloud@v2
+      - name: Ensure schedule and inspect latest backup
+        env:
+          ACTION: ${{ inputs.action || 'verify' }}
+          PROJECT_ID: project-962d2332-8a63-46b3-92e
+        shell: bash
+        run: |
+          set -euo pipefail
+          gcloud config set project "$PROJECT_ID"
+          schedules=$(gcloud firestore backups schedules list --database='(default)' --format=json)
+          if ! jq -e 'any(.[]; has("dailyRecurrence"))' <<< "$schedules" >/dev/null; then
+            if [[ "$ACTION" != setup ]]; then
+              echo 'No daily Firestore backup schedule exists.' >&2
+              exit 1
+            fi
+            gcloud firestore backups schedules create --database='(default)' --recurrence=daily --retention=7d --quiet
+          fi
+          gcloud firestore backups schedules list --database='(default)' --format='table(name,retention,dailyRecurrence)'
+          backups=$(gcloud firestore backups list --format=json)
+          jq -r --arg project "$PROJECT_ID" '[.[] | select(.database == ("projects/" + $project + "/databases/(default)")) | {name, state, snapshotTime}] | sort_by(.snapshotTime) | reverse | .[0:3]' <<< "$backups"
+          if [[ "$ACTION" == verify ]]; then
+            jq -e --arg project "$PROJECT_ID" 'any(.[]; .database == ("projects/" + $project + "/databases/(default)") and .state == "READY")' <<< "$backups" >/dev/null || {
+              echo 'No READY backup for the default Firestore database.' >&2
+              exit 1
+            }
+          fi

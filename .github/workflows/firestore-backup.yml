@@ -1,6 +1,11 @@
 name: Firestore backup
 
 on:
+  push:
+    branches:
+      - master
+    paths:
+      - .github/workflows/firestore-backup.yml
   workflow_dispatch:
     inputs:
       action:
@@ -28,7 +33,7 @@ jobs:
       - uses: google-github-actions/setup-gcloud@v2
       - name: Ensure schedule and inspect latest backup
         env:
-          ACTION: ${{ inputs.action || 'verify' }}
+          ACTION: ${{ github.event_name == 'push' && 'setup' || inputs.action || 'verify' }}
           PROJECT_ID: project-962d2332-8a63-46b3-92e
         shell: bash
         run: |

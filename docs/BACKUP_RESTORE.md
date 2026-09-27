@@ -4,7 +4,7 @@ La aplicacion desplegada guarda usuarios y estudios en Firestore `(default)` del
 
 ## Activacion y comprobacion
 
-1. En GitHub Actions, ejecutar **Firestore backup** con `action=setup`. Crea una programacion diaria con retencion de siete dias solo si no existe ya una programacion diaria. Requiere permisos de administracion de programaciones de backup para la identidad de GitHub Actions y genera cargos de almacenamiento.
+1. La primera subida del workflow **Firestore backup** intenta crear la programacion diaria con retencion de siete dias. Tambien se puede ejecutar manualmente con `action=setup`. Solo crea una programacion si no existe ya una diaria. Requiere permisos de administracion de programaciones de backup para la identidad de GitHub Actions y genera cargos de almacenamiento.
 2. Confirmar que el workflow termina correctamente. La programacion no prueba que ya exista una copia: esperar el primer respaldo y ejecutar `action=verify`. La ejecucion semanal comprueba que haya al menos una copia `READY`; un fallo debe investigarse, no ignorarse.
 3. Consultar `gcloud firestore backups list --project=project-962d2332-8a63-46b3-92e --format='table(name,database,state,snapshotTime)'` y comprobar fecha, base y estado. El objetivo es un respaldo diario; hasta ver uno listo, la recuperacion no esta verificada.
 

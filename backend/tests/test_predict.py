@@ -157,8 +157,8 @@ def _make_dicom_bytes(photometric: str = "MONOCHROME2", modality: str | None = N
 @pytest.fixture()
 def client(monkeypatch):
     monkeypatch.setattr(
-        "services.prediction_service.generate_gradcam",
-        lambda model, tensor, img_array, label, method="gradcam": "data:image/png;base64,ZmFrZQ==",
+        "services.prediction_service.generate_gradcam_layers",
+        lambda model, tensor, img_array, label, method="gradcam": ("data:image/png;base64,ZmFrZQ==", "data:image/png;base64,bWFw"),
     )
     with TestClient(app) as c:
         app.state.ensemble = _make_ensemble(_effusion_logits(), _effusion_logits())
@@ -438,7 +438,7 @@ class TestHealthEndpoint:
         assert data["num_classes"] == 14
 
     def test_degraded_when_no_ensemble(self, monkeypatch):
-        monkeypatch.setattr("services.prediction_service.generate_gradcam", lambda *a, **kw: "")
+        monkeypatch.setattr("services.prediction_service.generate_gradcam_layers", lambda *a, **kw: ("", ""))
         with TestClient(app) as c:
             app.state.ensemble = None
             app.state.prediction_cache = LRUCache(maxsize=20)
@@ -569,7 +569,7 @@ class TestPredictEndpoint:
         assert resp2.json()["cached"] is True
 
     def test_no_ensemble_returns_503(self, monkeypatch):
-        monkeypatch.setattr("services.prediction_service.generate_gradcam", lambda *a, **kw: "")
+        monkeypatch.setattr("services.prediction_service.generate_gradcam_layers", lambda *a, **kw: ("", ""))
         with TestClient(app) as c:
             app.state.ensemble = None
             app.state.prediction_cache = LRUCache(maxsize=20)

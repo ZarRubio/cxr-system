@@ -16,14 +16,17 @@ interface GradCamViewProps {
 
 export function GradCamView({ prediction, originalBytes, filename = 'image.png', onPredictionUpdate }: GradCamViewProps) {
   const [opacity, setOpacity]       = useState(0.65)
-  const [blended, setBlended]       = useState<string | null>(null)
+  const [blendResult, setBlendResult] = useState<{ uri: string; source: string; bytes: Uint8Array } | null>(null)
   const [loading, setLoading]       = useState(false)
   const [generating, setGenerating] = useState(false)
   const [lightbox, setLightbox]     = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const gradcamUri = prediction.gradcam_image
+  const heatmapUri = prediction.gradcam_heatmap
   const displayBytes = useMemo(() => prediction.image_preview ? decodeDataUri(prediction.image_preview) : originalBytes, [prediction.image_preview, originalBytes])
+  const blended = blendResult?.source === heatmapUri && blendResult?.bytes === displayBytes ? blendResult.uri : null
+  const renderedMap = heatmapUri ? blended : gradcamUri
 
   // URL de objeto para la imagen original; el effect solo revoca al desmontar
   const originalSrc = useMemo(() => {
@@ -38,19 +41,19 @@ export function GradCamView({ prediction, originalBytes, filename = 'image.png',
 
   // Blend original + Grad-CAM whenever opacity or gradcam changes
   useEffect(() => {
-    if (!gradcamUri || !displayBytes) return
+    if (!heatmapUri || !displayBytes) return
     let cancelled = false
     Promise.resolve().then(() => {
       if (cancelled) return null
       setError(null)
       setLoading(true)
-      return blendImagesOnCanvas(displayBytes, decodeDataUri(gradcamUri), opacity)
+      return blendImagesOnCanvas(displayBytes, decodeDataUri(heatmapUri), opacity)
     })
-      .then(value => { if (!cancelled) setBlended(value) })
-      .catch(() => { if (!cancelled) { setBlended(null); setError('No se pudo combinar la imagen. Se muestra el mapa recibido del servicio.') } })
+      .then(value => { if (!cancelled && value) setBlendResult({ uri: value, source: heatmapUri, bytes: displayBytes }) })
+      .catch(() => { if (!cancelled) { setBlendResult(null); setError('No se pudo combinar la imagen. Se muestra el mapa recibido del servicio.') } })
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
-  }, [gradcamUri, displayBytes, opacity])
+  }, [heatmapUri, displayBytes, opacity])
 
   const handleGenerate = async () => {
     if (!prediction.analysis_id) {
@@ -60,7 +63,7 @@ export function GradCamView({ prediction, originalBytes, filename = 'image.png',
     setGenerating(true)
     try {
       const updated = await predict(originalBytes, filename, 'gradcam', true, { explanationId: prediction.analysis_id })
-      onPredictionUpdate?.({ ...prediction, gradcam_image: updated.gradcam_image, gradcam_class: updated.gradcam_class, image_preview: updated.image_preview ?? prediction.image_preview })
+      onPredictionUpdate?.({ ...prediction, gradcam_image: updated.gradcam_image, gradcam_heatmap: updated.gradcam_heatmap, gradcam_class: updated.gradcam_class, image_preview: updated.image_preview ?? prediction.image_preview })
     } catch {
       setError('No se pudo generar el mapa de calor. Intente nuevamente.')
     } finally {
@@ -77,7 +80,7 @@ export function GradCamView({ prediction, originalBytes, filename = 'image.png',
             <Thermometer size={16} className="text-[var(--primary)]" />
             <h4 className="text-sm font-semibold text-[var(--fg)]">Mapa de calor (Grad-CAM)</h4>
           </div>
-          {blended && (
+          {renderedMap && heatmapUri && (
             <button
               onClick={() => setLightbox(true)}
               className="flex items-center gap-1.5 text-xs font-semibold text-[var(--primary)] hover:opacity-80 transition-all cursor-pointer"
@@ -110,13 +113,21 @@ export function GradCamView({ prediction, originalBytes, filename = 'image.png',
         {/* Image */}
         {gradcamUri && (
           <>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <figure className="min-w-0">
+                <figcaption className="text-xs text-[var(--fg-muted)] mb-2">Imagen de entrada (224 x 224)</figcaption>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={originalSrc ?? undefined} alt="Radiografia sin mapa de calor" className="w-full aspect-square object-contain rounded-md bg-[#111111]" />
+              </figure>
+              <figure className="min-w-0">
+                <figcaption className="text-xs text-[var(--fg-muted)] mb-2">Atribución relativa - modelo v2</figcaption>
             <div
               className="viewport-frame relative w-full aspect-square rounded-md overflow-hidden bg-[#111111] flex items-center justify-center cursor-zoom-in"
               role="button"
-              tabIndex={blended ? 0 : -1}
+              tabIndex={blended && heatmapUri ? 0 : -1}
               aria-label="Ampliar mapa de calor"
-              onKeyDown={e => { if (blended && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); setLightbox(true) } }}
-              onClick={() => blended && setLightbox(true)}
+              onKeyDown={e => { if (blended && heatmapUri && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); setLightbox(true) } }}
+              onClick={() => blended && heatmapUri && setLightbox(true)}
               title="Click para ampliar"
             >
               {loading && !blended ? (
@@ -124,21 +135,24 @@ export function GradCamView({ prediction, originalBytes, filename = 'image.png',
               ) : (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
-                  src={blended ?? gradcamUri}
+                  src={renderedMap ?? gradcamUri}
                   alt="Overlay Grad-CAM"
                   className="w-full h-full object-contain"
                 />
               )}
-              {blended && (
+              {blended && heatmapUri && (
                 <div className="absolute top-2 right-2 bg-black/60 rounded-lg px-2 py-1 flex items-center gap-1 pointer-events-none">
                   <Maximize2 size={11} className="text-white/70" />
                   <span className="text-[10px] text-white/70 font-medium">Ampliar</span>
                 </div>
               )}
             </div>
+              </figure>
+            </div>
+            <p className="text-xs text-[var(--fg-muted)]">Azul: menor atribución. Rojo: mayor atribución relativa en esta imagen; no indica gravedad ni probabilidad. Los colores no son comparables entre estudios.</p>
 
             {/* Opacity slider */}
-            <div className="space-y-1">
+            {heatmapUri ? <div className="space-y-1">
               <div className="flex items-center justify-between">
                 <label className="text-xs font-medium text-[var(--fg-muted)]">
                   Opacidad del mapa
@@ -155,15 +169,15 @@ export function GradCamView({ prediction, originalBytes, filename = 'image.png',
                 className="w-full h-2 appearance-none rounded-full cursor-pointer accent-[var(--primary)]"
                 aria-label="Opacidad del mapa de calor"
               />
-            </div>
+            </div> : <p className="text-xs text-[var(--fg-muted)]">Mapa anterior con superposición fija. No dispone de ajuste de opacidad independiente.</p>}
           </>
         )}
         {error && <p role="alert" className="text-sm badge-high p-3 rounded-md">{error}</p>}
-        <p className="text-xs text-[var(--fg-muted)]">Activación del modelo v2, no segmentación de una lesión. El mapa no confirma la ubicación ni la presencia de enfermedad.</p>
+        <p className="text-xs text-[var(--fg-muted)]">Explicación aproximada de v2, no del ensemble completo. No es una segmentación ni confirma enfermedad. La activación en bordes o fuera de la anatomía esperada requiere revisión; no demuestra por sí sola un error del modelo.</p>
       </div>
 
       {/* Lightbox */}
-      {lightbox && blended && originalSrc && (
+      {lightbox && heatmapUri && blended && originalSrc && (
         <ImageLightbox
           originalSrc={originalSrc}
           blendedSrc={blended}

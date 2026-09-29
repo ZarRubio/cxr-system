@@ -12,15 +12,15 @@ from pytorch_grad_cam.utils.model_targets import ClassifierOutputTarget
 from models.cnn_vit import CNNViT
 
 
-def generate_gradcam(
+def generate_gradcam_layers(
     model: CNNViT,
     tensor: torch.Tensor,
     img_array: np.ndarray,
     predicted_label: int,
     method: str = "gradcam",
-) -> str:
+) -> tuple[str, str]:
     """
-    Generates a Grad-CAM heatmap overlay for the predicted class.
+    Generates a legacy overlay and a separate RGB heatmap in one CAM pass.
 
     Args:
         model: trained CNNViT in eval mode
@@ -29,7 +29,7 @@ def generate_gradcam(
         predicted_label: class index for which to compute Grad-CAM
 
     Returns:
-        Base64-encoded PNG string with data URI prefix.
+        (overlay, pure_heatmap), each a base64 PNG with data URI prefix.
     """
     target_layer = model.cnn_features.denseblock4
 
@@ -49,9 +49,21 @@ def generate_gradcam(
         grayscale_cam = cam(input_tensor=tensor, targets=targets)
 
     heatmap_overlay = show_cam_on_image(img_rgb, grayscale_cam[0], use_rgb=True)
+    heatmap = cv2.cvtColor(
+        cv2.applyColorMap(np.uint8(255 * grayscale_cam[0]), cv2.COLORMAP_JET),
+        cv2.COLOR_BGR2RGB,
+    )
+    return _encode_png(heatmap_overlay), _encode_png(heatmap)
 
-    pil_image = Image.fromarray(heatmap_overlay)
+
+def _encode_png(pixels: np.ndarray) -> str:
+    pil_image = Image.fromarray(pixels)
     buffer = io.BytesIO()
     pil_image.save(buffer, format="PNG")
     encoded = base64.b64encode(buffer.getvalue()).decode("utf-8")
     return f"data:image/png;base64,{encoded}"
+
+
+def generate_gradcam(model, tensor, img_array, predicted_label, method="gradcam") -> str:
+    """Legacy overlay used by reports and older clients."""
+    return generate_gradcam_layers(model, tensor, img_array, predicted_label, method)[0]

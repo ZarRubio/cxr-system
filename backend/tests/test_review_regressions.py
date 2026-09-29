@@ -11,8 +11,9 @@ from services.prediction_service import PredictOptions, _build_response_data, _r
 
 def test_gradcam_targets_primary_finding_not_list_order():
     result = {"predicted_class": "Effusion", "positive_findings": ["Atelectasis", "Effusion"]}
-    with patch("services.prediction_service.run_ensemble_inference", return_value=result), patch("services.prediction_service.generate_gradcam", return_value="cam") as cam:
-        _, _, target = _run_prediction({"model_v2": object()}, np.zeros((224, 224), dtype=np.uint8), PredictOptions())
+    with patch("services.prediction_service.run_ensemble_inference", return_value=result), patch("services.prediction_service.generate_gradcam_layers", return_value=("cam", "heatmap")) as cam:
+        _, _, target, heatmap = _run_prediction({"model_v2": object()}, np.zeros((224, 224), dtype=np.uint8), PredictOptions())
+    assert heatmap == "heatmap"
     assert target == "Effusion"
     assert cam.call_args.args[3] == 4
 

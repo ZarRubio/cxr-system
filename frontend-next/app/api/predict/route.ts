@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
       return Response.json({ detail: 'La imagen o la versión del modelo no corresponde al estudio original.' }, { status: 409 })
     }
     if (!prediction.gradcam_image) return Response.json({ detail: 'El servicio no generó el mapa. Intente nuevamente.' }, { status: 502 })
-    return Response.json({ gradcam_image: prediction.gradcam_image, gradcam_class: prediction.gradcam_class, image_preview: prediction.image_preview })
+    return Response.json({ gradcam_image: prediction.gradcam_image, gradcam_heatmap: prediction.gradcam_heatmap, gradcam_class: prediction.gradcam_class, image_preview: prediction.image_preview })
   }
   const record = buildAnalysisRecord(
     { id: principal.user.id, name: principal.user.name },

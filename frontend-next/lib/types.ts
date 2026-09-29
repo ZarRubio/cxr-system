@@ -10,6 +10,7 @@ export interface Prediction {
   probabilities: Record<string, number>
   positive_findings: string[]
   gradcam_image?: string
+  gradcam_heatmap?: string
   /** Decoded display image; not persisted in study records. */
   image_preview?: string
   gradcam_class?: string

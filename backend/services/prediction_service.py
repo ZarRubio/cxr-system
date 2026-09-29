@@ -19,7 +19,7 @@ from schemas.prediction import PredictionResponse
 from services.audit_service import write_audit_event
 from services.cxr_screening_service import CXRScreeningResult, classify_cxr
 from services.dicom_service import extract_study_metadata
-from services.gradcam_service import generate_gradcam
+from services.gradcam_service import generate_gradcam_layers
 from services.model_service import CLASSES_14, run_ensemble_inference
 from settings import settings
 from utils.image_utils import (
@@ -154,8 +154,8 @@ def _decode_and_validate(file_bytes: bytes, filename: str) -> np.ndarray:
     return img_array
 
 
-def _run_prediction(ensemble: dict, img_array: np.ndarray, options: PredictOptions) -> tuple[dict, str, str]:
-    """Inferencia del ensemble + Grad-CAM. Devuelve (result, gradcam_image, gradcam_class)."""
+def _run_prediction(ensemble: dict, img_array: np.ndarray, options: PredictOptions) -> tuple[dict, str, str, str]:
+    """Return ensemble result, legacy overlay, target class and pure heatmap."""
     tensor = preprocess_for_model(img_array)
     result = run_ensemble_inference(ensemble, tensor)
 
@@ -166,11 +166,11 @@ def _run_prediction(ensemble: dict, img_array: np.ndarray, options: PredictOptio
         gradcam_cls = result["predicted_class"]
 
     gradcam_label = CLASSES_14.index(gradcam_cls) if gradcam_cls in CLASSES_14 else 0
-    gradcam_image = (
-        generate_gradcam(ensemble["model_v2"], tensor, img_array, gradcam_label, options.gradcam_method)
-        if options.include_gradcam else ""
+    gradcam_image, gradcam_heatmap = (
+        generate_gradcam_layers(ensemble["model_v2"], tensor, img_array, gradcam_label, options.gradcam_method)
+        if options.include_gradcam else ("", "")
     )
-    return result, gradcam_image, gradcam_cls
+    return result, gradcam_image, gradcam_cls, gradcam_heatmap
 
 
 def _build_response_data(
@@ -181,6 +181,7 @@ def _build_response_data(
     gradcam_image: str,
     gradcam_cls: str,
     elapsed_ms: float,
+    gradcam_heatmap: str = "",
 ) -> dict:
     predicted_class = result["predicted_class"]
     # Same decoded pixels and geometry as the Grad-CAM overlay, including DICOM.
@@ -196,6 +197,7 @@ def _build_response_data(
         sub_threshold_findings=result["sub_threshold_findings"],
         decision_support=result["decision_support"],
         gradcam_image=gradcam_image,
+        gradcam_heatmap=gradcam_heatmap,
         image_preview=preview_uri,
         gradcam_class=gradcam_cls,
         processing_time_ms=elapsed_ms,
@@ -264,7 +266,7 @@ def predict_image(
     if ensemble is None:
         raise HTTPException(status_code=503, detail="Modelo no cargado.")
 
-    result, gradcam_image, gradcam_cls = _run_prediction(ensemble, img_array, options)
+    result, gradcam_image, gradcam_cls, gradcam_heatmap = _run_prediction(ensemble, img_array, options)
     elapsed_ms = round((time.perf_counter() - t0) * 1000, 1)
     response_data = _build_response_data(
         result,
@@ -274,6 +276,7 @@ def predict_image(
         gradcam_image,
         gradcam_cls,
         elapsed_ms,
+        gradcam_heatmap,
     )
 
     # DICOM: adjuntar metadatos no identificantes (edad, sexo, proyeccion)

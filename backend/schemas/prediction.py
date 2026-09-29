@@ -43,6 +43,7 @@ class PredictionResponse(BaseModel):
     positive_findings: list[str]      # clases sobre threshold
     sub_threshold_findings: list[dict[str, str | float]] = []  # clases entre 0.10 y threshold
     gradcam_image: str
+    gradcam_heatmap: str = ""  # RGB heatmap without the radiograph; legacy overlay stays available.
     image_preview: str = ""
     gradcam_class: str
     processing_time_ms: float

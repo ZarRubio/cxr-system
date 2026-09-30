@@ -450,7 +450,7 @@ export async function buildPdf(
   const IMG_H = IMG_W
 
   try {
-    const origUrl = prediction.image_preview ?? await toDataUrl(originalBytes)
+    const origUrl = prediction.image_preview || await toDataUrl(originalBytes)
 
     // Column labels
     doc.setFont('helvetica', 'bold')
@@ -459,8 +459,8 @@ export async function buildPdf(
     doc.text('Vista procesada (no diagnóstica)', M, y)
     doc.text(
       prediction.gradcam_class
-        ? `Mapa de activación — ${BADGES[prediction.gradcam_class] ?? prediction.gradcam_class}`
-        : 'Mapa de activación (Grad-CAM)',
+        ? `Grad-CAM v2 — ${BADGES[prediction.gradcam_class] ?? prediction.gradcam_class}`
+        : 'Grad-CAM del modelo v2',
       M + IMG_W + 16, y,
     )
     y += 12  // gap between label baseline and image top
@@ -486,7 +486,8 @@ export async function buildPdf(
     doc.setFont('helvetica', 'italic')
     doc.setFontSize(7.5)
     doc.setTextColor(107, 114, 128)
-    const caption  = 'El mapa de activación (Grad-CAM) resalta las regiones que mayor peso tuvieron en la predicción. Rojo/amarillo = alta activación; verde/azul = baja activación.'
+    const target = prediction.gradcam_class ? (BADGES[prediction.gradcam_class] ?? prediction.gradcam_class) : 'la clase seleccionada'
+    const caption = `Atribución relativa del modelo v2 para ${target}; no explica el ensemble completo. Rojo/amarillo: mayor atribución; azul: menor atribución. Los colores no delimitan una lesión ni representan probabilidad o gravedad. Se conserva el fondo de la imagen de entrada; las activaciones en bordes o fuera de la anatomía esperada requieren revisión.`
     const capLines = doc.splitTextToSize(caption, W - M * 2)
     drawLines(capLines, M, y, LH[7.5])
     y += capLines.length * LH[7.5] + 14

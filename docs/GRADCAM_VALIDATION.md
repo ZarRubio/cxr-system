@@ -20,3 +20,9 @@ La correccion visual no demuestra que el modelo use anatomia relevante. Las prue
 6. Medir localizacion solo si hay anotaciones de referencia adecuadas. La oclusion no demuestra que una activacion sea una lesion, ni que el modelo sea clinicamente valido.
 
 Un mapa rojo indica una atribucion relativa normalizada por imagen, no gravedad, probabilidad ni evidencia comparable entre estudios. Los mapas planos no permiten ordenar regiones y la utilidad offline los rechaza.
+
+## Fondo y bordes en el reporte
+
+El PDF conserva la vista procesada y el overlay recibido. El preprocesamiento actual redimensiona la imagen completa a 224 x 224, sin anadir relleno. Una franja negra en el archivo de entrada llega al modelo y al mapa; no se recorta para mejorar la apariencia del reporte.
+
+Para comprobar un caso concreto se necesita el archivo de entrada, no una captura del PDF. Comparar sus pixeles con `image_preview`, delimitar manualmente la franja de fondo y medir el cambio del logit de la misma clase al reemplazar esa region por la media de la imagen. Comparar con regiones de control del mismo tamano, registrar checkpoint y parametros, y repetir en varios casos. La prueba general de alta/baja atribucion no sustituye esta prueba especifica del fondo. No hay resultados reales de esta comprobacion todavia.

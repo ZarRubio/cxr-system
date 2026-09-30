@@ -3,6 +3,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { Mail, KeyRound, ArrowLeft } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { AccessLayout } from '@/components/layout/AccessLayout'
 
 export default function RecoveryPage() {
   const [email, setEmail] = useState('')
@@ -14,7 +15,7 @@ export default function RecoveryPage() {
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [done, setDone] = useState(false)
-  const input = 'w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 min-h-11 text-base text-[var(--fg)]'
+  const input = 'field-input'
   async function submit(event: React.FormEvent) {
     event.preventDefault()
     if (busy) return
@@ -32,8 +33,7 @@ export default function RecoveryPage() {
     } catch { setError('No se pudo conectar con el servicio.') }
     finally { setBusy(false) }
   }
-  return <main className="min-h-dvh flex items-center justify-center px-6 py-12">
-    <div className="w-full max-w-sm">
+  return <AccessLayout>
       <p className="text-sm font-medium text-[var(--primary)] mb-3">CXR Classifier</p>
       <h1 className="text-2xl font-semibold mb-6">Recuperar acceso</h1>
       {message && <p role="status" className="mb-5 text-sm text-[var(--fg-muted)]">{message}</p>}
@@ -49,10 +49,9 @@ export default function RecoveryPage() {
               <input id="confirm-password" type="password" autoComplete="new-password" required value={confirmation} onChange={e => setConfirmation(e.target.value)} className={input} /></div>
           </>}
         {error && <p role="alert" className="badge-critical p-3 rounded text-sm">{error}</p>}
-        <Button type="submit" className="w-full" loading={busy}>{requestId ? <KeyRound size={17} /> : <Mail size={17} />}{requestId ? 'Actualizar contraseña' : 'Enviar código'}</Button>
+        <Button type="submit" size="lg" className="w-full" loading={busy}>{requestId ? <KeyRound size={17} /> : <Mail size={17} />}{requestId ? 'Actualizar contraseña' : 'Enviar código'}</Button>
         {requestId && <button type="button" disabled={busy} className="text-sm text-[var(--primary)]" onClick={() => { setRequestId(''); setCode(''); setMessage(''); setError('') }}>Solicitar otro código</button>}
       </form>}
-      <Link href="/login" className="mt-6 inline-flex gap-2 items-center text-sm text-[var(--primary)]"><ArrowLeft size={16} />Volver al inicio de sesión</Link>
-    </div>
-  </main>
+      <Link href="/login" className="access-link mt-4"><ArrowLeft size={16} />Volver al inicio de sesión</Link>
+  </AccessLayout>
 }

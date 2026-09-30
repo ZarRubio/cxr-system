@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Eye, EyeOff, LogIn } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
+import { AccessLayout } from '@/components/layout/AccessLayout'
 
 export default function LoginPage() {
   const [username, setUsername] = useState('')
@@ -32,15 +33,9 @@ export default function LoginPage() {
       setLoading(false)
     }
   }
-  const inputClass = 'w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 min-h-11 text-base text-[var(--fg)]'
+  const inputClass = 'field-input'
   return (
-    <div className="min-h-dvh flex flex-col">
-      <header className="px-6 sm:px-10 py-5 border-b border-[var(--border-subtle)] flex flex-wrap items-center justify-between gap-2">
-        <span className="text-lg font-semibold">CXR Classifier</span>
-        <span className="text-sm text-[var(--fg-muted)]">Proyecto de investigación</span>
-      </header>
-      <main className="flex-1 flex items-center justify-center px-6 py-12">
-        <div className="w-full max-w-sm">
+    <AccessLayout>
           <p className="text-sm text-[var(--primary)] font-medium mb-3">Radiografía de tórax</p>
           <h1 className="text-2xl font-semibold">Acceso al sistema</h1>
           <p className="text-sm text-[var(--fg-muted)] mt-2 mb-8">Personal autorizado · Proyecto de investigación</p>
@@ -61,11 +56,8 @@ export default function LoginPage() {
             {error && <p id="login-error" role="alert" className="badge-critical rounded-md p-3 text-sm">{error}</p>}
             <Button type="submit" size="lg" className="w-full" loading={loading}><LogIn size={17} />{loading ? 'Verificando acceso...' : 'Iniciar sesión'}</Button>
           </form>
-          <Link href="/recover" className="mt-5 inline-block text-sm text-[var(--primary)]">¿Olvidó su contraseña?</Link>
+          <Link href="/recover" className="access-link mt-3">¿Olvidó su contraseña?</Link>
           <p className="mt-8 border-t border-[var(--border-subtle)] pt-5 text-xs leading-5 text-[var(--fg-subtle)]">Uso exclusivamente académico. Los resultados del modelo no constituyen un diagnóstico ni sustituyen la evaluación del especialista.</p>
-        </div>
-      </main>
-      <footer className="px-6 py-5 text-xs text-[var(--fg-subtle)] border-t border-[var(--border-subtle)]">Proyecto académico · Lima, Perú</footer>
-    </div>
+    </AccessLayout>
   )
 }

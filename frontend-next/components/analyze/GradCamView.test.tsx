@@ -49,7 +49,7 @@ it('blends the pure heatmap, never the server overlay, without requesting infere
   vi.mocked(predict).mockClear()
   vi.mocked(blendImagesOnCanvas).mockResolvedValue('data:image/png;base64,bmV3')
   render(<GradCamView prediction={prediction} originalBytes={new Uint8Array([0])} />)
-  await waitFor(() => expect(blendImagesOnCanvas).toHaveBeenCalledWith(new Uint8Array([0]), new Uint8Array([1]), .65))
+  await waitFor(() => expect(blendImagesOnCanvas).toHaveBeenCalledWith(new Uint8Array([0]), new Uint8Array([1]), .25))
   fireEvent.change(screen.getByRole('slider'), { target: { value: '0' } })
   await waitFor(() => expect(blendImagesOnCanvas).toHaveBeenLastCalledWith(new Uint8Array([0]), new Uint8Array([1]), 0))
   expect(predict).not.toHaveBeenCalled()

@@ -15,7 +15,7 @@ interface GradCamViewProps {
 }
 
 export function GradCamView({ prediction, originalBytes, filename = 'image.png', onPredictionUpdate }: GradCamViewProps) {
-  const [opacity, setOpacity]       = useState(0.65)
+  const [opacity, setOpacity]       = useState(0.25)
   const [blendResult, setBlendResult] = useState<{ uri: string; source: string; bytes: Uint8Array } | null>(null)
   const [loading, setLoading]       = useState(false)
   const [generating, setGenerating] = useState(false)

@@ -1,11 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-const mocks = vi.hoisted(() => ({ auth: vi.fn(), getUserById: vi.fn(), updateUser: vi.fn() }))
+const mocks = vi.hoisted(() => ({ auth: vi.fn(), getUserById: vi.fn(), updateUser: vi.fn(), getUsersByEmail: vi.fn() }))
 vi.mock('@/auth', () => ({ auth: mocks.auth }))
 vi.mock('@/lib/user-store', () => ({ getUserById: mocks.getUserById, updateUser: mocks.updateUser }))
+vi.mock('@/lib/data/store', () => ({ getDataStore: () => ({ getUsersByEmail: mocks.getUsersByEmail }) }))
 import { GET, PATCH } from './route'
 
 beforeEach(() => {
   vi.clearAllMocks()
+  mocks.getUsersByEmail.mockResolvedValue([])
   mocks.auth.mockResolvedValue({ user: { id: 'u1' } })
   mocks.getUserById.mockResolvedValue({ id: 'u1', role: 'admin', active: true, email: 'admin@example.com', password: 'never-return' })
 })
@@ -30,9 +32,9 @@ describe('profile email', () => {
     expect((await PATCH(request({ email: 'New@Example.com', id: 'another', role: 'admin' }))).status).toBe(200)
     expect(mocks.updateUser).toHaveBeenCalledWith('u1', { email: 'new@example.com' })
   })
-  it('lets radiologists omit email', async () => {
+  it('requires radiologists to retain a recovery email', async () => {
     mocks.getUserById.mockResolvedValue({ id: 'u1', role: 'radiologist', active: true })
-    expect((await PATCH(request({ email: '' }))).status).toBe(200)
-    expect(mocks.updateUser).toHaveBeenCalledWith('u1', { email: null })
+    expect((await PATCH(request({ email: '' }))).status).toBe(400)
+    expect(mocks.updateUser).not.toHaveBeenCalled()
   })
 })

@@ -10,6 +10,7 @@ import logging
 import time
 from dataclasses import dataclass
 
+import cv2
 import numpy as np
 from fastapi import HTTPException
 from PIL import Image
@@ -32,6 +33,12 @@ from utils.image_utils import (
 logger = logging.getLogger("cxr.predict")
 
 MODEL_VERSION = "ensemble-v1v2-14classes"
+
+
+def model_bundle_version(app_state) -> str:
+    manifest = getattr(app_state, "model_manifest", None) or {}
+    fingerprint = manifest.get("model_fingerprint")
+    return f"ensemble:{fingerprint}:xrv224-v1" if fingerprint else "ensemble:unverified:xrv224-v1"
 
 
 @dataclass(frozen=True)
@@ -186,7 +193,7 @@ def _build_response_data(
     predicted_class = result["predicted_class"]
     # Same decoded pixels and geometry as the Grad-CAM overlay, including DICOM.
     preview = io.BytesIO()
-    Image.fromarray(img_array).resize((224, 224), Image.Resampling.BILINEAR).save(preview, format="PNG")
+    Image.fromarray(cv2.resize(img_array, (224, 224), interpolation=cv2.INTER_LINEAR)).save(preview, format="PNG")
     preview_uri = "data:image/png;base64," + base64.b64encode(preview.getvalue()).decode("ascii")
     return dict(
         predicted_class=predicted_class,
@@ -223,7 +230,8 @@ def predict_image(
     validate_file_size(file_bytes)
 
     image_hash = hashlib.sha256(file_bytes).hexdigest()
-    cache_key = f"{image_hash}:{options.cache_suffix}"
+    bundle_version = model_bundle_version(app_state)
+    cache_key = f"{bundle_version}:{image_hash}:{options.cache_suffix}"
     cache = app_state.prediction_cache
 
     cached_data = cache.get(cache_key)
@@ -278,6 +286,9 @@ def predict_image(
         elapsed_ms,
         gradcam_heatmap,
     )
+
+    response_data["model_version"] = bundle_version
+    response_data["thresholds_used"] = dict(ensemble.get("thresholds", {}))
 
     # DICOM: adjuntar metadatos no identificantes (edad, sexo, proyeccion)
     if fmt == "dicom":

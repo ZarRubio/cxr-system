@@ -2,6 +2,7 @@ import NextAuth from 'next-auth'
 import { authConfig } from './auth.config'
 import { NextResponse } from 'next/server'
 import { getUserById } from './lib/user-store'
+import { passwordVersion } from './lib/session-version'
 
 const { auth } = NextAuth(authConfig)
 
@@ -18,6 +19,7 @@ export default auth(async (req) => {
   // Rutas siempre públicas
   if (
     pathname.startsWith('/api/auth') ||
+    pathname === '/recover' ||
     pathname.startsWith('/_next') ||
     pathname.startsWith('/demo') ||
     pathname === '/favicon.ico'
@@ -29,7 +31,9 @@ export default auth(async (req) => {
   if (isLoggedIn) {
     const id = (req.auth?.user as Record<string, unknown> | undefined)?.id
     try {
-      accountActive = Boolean(id && (await getUserById(String(id)))?.active)
+      const account = id ? await getUserById(String(id)) : null
+      const version = (req.auth?.user as unknown as Record<string, unknown> | undefined)?.passwordVersion
+      accountActive = Boolean(account?.active && version === passwordVersion(account.password))
     } catch (error) {
       console.error('[auth] no se pudo revalidar la cuenta', error)
       return new NextResponse('Servicio de autenticación no disponible.', { status: 503 })

@@ -15,6 +15,7 @@ export interface DataStore {
   // Usuarios
   getUsers(): Promise<CXRUser[]>
   getUserByUsername(username: string): Promise<CXRUser | null>
+  getUsersByEmail(email: string): Promise<CXRUser[]>
   getUserById(id: string): Promise<CXRUser | null>
   createUser(user: CXRUser): Promise<void>
   updateUser(
@@ -32,7 +33,7 @@ export interface DataStore {
   setEmailDelivery(id: string, role: EmailRecipientRole, delivery: EmailDelivery): Promise<void>
   getAnalysis(id: string): Promise<AnalysisRecord | null>
   /** Últimos análisis (desc por fecha). Sin userId lista todos (vista admin). */
-  listAnalyses(opts: { userId?: string; limit?: number }): Promise<AnalysisRecord[]>
+  listAnalyses(opts: { userId?: string; limit?: number; after?: { createdAt: string; id: string } }): Promise<AnalysisRecord[]>
   setAnalysisFeedback(id: string, feedback: AnalysisFeedback): Promise<AnalysisRecord | null>
 }
 

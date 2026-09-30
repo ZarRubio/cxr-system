@@ -3,7 +3,7 @@ import bcrypt from 'bcryptjs'
 import type { CXRUser } from '@/lib/types'
 import type { AnalysisFeedback, AnalysisRecord } from './analysis'
 import type { DataStore } from './store'
-import { fsClaimEmailAlert, fsClaimEmailRetry, fsDeleteDoc, fsGetDoc, fsQuery, fsSetDoc, fsSetEmailDelivery, fsUpdateFields } from './firestore-rest'
+import { fsClaimEmailAlert, fsClaimEmailRetry, fsCreateUser, fsDeleteDoc, fsGetDoc, fsQuery, fsSetDoc, fsSetEmailDelivery, fsUpdateFields, fsUpdateUser } from './firestore-rest'
 import { DEFAULT_ADMIN_EMAIL } from '@/lib/email-address'
 
 /**
@@ -36,7 +36,8 @@ function ensureSeed(): Promise<void> {
       if (admin.name === 'Administrador HNAL') await fsUpdateFields(USERS, 'usr_admin', { name: 'Administrador' })
       return
     }
-    const password = process.env.SEED_ADMIN_PASSWORD ?? 'hnal2026'
+    const password = process.env.SEED_ADMIN_PASSWORD
+    if (!password || password.length < 12) throw new Error('Configure SEED_ADMIN_PASSWORD (minimo 12 caracteres) para crear el administrador inicial.')
     const user: CXRUser = {
       id: 'usr_admin',
       name: 'Administrador',
@@ -49,7 +50,8 @@ function ensureSeed(): Promise<void> {
       active: true,
       createdAt: new Date().toISOString(),
     }
-    await fsSetDoc(USERS, user.id, user as unknown as Record<string, unknown>)
+    try { await fsCreateUser(user as unknown as Record<string, unknown>) }
+    catch (error) { if (!(await fsGetDoc(USERS, user.id))) throw error }
   })().catch((e) => {
     // Permitir reintento en el siguiente acceso si el seed falló
     seedPromise = null
@@ -85,8 +87,13 @@ export const firestoreStore: DataStore = {
     return doc ? toUser(doc) : null
   },
 
+  async getUsersByEmail(email) {
+    await ensureSeed()
+    return (await fsQuery({ collection: USERS, where: [{ field: 'email', op: 'EQUAL', value: email }], limit: 2 })).map(toUser)
+  },
+
   async createUser(user) {
-    await fsSetDoc(USERS, user.id, {
+    await fsCreateUser({
       ...user,
       cmp: user.cmp ?? null,
       specialty: user.specialty ?? null,
@@ -97,7 +104,7 @@ export const firestoreStore: DataStore = {
     const current = await this.getUserById(id)
     if (!current) return null
     const clean = Object.fromEntries(Object.entries(fields).filter(([, v]) => v !== undefined))
-    if (Object.keys(clean).length > 0) await fsUpdateFields(USERS, id, clean)
+    if (Object.keys(clean).length > 0) await fsUpdateUser(id, clean)
     return this.getUserById(id)
   },
 
@@ -130,9 +137,10 @@ export const firestoreStore: DataStore = {
     await fsSetEmailDelivery(id, role, delivery)
   },
 
-  async listAnalyses({ userId, limit = 500 }) {
+  async listAnalyses({ userId, limit = 500, after }) {
     const docs = await fsQuery({
       collection: ANALYSES,
+      after,
       where: userId ? [{ field: 'userId', op: 'EQUAL', value: userId }] : undefined,
       orderBy: { field: 'createdAt', direction: 'DESCENDING' },
       limit,

@@ -4,6 +4,7 @@ import { signIn } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { Eye, EyeOff, LogIn } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import Link from 'next/link'
 
 export default function LoginPage() {
   const [username, setUsername] = useState('')
@@ -60,6 +61,7 @@ export default function LoginPage() {
             {error && <p id="login-error" role="alert" className="badge-critical rounded-md p-3 text-sm">{error}</p>}
             <Button type="submit" size="lg" className="w-full" loading={loading}><LogIn size={17} />{loading ? 'Verificando acceso...' : 'Iniciar sesión'}</Button>
           </form>
+          <Link href="/recover" className="mt-5 inline-block text-sm text-[var(--primary)]">¿Olvidó su contraseña?</Link>
           <p className="mt-8 border-t border-[var(--border-subtle)] pt-5 text-xs leading-5 text-[var(--fg-subtle)]">Uso exclusivamente académico. Los resultados del modelo no constituyen un diagnóstico ni sustituyen la evaluación del especialista.</p>
         </div>
       </main>

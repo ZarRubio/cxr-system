@@ -2,7 +2,7 @@
 import { useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { TrendingUp, Loader2, Stethoscope, CheckCircle2, XCircle, Activity, X } from 'lucide-react'
-import { fetchAnalyses } from '@/lib/api'
+import { fetchAllAnalyses } from '@/lib/api'
 import { filterAnalyses, type AnalysisRecord } from '@/lib/data/analysis'
 import { BADGES, SEVERITY_LABELS } from '@/lib/constants'
 import { formatTimestamp, cn } from '@/lib/utils'
@@ -46,8 +46,8 @@ export default function StatsPage() {
   const [selUser, setSelUser]         = useState<string | null>(null)
 
   const { data, isLoading, isError } = useQuery({
-    queryKey: ['analyses'],
-    queryFn: () => fetchAnalyses(),
+    queryKey: ['analyses', 'statistics', dateFrom, dateTo],
+    queryFn: () => fetchAllAnalyses({ dateFrom: dateFrom || undefined, dateTo: dateTo || undefined }),
     refetchOnWindowFocus: false,
   })
 

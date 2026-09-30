@@ -6,7 +6,7 @@ import { Header }    from './Header'
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
-  const isPublic = pathname === '/login'
+  const isPublic = pathname === '/login' || pathname === '/recover'
 
   if (isPublic) {
     return <div className="h-full w-full overflow-auto">{children}</div>

@@ -46,9 +46,9 @@ export const SEVERITY_MAP: Record<string, Severity> = {
 }
 
 export const SEVERITY_LABELS: Record<Severity, string> = {
-  critical: 'Crítico',
-  high:     'Alto',
-  moderate: 'Moderado',
+  critical: 'Revisión prioritaria IA',
+  high:     'Revisión recomendada IA',
+  moderate: 'Hallazgo IA',
   normal:   'Sin alerta',
 }
 

@@ -5,6 +5,8 @@ import { createUser, getUserByUsername, getUsers } from '@/lib/user-store'
 import type { CXRUser } from '@/lib/types'
 import { parseEmail } from '@/lib/email-address'
 import { getUserById } from '@/lib/user-store'
+import { getDataStore } from '@/lib/data/store'
+import { validNewPassword } from '@/lib/password-recovery'
 
 async function requireAdmin() {
   const session = await auth()
@@ -31,23 +33,24 @@ export async function POST(req: Request) {
   const body = await req.json()
   const { name, username, password, cmp, specialty } = body
   let email: string | null
-  try { email = parseEmail(body.email) } catch (error) {
+  try { email = parseEmail(body.email, true) } catch (error) {
     return NextResponse.json({ error: (error as Error).message }, { status: 400 })
   }
 
-  if (!name || !username || !password) {
+  if (typeof name !== 'string' || !name.trim() || name.length > 120 || typeof username !== 'string' || !/^[a-zA-Z0-9_.-]{3,64}$/.test(username)) {
     return NextResponse.json({ error: 'Nombre, usuario y contraseña son obligatorios.' }, { status: 400 })
   }
-  if (String(password).length < 6) {
-    return NextResponse.json({ error: 'La contraseña debe tener al menos 6 caracteres.' }, { status: 400 })
+  if (!validNewPassword(password)) {
+    return NextResponse.json({ error: 'La contraseña debe tener al menos 12 caracteres y como maximo 72 bytes.' }, { status: 400 })
   }
+  if ((await getDataStore().getUsersByEmail(email!)).length) return NextResponse.json({ error: 'El correo ya pertenece a otra cuenta.' }, { status: 409 })
   if (await getUserByUsername(username)) {
     return NextResponse.json({ error: 'El nombre de usuario ya existe.' }, { status: 409 })
   }
 
   const user: CXRUser = {
-    id:        `usr_${Date.now()}`,
-    name,
+    id:        `usr_${crypto.randomUUID()}`,
+    name: name.trim(),
     username,
     password:  await bcrypt.hash(password, 10),
     role:      'radiologist',
@@ -58,7 +61,11 @@ export async function POST(req: Request) {
     createdAt: new Date().toISOString(),
   }
 
-  await createUser(user)
+  try { await createUser(user) }
+  catch (error) {
+    if ((error as Error).message === 'Cuenta duplicada.') return NextResponse.json({ error: 'El usuario o correo ya pertenece a otra cuenta.' }, { status: 409 })
+    throw error
+  }
   const { password: _p, ...safe } = user
   return NextResponse.json(safe, { status: 201 })
 }

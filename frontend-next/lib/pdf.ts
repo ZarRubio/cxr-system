@@ -138,7 +138,7 @@ export async function buildPdf(
   if (prediction.model_version) {
     doc.setFontSize(7)
     doc.setTextColor(148, 163, 184)
-    doc.text(`Modelo: ${prediction.model_version}`, W - M, 62, { align: 'right' })
+    doc.text(`Modelo: ${prediction.model_version.slice(0, 26)}...`, W - M, 62, { align: 'right' })
   }
 
   let y = 94
@@ -206,6 +206,7 @@ export async function buildPdf(
   y = kvRow('Fecha del informe', now, y)
   if (prediction.analysis_id) y = kvRow('ID de análisis', prediction.analysis_id, y)
   y = kvRow('Revisión profesional', feedback ? 'Concordancia o discrepancia registrada; no equivale a firma del informe.' : 'Pendiente de validación del radiólogo.', y)
+  y = kvRow('Prioridad profesional', feedback?.reviewPriority ? ({ routine: 'Habitual', priority: 'Prioritaria', urgent: 'Urgente' })[feedback.reviewPriority] : 'No registrada. La alerta de IA no determina gravedad clinica.', y)
   if (meta?.analyzedAt) y = kvRow('Fecha del análisis', new Date(meta.analyzedAt).toLocaleString('es-PE', { timeZone: 'America/Lima' }), y)
   if (!originalBytes) y = kvRow('Tipo de reporte', 'Resumen histórico sin imágenes (no se almacenan).', y)
   if (prediction.persistence?.status === 'failed') y = kvRow('Historial', 'Resultado no guardado. Notificaciones no enviadas.', y)
@@ -412,7 +413,8 @@ export async function buildPdf(
     doc.setFontSize(8)
     doc.setTextColor(55, 65, 81)
     doc.text('Clase', M + 8, y)
-    doc.text('Score IA', M + 300, y, { align: 'right' })
+    doc.text('Score IA', M + 250, y, { align: 'right' })
+    doc.text('Umbral', M + 315, y, { align: 'right' })
     doc.text('Criterio del análisis', M + 340, y)
     y += 27
   }
@@ -424,7 +426,9 @@ export async function buildPdf(
     doc.setFontSize(8)
     doc.setTextColor(15, 23, 42)
     doc.text(BADGES[finding] ?? finding, M + 8, y)
-    doc.text(`${(score * 100).toFixed(1)}%`, M + 300, y, { align: 'right' })
+    doc.text(`${(score * 100).toFixed(1)}%`, M + 250, y, { align: 'right' })
+    const threshold = prediction.thresholds_used?.[finding]
+    doc.text(typeof threshold === 'number' ? `${(threshold * 100).toFixed(1)}%` : 'No registrado', M + 315, y, { align: 'right' })
     doc.text(finding === 'No Finding' ? 'Indicador derivado' : prediction.positive_findings.includes(finding) ? 'Sobre umbral' : 'Sin superar umbral', M + 340, y)
     doc.setDrawColor(226, 232, 240)
     doc.line(M, y + 8, W - M, y + 8)
@@ -583,7 +587,7 @@ export async function buildPdf(
   const sysLines = [
     `Estudio: ${meta?.studyId ?? '—'}`,
     `Informe: ${now}`,
-    prediction.model_version ?? 'Version del modelo no registrada',
+    prediction.model_version ? `Modelo: ${prediction.model_version.slice(0, 26)}...` : 'Version del modelo no registrada',
     'Resultado sujeto a validación clínica',
   ]
   sysLines.forEach((line, i) => {

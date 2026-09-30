@@ -69,6 +69,7 @@ export default function BatchPage() {
 
   const handleAnalyze = async () => {
     if (queue.length === 0 || analyzing) return
+    if (queue.reduce((total, file) => total + file.bytes.length, 0) > 30 * 1024 * 1024) { setError('El lote supera 30 MB en total. Retire algunas imágenes.'); return }
     setAnalyzing(true)
     setError(null)
     try {

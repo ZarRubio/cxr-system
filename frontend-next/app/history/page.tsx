@@ -3,8 +3,8 @@ import { Suspense, useMemo, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSearchParams } from 'next/navigation'
 import { useSession } from 'next-auth/react'
-import { fetchAnalyses, retryAnalysisEmail } from '@/lib/api'
-import { filterAnalyses, type AnalysisFilters, type AnalysisRecord, type FeedbackFilter } from '@/lib/data/analysis'
+import { fetchAnalyses, fetchAllAnalyses, retryAnalysisEmail } from '@/lib/api'
+import { filterAnalyses, nextEmailRetry, type AnalysisFilters, type AnalysisRecord, type FeedbackFilter } from '@/lib/data/analysis'
 import { formatTimestamp, formatConfidence, downloadBlob, cn, csvCell } from '@/lib/utils'
 import { SEVERITY_COLORS, BADGES, SEVERITY_LABELS } from '@/lib/constants'
 import { Button } from '@/components/ui/button'
@@ -59,10 +59,17 @@ function HistoryContent() {
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo]     = useState('')
   const [byUser, setByUser]     = useState('')
+  const [cursor, setCursor] = useState<string | undefined>()
+  const [pages, setPages] = useState<Array<string | undefined>>([])
+  const [exportError, setExportError] = useState('')
+  const criteria = JSON.stringify([q, severity, feedback, dateFrom, dateTo, byUser])
+  const [lastCriteria, setLastCriteria] = useState(criteria)
+  if (criteria !== lastCriteria) { setLastCriteria(criteria); setCursor(undefined); setPages([]) }
+  const serverFilters: AnalysisFilters = { q, severity: severity || undefined, feedback: feedback || undefined, dateFrom, dateTo, userName: byUser || undefined }
 
   const { data, isLoading, isError } = useQuery({
-    queryKey: ['analyses'],
-    queryFn: () => fetchAnalyses(),
+    queryKey: ['analyses', criteria, cursor],
+    queryFn: () => fetchAnalyses(serverFilters, cursor),
     refetchOnWindowFocus: false,
   })
 
@@ -83,10 +90,13 @@ function HistoryContent() {
   }
   const filtered = useMemo(() => filterAnalyses(analyses, filters), [analyses, q, severity, feedback, dateFrom, dateTo, byUser, isAdmin]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const exportCSV = () => {
+  const exportCSV = async () => {
+    setExportError('')
+    try {
+    const complete = (await fetchAllAnalyses(serverFilters)).analyses
     const rows = [
       ['study_id', 'lote', 'timestamp', 'radiologo', 'filename', 'predicted', 'confidence', 'severity', 'feedback', 'hallazgo_real', 'image_hash'],
-      ...filtered.map((a) => [
+      ...complete.map((a) => [
         a.studyId ?? '', a.batchId ?? '', a.createdAt, a.userName, a.filename, a.predictedClass,
         a.confidence.toFixed(4), a.severity,
         a.feedback ? (a.feedback.agrees ? 'concuerda' : 'discrepa') : 'pendiente',
@@ -95,10 +105,13 @@ function HistoryContent() {
     ]
     const csv = rows.map((r) => r.map(csvCell).join(',')).join('\n')
     downloadBlob(csv, 'cxr_historial.csv', 'text/csv')
+    } catch (error) { setExportError((error as Error).message) }
   }
 
-  const exportJSON = () => {
-    downloadBlob(JSON.stringify(filtered, null, 2), 'cxr_historial.json', 'application/json')
+  const exportJSON = async () => {
+    setExportError('')
+    try { downloadBlob(JSON.stringify((await fetchAllAnalyses(serverFilters)).analyses, null, 2), 'cxr_historial.json', 'application/json') }
+    catch (error) { setExportError((error as Error).message) }
   }
 
   return (
@@ -106,8 +119,14 @@ function HistoryContent() {
       <div className="page-heading">
         <h1 className="text-2xl font-extrabold text-[var(--fg)]">Historial de análisis</h1>
         <p className="text-sm text-[var(--fg-subtle)] mt-1">
-          {isAdmin ? 'Análisis del servicio' : 'Sus análisis'} · Hasta 500 registros recientes
+          {isAdmin ? 'Análisis del servicio' : 'Sus análisis'} · Página {pages.length + 1}
         </p>
+      </div>
+      {exportError && <p role="alert" className="badge-high p-3 text-sm">{exportError}</p>}
+      <div className="flex gap-3 items-center">
+        <Button variant="secondary" size="sm" disabled={!pages.length || isLoading} onClick={() => { setCursor(pages.at(-1)); setPages(pages.slice(0, -1)) }}>Anterior</Button>
+        <Button variant="secondary" size="sm" disabled={!data?.nextCursor || isLoading} onClick={() => { setPages([...pages, cursor]); setCursor(data?.nextCursor ?? undefined) }}>Siguiente</Button>
+        <span className="text-xs text-[var(--fg-muted)]">{analyses.length} estudios en esta página</span>
       </div>
 
       {isLoading ? (
@@ -202,7 +221,7 @@ function HistoryContent() {
                 aria-label="Filtrar por severidad"
                 className={selectCls(!!severity)}
               >
-                <option value="">Severidad: todas</option>
+                <option value="">Prioridad IA: todas</option>
                 {(Object.keys(SEVERITY_LABELS) as Severity[]).map((s) => (
                   <option key={s} value={s}>{SEVERITY_LABELS[s]}</option>
                 ))}
@@ -245,7 +264,7 @@ function HistoryContent() {
                   <th className="tech-label text-left px-4 py-3">Estudio</th>
                   {isAdmin && <th className="tech-label text-left px-4 py-3">Radiólogo</th>}
                   <th className="tech-label text-left px-4 py-3">Hallazgo</th>
-                  <th className="tech-label text-left px-4 py-3">Severidad</th>
+                  <th className="tech-label text-left px-4 py-3">Prioridad IA</th>
                   <th className="tech-label text-left px-4 py-3">Validación</th>
                   <th className="tech-label text-right px-4 py-3">Score IA</th>
                   <th className="px-4 py-3" />
@@ -445,6 +464,7 @@ function HistoryDetail({ analysis, canValidate, isAdmin }: { analysis: AnalysisR
     processing_time_ms: analysis.processingTimeMs ?? 0,
     image_hash: analysis.imageHash ?? undefined,
     model_version: analysis.modelVersion ?? undefined,
+    thresholds_used: analysis.thresholdsUsed,
     decision_support: analysis.decisionSupport ?? undefined,
     image_warnings: analysis.imageWarnings ?? [],
     cxr_screening: analysis.cxrScreening ?? undefined,
@@ -475,16 +495,19 @@ function HistoryDetail({ analysis, canValidate, isAdmin }: { analysis: AnalysisR
     <div className="space-y-4">
       <EmailAlertStatus alert={analysis.emailAlert} />
       {analysis.emailAlert && (
+        <div>
+        <p className="text-xs text-[var(--fg-muted)] mb-2">Reintento manual: un envío sin confirmación podría haber llegado. Verifique antes de reenviar.</p>
         <div className="flex flex-wrap gap-2 text-xs">
           {(['admin', 'radiologist'] as const).map(role => {
             if (role === 'admin' && !isAdmin) return null
             if (role === 'radiologist' && !isAdmin && !canValidate) return null
             const delivery = analysis.emailAlert?.[role]
-            if (!delivery || !['failed', 'pending_email', 'not_configured'].includes(delivery.status) || (delivery.attempts ?? 0) >= 3) return null
+            if (!delivery || !nextEmailRetry(analysis.emailAlert!, role, new Date())) return null
             return <Button key={role} variant="secondary" size="sm" disabled={!!retrying} loading={retrying === role} onClick={() => retryEmail(role)}>
               <RotateCcw size={13} /> Reintentar correo al {role === 'admin' ? 'administrador' : 'radiólogo'}
             </Button>
           })}
+        </div>
         </div>
       )}
       {retryError && <p role="alert" className="text-xs badge-high p-2">{retryError}</p>}

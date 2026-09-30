@@ -3,6 +3,7 @@ import type { Session } from 'next-auth'
 import { auth } from '@/auth'
 import { getUserById } from '@/lib/user-store'
 import type { CXRUser } from '@/lib/types'
+import { passwordVersion } from './session-version'
 
 export interface ActiveSession {
   session: Session
@@ -21,6 +22,8 @@ export async function getActiveSession(): Promise<ActiveSession | null> {
 
   const user = await getUserById(String(id))
   if (!user?.active) return null
+  const version = (session.user as unknown as Record<string, unknown>).passwordVersion
+  if (version !== passwordVersion(user.password)) return null
 
   return { session, user }
 }

@@ -87,7 +87,7 @@ export default function AdminPage() {
     e.preventDefault()
     setFormErr('')
     if (form.password !== form.confirm) { setFormErr('Las contraseñas no coinciden.'); return }
-    if (form.password.length < 6)       { setFormErr('La contraseña debe tener al menos 6 caracteres.'); return }
+    if (form.password.length < 12)      { setFormErr('La contraseña debe tener al menos 12 caracteres.'); return }
     setSaving(true)
     try {
       const res = await fetch('/api/admin/users', {
@@ -202,7 +202,7 @@ export default function AdminPage() {
                     </td>
                     <td className="px-4 py-3 font-mono text-xs text-[var(--fg-muted)]">{user.username}</td>
                     <td className="px-4 py-3 min-w-[260px]">
-                      <EmailEditor initialEmail={user.email ?? null} required={user.role === 'admin'} endpoint={`/api/admin/users/${user.id}`} />
+                      <EmailEditor initialEmail={user.email ?? null} required endpoint={`/api/admin/users/${user.id}`} />
                     </td>
                     <td className="px-4 py-3 text-xs text-[var(--fg-muted)]">{user.cmp ?? '—'}</td>
                     <td className="px-4 py-3 text-xs text-[var(--fg-muted)]">{user.specialty ?? '—'}</td>
@@ -260,7 +260,7 @@ export default function AdminPage() {
               {[
                 { id: 'name',      label: 'Nombre completo',  placeholder: 'Dr. Juan Pérez García',  type: 'text',     required: true  },
                 { id: 'username',  label: 'Usuario de acceso', placeholder: 'jperez',                 type: 'text',     required: true  },
-                { id: 'email', label: 'Correo (opcional)', placeholder: 'nombre@correo.com', type: 'email', required: false },
+                { id: 'email', label: 'Correo de recuperacion', placeholder: 'nombre@correo.com', type: 'email', required: true },
                 { id: 'cmp',       label: 'N° CMP',           placeholder: '12345',                   type: 'text',     required: false },
                 { id: 'specialty', label: 'Especialidad',     placeholder: 'Radiología',              type: 'text',     required: false },
               ].map(({ id, label, placeholder, type, required }) => (

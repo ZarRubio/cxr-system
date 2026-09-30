@@ -13,7 +13,7 @@ export function EmailAlertStatus({ alert }: { alert?: EmailAlert }) {
   if (!alert) return null
   return (
     <div role="status" className="my-3 border-y border-[var(--border)] py-3 text-sm text-[var(--fg)]">
-      <p className="flex items-center gap-2 font-semibold"><Mail size={16} /> Notificación de hallazgo crítico</p>
+      <p className="flex items-center gap-2 font-semibold"><Mail size={16} /> Notificación de alerta de IA</p>
       <p className="mt-1">Administrador: {labels[alert.admin.status]}</p>
       <p>Radiólogo: {labels[alert.radiologist.status]}</p>
     </div>

@@ -24,6 +24,34 @@ env:
   GCS_MODELS_BUCKET: cxr-model-artifacts-730619653471
 
 jobs:
+  changes:
+    name: Detect deployment scope
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.scope.outputs.backend }}
+      frontend: ${{ steps.scope.outputs.frontend }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: scope
+        env:
+          BASE_SHA: ${{ github.event.before }}
+        run: |
+          python3 - <<'PY'
+          import os, subprocess
+          base = os.environ.get('BASE_SHA', '')
+          if not base or set(base) == {'0'}:
+              backend = frontend = True
+          else:
+              paths = subprocess.check_output(['git', 'diff', '--name-only', base, 'HEAD'], text=True).splitlines()
+              common = any(p.startswith('.github/workflows/') or p in {'docker-compose.yml', 'docker-compose.yaml'} for p in paths)
+              backend = common or any(p.startswith('backend/') for p in paths)
+              frontend = common or any(p.startswith('frontend-next/') for p in paths)
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as out:
+              out.write(f'backend={str(backend).lower()}\nfrontend={str(frontend).lower()}\n')
+          PY
+
   test:
     name: Tests + lint (gate)
     uses: ./.github/workflows/ci.yml
@@ -31,7 +59,8 @@ jobs:
   deploy-backend:
     name: Deploy Backend
     runs-on: ubuntu-latest
-    needs: test
+    needs: [test, changes]
+    if: needs.changes.outputs.backend == 'true'
     outputs:
       backend_url: ${{ steps.backend-url.outputs.url }}
 
@@ -70,7 +99,23 @@ jobs:
           docker push "$IMAGE:latest"
 
       - name: Deploy backend to Cloud Run
+        env:
+          CXR_DEPLOY_BACKEND_KEY: ${{ secrets.CXR_API_KEY }}
         run: |
+          test -n "$CXR_DEPLOY_BACKEND_KEY" || { echo "Falta el secreto CXR_API_KEY"; exit 1; }
+          python3 - <<'PY'
+          import json, os
+          config = {
+              "CXR_CORS_ORIGINS": "http://localhost:3000", "CXR_RATE_LIMIT_PREDICT": "20/minute",
+              "CXR_AUDIT_LOG_PATH": "logs/audit.jsonl", "CXR_REQUIRE_MODEL_MANIFEST": "true",
+              "CXR_API_KEY": os.environ['CXR_DEPLOY_BACKEND_KEY'],
+          }
+          path = os.path.join(os.environ['RUNNER_TEMP'], 'cxr-backend-env.json')
+          with open(path, 'w') as f:
+              json.dump(config, f)
+          os.chmod(path, 0o600)
+          PY
+          trap 'rm -f "$RUNNER_TEMP/cxr-backend-env.json"' EXIT
           gcloud run deploy cxr-backend \
             --image "${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.AR_REPO }}/backend:${{ github.sha }}" \
             --region ${{ env.REGION }} \
@@ -84,16 +129,47 @@ jobs:
             --min-instances 1 \
             --max-instances 3 \
             --port 8000 \
-            --set-env-vars "CXR_CORS_ORIGINS=http://localhost:3000,CXR_RATE_LIMIT_PREDICT=20/minute,CXR_AUDIT_LOG_PATH=logs/audit.jsonl,CXR_REQUIRE_MODEL_MANIFEST=true,CXR_API_KEY=${{ secrets.CXR_API_KEY }}"
+            --startup-probe "httpGet.path=/ready,httpGet.port=8000,initialDelaySeconds=0,timeoutSeconds=5,periodSeconds=10,failureThreshold=24" \
+            --env-vars-file "$RUNNER_TEMP/cxr-backend-env.json"
 
       - name: Read backend URL
         id: backend-url
         run: echo "url=$(gcloud run services describe cxr-backend --region ${{ env.REGION }} --format='value(status.url)')" >> "$GITHUB_OUTPUT"
 
+      - name: Verify loaded backend
+        env:
+          CXR_DEPLOY_BACKEND_KEY: ${{ secrets.CXR_API_KEY }}
+        run: |
+          URL=$(gcloud run services describe cxr-backend --region ${{ env.REGION }} --format='value(status.url)')
+          curl --fail --retry 5 --retry-delay 5 --max-time 30 "$URL/ready"
+          python3 - <<'PY'
+          import os, random, struct, zlib
+          rng = random.Random(42)
+          raw = b''.join(b'\0' + rng.randbytes(64) for _ in range(64))
+          def chunk(name, data):
+              return struct.pack('>I', len(data)) + name + data + struct.pack('>I', zlib.crc32(name + data) & 0xffffffff)
+          png = b'\x89PNG\r\n\x1a\n' + chunk(b'IHDR', struct.pack('>IIBBBBB', 64, 64, 8, 0, 0, 0, 0)) + chunk(b'IDAT', zlib.compress(raw)) + chunk(b'IEND', b'')
+          with open(os.path.join(os.environ['RUNNER_TEMP'], 'cxr-smoke.png'), 'wb') as f:
+              f.write(png)
+          PY
+          trap 'rm -f "$RUNNER_TEMP/cxr-smoke.png" "$RUNNER_TEMP/cxr-smoke.json"' EXIT
+          curl --fail --max-time 180 -H "X-API-Key: $CXR_DEPLOY_BACKEND_KEY" -F "file=@$RUNNER_TEMP/cxr-smoke.png" "$URL/predict?include_gradcam=false" --output "$RUNNER_TEMP/cxr-smoke.json"
+          python3 - <<'PY'
+          import json, math, os
+          with open(os.path.join(os.environ['RUNNER_TEMP'], 'cxr-smoke.json')) as f:
+              result = json.load(f)
+          assert len(result['probabilities']) == 14
+          assert all(math.isfinite(v) and 0 <= v <= 1 for v in result['probabilities'].values())
+          assert len(result['thresholds_used']) == 14
+          assert result['model_version'].startswith('ensemble:') and 'unverified' not in result['model_version']
+          print('Inferencia tecnica sintetica verificada. No es una prueba de precision clinica.')
+          PY
+
   deploy-frontend:
     name: Deploy Frontend
     runs-on: ubuntu-latest
-    needs: deploy-backend
+    needs: [test, changes, deploy-backend]
+    if: always() && needs.test.result == 'success' && (needs.deploy-backend.result == 'success' || needs.deploy-backend.result == 'skipped') && (needs.changes.outputs.frontend == 'true' || needs.changes.outputs.backend == 'true')
 
     steps:
       - uses: actions/checkout@v4
@@ -126,16 +202,20 @@ jobs:
           CXR_DEPLOY_AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
         run: |
           test -n "$SMTP_PASSWORD" || { echo "Falta el secreto SMTP_PASSWORD"; exit 1; }
+          export CXR_DEPLOY_BACKEND_URL=$(gcloud run services describe cxr-backend --region ${{ env.REGION }} --format='value(status.url)')
+          export CXR_DEPLOY_FRONTEND_URL=$(gcloud run services describe cxr-frontend --region ${{ env.REGION }} --format='value(status.url)' 2>/dev/null || true)
           python3 - <<'PY'
           import json, os
           config = {
-              "HOSTNAME": "0.0.0.0", "BACKEND_URL": "${{ needs.deploy-backend.outputs.backend_url }}",
+              "HOSTNAME": "0.0.0.0", "BACKEND_URL": os.environ["CXR_DEPLOY_BACKEND_URL"],
               "AUTH_TRUST_HOST": "true",
               "DATA_BACKEND": "firestore", "GOOGLE_CLOUD_PROJECT": "${{ env.PROJECT_ID }}",
               "BACKEND_API_KEY": os.environ["CXR_DEPLOY_BACKEND_KEY"],
               "AUTH_SECRET": os.environ["CXR_DEPLOY_AUTH_SECRET"],
               "SMTP_USER": "Adcejuma@gmail.com", "SMTP_PASSWORD": os.environ["SMTP_PASSWORD"],
           }
+          if os.environ.get('CXR_DEPLOY_FRONTEND_URL'):
+              config['AUTH_URL'] = os.environ['CXR_DEPLOY_FRONTEND_URL']
           path = os.path.join(os.environ["RUNNER_TEMP"], "cxr-frontend-env.json")
           with open(path, "w") as f:
               json.dump(config, f)
@@ -147,8 +227,9 @@ jobs:
             --region ${{ env.REGION }} \
             --platform managed \
             --allow-unauthenticated \
-            --memory 512Mi \
+            --memory 1Gi \
             --cpu 1 \
+            --concurrency 4 \
             --min-instances 0 \
             --max-instances 3 \
             --port 3000 \
@@ -160,6 +241,13 @@ jobs:
           gcloud run services update cxr-frontend \
             --region ${{ env.REGION }} \
             --update-env-vars "AUTH_URL=${FRONTEND_URL}"
-          gcloud run services update cxr-backend \
-            --region ${{ env.REGION }} \
-            --update-env-vars "CXR_CORS_ORIGINS=${FRONTEND_URL}"
+          ORIGINS=$(gcloud run services describe cxr-backend --region ${{ env.REGION }} --format=json | python3 -c "import json,sys; c=json.load(sys.stdin); print(next((e.get('value','') for e in c['spec']['template']['spec']['containers'][0].get('env',[]) if e['name']=='CXR_CORS_ORIGINS'),''))")
+          if [ "$ORIGINS" != "$FRONTEND_URL" ]; then
+            gcloud run services update cxr-backend --region ${{ env.REGION }} --update-env-vars "CXR_CORS_ORIGINS=${FRONTEND_URL}"
+          fi
+
+      - name: Verify public frontend pages
+        run: |
+          URL=$(gcloud run services describe cxr-frontend --region ${{ env.REGION }} --format='value(status.url)')
+          curl --fail --retry 3 --max-time 30 "$URL/login" --output /dev/null
+          curl --fail --retry 3 --max-time 30 "$URL/recover" --output /dev/null

@@ -2,7 +2,7 @@ export const DEFAULT_ADMIN_EMAIL = 'aerubio2305@gmail.com'
 
 export function parseEmail(value: unknown, required = false): string | null {
   if (value == null || value === '') {
-    if (required) throw new Error('El correo del administrador es obligatorio.')
+    if (required) throw new Error('El correo es obligatorio.')
     return null
   }
   if (typeof value !== 'string') throw new Error('Correo no válido.')

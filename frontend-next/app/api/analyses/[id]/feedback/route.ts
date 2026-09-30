@@ -47,12 +47,14 @@ export async function PUT(
   }
 
   const feedback: AnalysisFeedback = {
+    ...(body.reviewPriority ? { reviewPriority: body.reviewPriority } : {}),
     agrees: body.agrees,
     actualFinding: body.agrees ? null : actualFinding,
     comment: comment || null,
     createdAt: new Date().toISOString(),
   }
 
+  if (body.reviewPriority && !['routine', 'priority', 'urgent'].includes(body.reviewPriority)) return NextResponse.json({ error: 'Prioridad profesional no valida.' }, { status: 400 })
   const updated = await store.setAnalysisFeedback(id, feedback)
   return NextResponse.json(updated)
 }

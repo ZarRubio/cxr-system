@@ -5,6 +5,7 @@ import { getDataStore } from '@/lib/data/store'
 import { buildAnalysisRecord } from '@/lib/data/analysis'
 import type { Prediction } from '@/lib/types'
 import { notifyCriticalAnalysis } from '@/lib/critical-email'
+import { readBoundedBody, UploadLimitError } from '@/lib/upload-body'
 
 export const maxDuration = 300
 
@@ -27,12 +28,17 @@ export async function POST(request: NextRequest) {
 
   // Body bufferizado: un stream no es re-enviable y rompe cuando undici
   // reintenta (p.ej. localhost ::1 -> 127.0.0.1).
-  const body = await request.arrayBuffer()
+  let body: Uint8Array
+  try { body = await readBoundedBody(request, 30 * 1024 * 1024 + 64 * 1024) }
+  catch (error) {
+    if (error instanceof UploadLimitError) return Response.json({ detail: 'Maximo 30 MB en total por lote y 15 MB por imagen.' }, { status: 413 })
+    throw error
+  }
 
   const res = await fetch(backendUrl('/predict-batch', request.nextUrl.searchParams.toString()), {
     method: 'POST',
     headers,
-    body,
+    body: body as BodyInit,
     signal: AbortSignal.timeout(280_000),
   })
 

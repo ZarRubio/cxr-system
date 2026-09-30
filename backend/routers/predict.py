@@ -2,9 +2,11 @@
 Endpoints de prediccion. La logica vive en services.prediction_service;
 aqui solo se parsean parametros y se delega.
 """
+import threading
 import time
 
 from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
+from starlette.concurrency import run_in_threadpool
 
 from auth import require_api_key
 from rate_limit import limiter
@@ -15,6 +17,20 @@ from settings import settings
 router = APIRouter(dependencies=[Depends(require_api_key)])
 
 _VALID_GRADCAM_METHODS = {"gradcam", "gradcam++", "scorecam"}
+_INFERENCE_LOCK = threading.Lock()
+
+
+async def _read_image(file: UploadFile) -> bytes:
+    content = await file.read(settings.max_file_bytes + 1)
+    if len(content) > settings.max_file_bytes:
+        raise HTTPException(status_code=413, detail="Imagen excede el limite de carga.")
+    return content
+
+
+def _serialized_prediction(*args, **kwargs):
+    # CAM hooks and model state are shared; keep inference serial off the event loop.
+    with _INFERENCE_LOCK:
+        return predict_image(*args, **kwargs)
 
 
 def _client_ip(request: Request) -> str:
@@ -41,9 +57,9 @@ def _parse_options(request: Request) -> PredictOptions:
 @router.post("/predict", response_model=PredictionResponse)
 @limiter.limit(settings.rate_limit_predict)
 async def predict(request: Request, file: UploadFile = File(...)):
-    file_bytes = await file.read()
+    file_bytes = await _read_image(file)
     options = _parse_options(request)
-    return predict_image(
+    return await run_in_threadpool(_serialized_prediction,
         request.app.state, file_bytes, file.filename or "", options, client_ip=_client_ip(request)
     )
 
@@ -63,10 +79,10 @@ async def predict_batch(request: Request, files: list[UploadFile] = File(...)):
 
     results: list[BatchPredictionItem] = []
     for file in files:
-        file_bytes = await file.read()
         filename = file.filename or ""
         try:
-            result = predict_image(request.app.state, file_bytes, filename, options, client_ip=client_ip)
+            file_bytes = await _read_image(file)
+            result = await run_in_threadpool(_serialized_prediction, request.app.state, file_bytes, filename, options, client_ip=client_ip)
             results.append(BatchPredictionItem(filename=filename, result=result))
         except HTTPException as exc:
             results.append(BatchPredictionItem(filename=filename, error=str(exc.detail)))

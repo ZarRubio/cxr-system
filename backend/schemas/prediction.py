@@ -49,6 +49,7 @@ class PredictionResponse(BaseModel):
     processing_time_ms: float
     disclaimer: str
     model_version: str = "ensemble-v1v2-14classes"
+    thresholds_used: dict[str, float] = {}
     image_hash: str | None = None
     cached: bool = False
     image_warnings: list[str] = []

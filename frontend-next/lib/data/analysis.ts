@@ -8,6 +8,7 @@ import { SEVERITY_MAP } from '@/lib/constants'
  */
 
 export interface AnalysisFeedback {
+  reviewPriority?: 'routine' | 'priority' | 'urgent'
   /** true = el radiólogo concuerda con el hallazgo principal del modelo */
   agrees: boolean
   /** Hallazgo real según el radiólogo (solo cuando agrees=false) */
@@ -17,6 +18,7 @@ export interface AnalysisFeedback {
 }
 
 export interface AnalysisRecord {
+  thresholdsUsed?: Record<string, number>
   notes?: string
   notesUpdatedAt?: string
   emailAlert?: EmailAlert
@@ -66,7 +68,8 @@ export type EmailRecipientRole = 'admin' | 'radiologist'
 /** A failed SMTP call may have reached the server; retries are manual and bounded. */
 export function nextEmailRetry(alert: EmailAlert, role: EmailRecipientRole, now: Date): EmailAlert | null {
   const current = alert[role]
-  if (!['failed', 'pending_email', 'not_configured'].includes(current.status)) return null
+  const interrupted = current.status === 'sending' && now.getTime() - Date.parse(current.lastAttemptAt ?? alert.createdAt) >= 600_000
+  if (!interrupted && !['failed', 'pending_email', 'not_configured'].includes(current.status)) return null
   const attempts = current.attempts ?? (current.status === 'failed' ? 1 : 0)
   if (attempts >= 3) return null
   if (current.status === 'failed' && now.getTime() - Date.parse(current.lastAttemptAt ?? alert.createdAt) < 60_000) return null
@@ -133,6 +136,7 @@ export function buildAnalysisRecord(
     positiveFindings: prediction.positive_findings ?? [],
     imageHash: prediction.image_hash ?? null,
     modelVersion: prediction.model_version ?? null,
+    thresholdsUsed: prediction.thresholds_used,
     processingTimeMs: prediction.processing_time_ms ?? null,
     feedback: null,
     decisionSupport: prediction.decision_support ?? null,

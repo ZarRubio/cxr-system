@@ -1,5 +1,49 @@
 import 'server-only'
 import { nextEmailRetry, type EmailAlert, type EmailRecipientRole } from './analysis'
+import type { SecurityMutation } from '../security-state'
+import { createHash } from 'node:crypto'
+
+export async function fsCreateUser(data: Record<string, unknown>): Promise<void> {
+  const root = `projects/${await getProjectId()}/databases/(default)/documents`
+  const identity = [ `username:${String(data.username).toLowerCase()}`, ...(data.email ? [`email:${String(data.email).toLowerCase()}`] : []) ]
+  const writes = [
+    { update: { name: `${root}/users/${data.id}`, fields: toFsFields(data) }, currentDocument: { exists: false } },
+    ...identity.map(value => ({ update: { name: `${root}/user_identity/${createHash('sha256').update(value).digest('hex')}`, fields: toFsFields({ userId: data.id }) }, currentDocument: { exists: false } })),
+  ]
+  const res = await firestoreFetch(':commit', { method: 'POST', body: JSON.stringify({ writes }) })
+  if (res.status === 409 || res.status === 400) throw new Error('Cuenta duplicada.')
+  if (!res.ok) throw new Error(`User creation failed: ${res.status}`)
+}
+
+/** Keep email reservations consistent with edits, without releasing another account's identity. */
+export async function fsUpdateUser(id: string, fields: Record<string, unknown>): Promise<void> {
+  if (!('email' in fields)) return fsUpdateFields('users', id, fields)
+  const root = `projects/${await getProjectId()}/databases/(default)/documents`
+  const res = await firestoreFetch(`/users/${encodeURIComponent(id)}`)
+  if (!res.ok) throw new Error('Usuario no disponible.')
+  const doc = await res.json() as { fields: Record<string, FsValue>; updateTime: string }
+  const current = fromFsFields(doc.fields)
+  const key = (email: unknown) => createHash('sha256').update(`email:${String(email).toLowerCase()}`).digest('hex')
+  const writes: Record<string, unknown>[] = [{ update: { name: `${root}/users/${id}`, fields: toFsFields(fields) }, updateMask: { fieldPaths: Object.keys(fields) }, currentDocument: { updateTime: doc.updateTime } }]
+  if (fields.email !== current.email) {
+    const reservationId = key(fields.email)
+    const reserved = await firestoreFetch(`/user_identity/${reservationId}`)
+    if (!reserved.ok && reserved.status !== 404) throw new Error('Reserva de correo no disponible.')
+    if (reserved.ok) {
+      const owner = await reserved.json() as { fields: Record<string, FsValue> }
+      if (fromFsFields(owner.fields).userId !== id) throw new Error('Cuenta duplicada.')
+    } else writes.push({ update: { name: `${root}/user_identity/${reservationId}`, fields: toFsFields({ userId: id }) }, currentDocument: { exists: false } })
+    if (current.email) {
+      const previous = await firestoreFetch(`/user_identity/${key(current.email)}`)
+      if (previous.ok) {
+        const identity = await previous.json() as { fields: Record<string, FsValue>; updateTime: string }
+        if (fromFsFields(identity.fields).userId === id) writes.push({ delete: `${root}/user_identity/${key(current.email)}`, currentDocument: { updateTime: identity.updateTime } })
+      } else if (previous.status !== 404) throw new Error('Reserva de correo no disponible.')
+    }
+  }
+  const committed = await firestoreFetch(':commit', { method: 'POST', body: JSON.stringify({ writes }) })
+  if (!committed.ok) throw new Error('No se pudo actualizar el usuario. Intente nuevamente.')
+}
 
 /**
  * Cliente mínimo de Firestore (modo nativo) vía REST.
@@ -57,6 +101,38 @@ async function firestoreFetch(path: string, init?: RequestInit): Promise<Respons
     },
     signal: AbortSignal.timeout(15_000),
   })
+}
+
+export async function fsMutateSecurity<T>(id: string, change: (current: Record<string, unknown>) => SecurityMutation<T>): Promise<T> {
+  const project = await getProjectId()
+  const root = `projects/${project}/databases/(default)/documents`
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const res = await firestoreFetch(`/security_state/${id}`)
+    if (!res.ok && res.status !== 404) throw new Error(`Security state read: ${res.status}`)
+    const doc = res.status === 404 ? null : await res.json() as { fields: Record<string, FsValue>; updateTime: string }
+    const next = change(doc ? fromFsFields(doc.fields) : {})
+    const fields = toFsFields(next.data)
+    if (typeof next.data.expiresAt === 'number') fields.ttl = { timestampValue: new Date(next.data.expiresAt).toISOString() }
+    const writes: Record<string, unknown>[] = [{
+      update: { name: `${root}/security_state/${id}`, fields },
+      currentDocument: doc ? { updateTime: doc.updateTime } : { exists: false },
+    }]
+    if (next.passwordChange) {
+      const p = next.passwordChange
+      const userRes = await firestoreFetch(`/users/${encodeURIComponent(p.id)}`)
+      if (!userRes.ok) throw new Error('La cuenta ha cambiado. Solicite otro codigo.')
+      const userDoc = await userRes.json() as { fields: Record<string, FsValue>; updateTime: string }
+      const user = fromFsFields(userDoc.fields)
+      if (user.password !== p.previousPassword || user.active !== true || String(user.email).toLowerCase() !== p.email) throw new Error('La cuenta ha cambiado. Solicite otro codigo.')
+      writes.push({ update: { name: `${root}/users/${p.id}`, fields: toFsFields({ password: p.password }) },
+        updateMask: { fieldPaths: ['password'] }, currentDocument: { updateTime: userDoc.updateTime } })
+    }
+    const committed = await firestoreFetch(':commit', { method: 'POST', body: JSON.stringify({ writes }) })
+    if (committed.ok) return next.result
+    const error = await committed.json() as { error?: { status?: string } }
+    if (!['FAILED_PRECONDITION', 'ABORTED', 'ALREADY_EXISTS'].includes(error.error?.status ?? '')) throw new Error(`Security state commit: ${committed.status}`)
+  }
+  throw new Error('Servicio ocupado. Intente nuevamente.')
 }
 
 // ---------------------------------------------------------------------------
@@ -207,6 +283,7 @@ export interface FsQueryOptions {
   where?: Array<{ field: string; op: 'EQUAL'; value: unknown }>
   orderBy?: { field: string; direction: 'ASCENDING' | 'DESCENDING' }
   limit?: number
+  after?: { createdAt: string; id: string }
 }
 
 export async function fsQuery(opts: FsQueryOptions): Promise<Array<Record<string, unknown>>> {
@@ -226,6 +303,11 @@ export async function fsQuery(opts: FsQueryOptions): Promise<Array<Record<string
     ]
   }
   if (opts.limit) structuredQuery.limit = opts.limit
+  if (opts.after) {
+    const project = await getProjectId()
+    structuredQuery.orderBy = [{ field: { fieldPath: 'createdAt' }, direction: 'DESCENDING' }, { field: { fieldPath: '__name__' }, direction: 'DESCENDING' }]
+    structuredQuery.startAt = { before: false, values: [toFsValue(opts.after.createdAt), { referenceValue: `projects/${project}/databases/(default)/documents/${opts.collection}/${opts.after.id}` }] }
+  }
 
   const res = await firestoreFetch(':runQuery', {
     method: 'POST',

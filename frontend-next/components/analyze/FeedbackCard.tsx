@@ -31,12 +31,13 @@ export function FeedbackCard({ analysisId, predictedClass, initialFeedback, onSa
   const [comment, setComment]     = useState('')
   const [saving, setSaving]       = useState(false)
   const [error, setError]         = useState<string | null>(null)
+  const [priority, setPriority] = useState<AnalysisFeedback['reviewPriority']>(initialFeedback?.reviewPriority)
 
   const save = async (payload: { agrees: boolean; actualFinding?: string; comment?: string }) => {
     setSaving(true)
     setError(null)
     try {
-      const updated = await submitFeedback(analysisId, payload)
+      const updated = await submitFeedback(analysisId, { ...payload, reviewPriority: priority })
       setFeedback(updated.feedback)
       setEditing(false)
       setDisagreeing(false)
@@ -90,6 +91,7 @@ export function FeedbackCard({ analysisId, predictedClass, initialFeedback, onSa
         {feedback.comment && (
           <p className="text-xs text-[var(--fg-subtle)] italic">&ldquo;{feedback.comment}&rdquo;</p>
         )}
+        {feedback.reviewPriority && <p className="text-xs text-[var(--fg-muted)]">Prioridad registrada por el profesional: {({ routine: 'Habitual', priority: 'Prioritaria', urgent: 'Urgente' })[feedback.reviewPriority]}</p>}
       </div>
     )
   }
@@ -104,6 +106,11 @@ export function FeedbackCard({ analysisId, predictedClass, initialFeedback, onSa
         <strong>{BADGES[predictedClass] ?? predictedClass}</strong>)?
       </p>
 
+          <label className="block text-sm">Prioridad según su evaluación
+            <select value={priority ?? ''} onChange={e => setPriority((e.target.value || undefined) as AnalysisFeedback['reviewPriority'])} className="block w-full min-h-11 mt-2 rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 text-[var(--fg)]">
+              <option value="">No registrada</option><option value="routine">Habitual</option><option value="priority">Prioritaria</option><option value="urgent">Urgente</option>
+            </select>
+          </label>
       {!disagreeing ? (
         <div className="flex flex-wrap gap-2">
           <Button size="sm" onClick={() => save({ agrees: true })} disabled={saving} loading={saving}>

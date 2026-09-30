@@ -4,7 +4,7 @@ import time
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import Depends, FastAPI, Request
+from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 
 from auth import require_api_key
@@ -166,6 +166,13 @@ async def health(request: Request):
         "rate_limiting": RATE_LIMITING_AVAILABLE,
         "startup_error": getattr(request.app.state, "startup_error", None),
     }
+
+
+@app.get("/ready", tags=["ops"])
+async def ready(request: Request):
+    if getattr(request.app.state, "ensemble", None) is None:
+        raise HTTPException(status_code=503, detail="Modelo no disponible.")
+    return {"status": "ready"}
 
 
 @app.get("/model-info", tags=["ops"], dependencies=[Depends(require_api_key)])

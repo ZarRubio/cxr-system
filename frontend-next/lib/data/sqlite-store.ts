@@ -38,7 +38,14 @@ export const sqliteStore: DataStore = {
     return row ? toUser(row) : null
   },
 
+  async getUsersByEmail(email) {
+    return (getDb().prepare('SELECT * FROM users WHERE lower(email) = ? LIMIT 2').all(email) as UserRow[]).map(toUser)
+  },
+
   async createUser(user) {
+    getDb().transaction(() => {
+    if (user.email && getDb().prepare('SELECT id FROM users WHERE lower(email) = ?').get(user.email.toLowerCase())) throw new Error('Cuenta duplicada.')
+    if (getDb().prepare('SELECT id FROM users WHERE lower(username) = ?').get(user.username.toLowerCase())) throw new Error('Cuenta duplicada.')
     getDb()
       .prepare(
         `INSERT INTO users (id, name, username, password, role, cmp, specialty, active, createdAt, email)
@@ -51,15 +58,19 @@ export const sqliteStore: DataStore = {
         specialty: user.specialty ?? null,
         active: user.active ? 1 : 0,
       })
+    })()
   },
 
   async updateUser(id, fields) {
     const current = await this.getUserById(id)
     if (!current) return null
     const next = { ...current, ...fields }
+    getDb().transaction(() => {
+    if (next.email && getDb().prepare('SELECT id FROM users WHERE lower(email) = ? AND id != ?').get(next.email.toLowerCase(), id)) throw new Error('Cuenta duplicada.')
     getDb()
       .prepare('UPDATE users SET name = ?, password = ?, cmp = ?, specialty = ?, active = ?, email = ? WHERE id = ?')
       .run(next.name, next.password, next.cmp ?? null, next.specialty ?? null, next.active ? 1 : 0, next.email ?? null, id)
+    })()
     return this.getUserById(id)
   },
 
@@ -115,11 +126,16 @@ export const sqliteStore: DataStore = {
       .run(path, JSON.stringify(delivery), id)
   },
 
-  async listAnalyses({ userId, limit = 500 }) {
+  async listAnalyses({ userId, limit = 500, after }) {
+    if (after) {
+      const clause = userId ? 'userId = ? AND ' : ''
+      const args = [...(userId ? [userId] : []), after.createdAt, after.createdAt, after.id, limit]
+      return (getDb().prepare(`SELECT data FROM analyses WHERE ${clause}(createdAt < ? OR (createdAt = ? AND id < ?)) ORDER BY createdAt DESC, id DESC LIMIT ?`).all(...args) as Array<{ data: string }>).map(rowToAnalysis)
+    }
     const rows = (
       userId
-        ? getDb().prepare('SELECT data FROM analyses WHERE userId = ? ORDER BY createdAt DESC LIMIT ?').all(userId, limit)
-        : getDb().prepare('SELECT data FROM analyses ORDER BY createdAt DESC LIMIT ?').all(limit)
+        ? getDb().prepare('SELECT data FROM analyses WHERE userId = ? ORDER BY createdAt DESC, id DESC LIMIT ?').all(userId, limit)
+        : getDb().prepare('SELECT data FROM analyses ORDER BY createdAt DESC, id DESC LIMIT ?').all(limit)
     ) as Array<{ data: string }>
     return rows.map(rowToAnalysis)
   },

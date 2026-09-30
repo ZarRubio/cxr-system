@@ -48,7 +48,8 @@ function seedFromLegacyJson(database: Database.Database): number {
 function seedDefaultAdmin(database: Database.Database): void {
   const count = (database.prepare('SELECT COUNT(*) AS n FROM users').get() as { n: number }).n
   if (count > 0) return
-  const password = process.env.SEED_ADMIN_PASSWORD ?? 'hnal2026'
+  const password = process.env.SEED_ADMIN_PASSWORD
+  if (!password || password.length < 12) throw new Error('Configure SEED_ADMIN_PASSWORD (minimo 12 caracteres) para crear el administrador inicial.')
   database
     .prepare(
       `INSERT INTO users (id, name, username, password, role, cmp, specialty, active, createdAt)
@@ -82,11 +83,15 @@ export function getDb(): Database.Database {
       data      TEXT NOT NULL
     );
     CREATE INDEX IF NOT EXISTS idx_analyses_user ON analyses (userId, createdAt DESC);
+    CREATE TABLE IF NOT EXISTS security_state (id TEXT PRIMARY KEY, data TEXT NOT NULL);
   `)
   const columns = db.prepare('PRAGMA table_info(users)').all() as Array<{ name: string }>
   if (!columns.some((column) => column.name === 'email')) db.exec('ALTER TABLE users ADD COLUMN email TEXT')
-  seedFromLegacyJson(db)
-  seedDefaultAdmin(db)
+  try {
+    seedFromLegacyJson(db)
+    seedDefaultAdmin(db)
+  } catch (error) { db.close(); db = null; throw error }
+  db.prepare("DELETE FROM security_state WHERE CAST(json_extract(data, '$.expiresAt') AS INTEGER) < ?").run(Date.now() - 86400000)
   db.prepare("UPDATE users SET name = 'Administrador' WHERE id = 'usr_admin' AND name = ?").run('Administrador HNAL')
   db.prepare("UPDATE users SET email = ? WHERE role = 'admin' AND (email IS NULL OR email = '')").run(DEFAULT_ADMIN_EMAIL)
   return db

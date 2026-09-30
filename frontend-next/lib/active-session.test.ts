@@ -5,8 +5,9 @@ vi.mock('@/auth', () => ({ auth: mocks.auth }))
 vi.mock('@/lib/user-store', () => ({ getUserById: mocks.getUserById }))
 
 import { getActiveSession } from './active-session'
+import { passwordVersion } from './session-version'
 
-const session = { user: { id: 'usr_1', name: 'Radiólogo' }, expires: '2099-01-01' }
+const session = { user: { id: 'usr_1', name: 'Radiólogo', passwordVersion: passwordVersion('hash') }, expires: '2099-01-01' }
 const user = {
   id: 'usr_1',
   name: 'Radiólogo',
@@ -25,6 +26,10 @@ beforeEach(() => {
 })
 
 describe('getActiveSession', () => {
+  it('revokes sessions after a password change', async () => {
+    mocks.getUserById.mockResolvedValue({ ...user, password: 'new-hash' })
+    expect(await getActiveSession()).toBeNull()
+  })
   it('returns the current session and active database user', async () => {
     expect(await getActiveSession()).toEqual({ session, user })
     expect(mocks.getUserById).toHaveBeenCalledWith('usr_1')

@@ -11,6 +11,7 @@ export const authConfig: NextAuthConfig = {
         token.role     = u.role     as string
         token.cmp      = u.cmp      as string | null
         token.username = u.username as string
+        token.passwordVersion = u.passwordVersion as string
       }
       return token
     },
@@ -21,6 +22,7 @@ export const authConfig: NextAuthConfig = {
         u.role     = token.role
         u.cmp      = token.cmp
         u.username = token.username
+        u.passwordVersion = token.passwordVersion
       }
       return session
     },

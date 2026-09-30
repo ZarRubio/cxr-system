@@ -6,6 +6,7 @@ import type { AnalysisRecord } from './analysis'
 
 // Aislar la BD en un directorio temporal ANTES de importar el store
 process.env.CXR_DATA_DIR = mkdtempSync(join(tmpdir(), 'cxr-test-'))
+process.env.SEED_ADMIN_PASSWORD = 'test-admin-seed-only-1234'
 
 const { sqliteStore } = await import('./sqlite-store')
 
@@ -63,6 +64,15 @@ describe('sqliteStore — usuarios', () => {
 })
 
 describe('sqliteStore — análisis', () => {
+  it('paginates deterministically when studies share a timestamp', async () => {
+    for (const id of ['page-a', 'page-b', 'page-c']) await sqliteStore.createAnalysis(mk({ id, userId: 'page-user', createdAt: '2026-09-30T12:00:00Z' }))
+    const first = await sqliteStore.listAnalyses({ userId: 'page-user', limit: 2 })
+    expect(first.map(a => a.id)).toEqual(['page-c', 'page-b'])
+    const next = await sqliteStore.listAnalyses({ userId: 'page-user', limit: 2, after: { createdAt: first[1].createdAt, id: first[1].id } })
+    expect(next.map(a => a.id)).toEqual(['page-a'])
+    const { getDb } = await import('@/lib/db')
+    getDb().prepare('DELETE FROM analyses WHERE userId = ?').run('page-user')
+  })
   beforeAll(async () => {
     await sqliteStore.createAnalysis(mk({ id: 'an-1', userId: 'u1', createdAt: '2026-07-08T10:00:00.000Z' }))
     await sqliteStore.createAnalysis(mk({ id: 'an-2', userId: 'u1', createdAt: '2026-07-08T11:00:00.000Z' }))

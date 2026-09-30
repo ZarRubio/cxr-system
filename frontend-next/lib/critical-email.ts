@@ -8,7 +8,7 @@ export function alertText(record: AnalysisRecord, baseUrl: string, missingEmail:
   const url = new URL('/history', baseUrl)
   url.searchParams.set('q', record.id)
   return [
-    'Alerta de IA: posibles hallazgos críticos pendientes de revisión profesional.',
+    'Alerta de IA: hallazgos que requieren revision profesional prioritaria. No determina gravedad clinica.',
     `ID de estudio: ${record.studyId || record.id}`,
     `ID de análisis: ${record.id}`,
     `Responsable: ${record.userName}`,
@@ -23,11 +23,11 @@ export function alertText(record: AnalysisRecord, baseUrl: string, missingEmail:
   ].join('\n')
 }
 
-function configured(): boolean {
+export function configured(): boolean {
   return Boolean(process.env.SMTP_PASSWORD && process.env.SMTP_USER && process.env.AUTH_URL)
 }
 
-function transport() {
+export function transport() {
   return nodemailer.createTransport({
     host: 'smtp.gmail.com', port: 465, secure: true,
     auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASSWORD },

@@ -42,6 +42,12 @@ it('claims only retryable delivery states, with cooldown and a three-attempt lim
 })
 
 describe('filterAnalyses', () => {
+  it('allows manual recovery of expired sending leases, never a fresh send or a successful delivery', () => {
+    const alert = { createdAt: '2026-09-30T12:00:00Z', admin: { status: 'sending' as const, attempts: 1 }, radiologist: { status: 'sent' as const } }
+    expect(nextEmailRetry(alert, 'admin', new Date('2026-09-30T12:09:59Z'))).toBeNull()
+    expect(nextEmailRetry(alert, 'admin', new Date('2026-09-30T12:10:00Z'))?.admin.attempts).toBe(2)
+    expect(nextEmailRetry(alert, 'radiologist', new Date('2026-09-30T13:00:00Z'))).toBeNull()
+  })
   const records = [
     mk({ id: 'a', predictedClass: 'Pneumonia', severity: 'critical', feedback: null }),
     mk({ id: 'b', predictedClass: 'No Finding', severity: 'normal', feedback: { agrees: true, actualFinding: null, comment: null, createdAt: '2026-07-08T13:00:00.000Z' } }),

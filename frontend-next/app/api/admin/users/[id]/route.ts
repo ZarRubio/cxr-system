@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { auth } from '@/auth'
 import { getUserById, updateUser } from '@/lib/user-store'
 import { parseEmail } from '@/lib/email-address'
+import { getDataStore } from '@/lib/data/store'
 
 export async function PATCH(
   req: Request,
@@ -20,7 +21,7 @@ export async function PATCH(
   if (!existing) return NextResponse.json({ error: 'Usuario no encontrado.' }, { status: 404 })
   const body = await req.json()
   let email: string | null | undefined
-  try { if ('email' in body) email = parseEmail(body.email, existing.role === 'admin') } catch (error) {
+  try { if ('email' in body) email = parseEmail(body.email, true) } catch (error) {
     return NextResponse.json({ error: (error as Error).message }, { status: 400 })
   }
   if (existing.role === 'admin') {
@@ -29,6 +30,9 @@ export async function PATCH(
     }
   }
   const { name, cmp, specialty, active } = body
+  if (active !== undefined && typeof active !== 'boolean') return NextResponse.json({ error: 'Estado activo no valido.' }, { status: 400 })
+  for (const field of [name, cmp, specialty]) if (field !== undefined && field !== null && (typeof field !== 'string' || field.length > 120)) return NextResponse.json({ error: 'Campo de usuario no valido.' }, { status: 400 })
+  if (email && (await getDataStore().getUsersByEmail(email)).some(u => u.id !== id)) return NextResponse.json({ error: 'El correo ya pertenece a otra cuenta.' }, { status: 409 })
   const updated = await updateUser(id, {
     ...(email !== undefined ? { email } : {}),
     ...(name !== undefined ? { name } : {}),

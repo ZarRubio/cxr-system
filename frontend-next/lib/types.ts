@@ -17,6 +17,7 @@ export interface Prediction {
   processing_time_ms: number
   image_hash?: string
   model_version?: string
+  thresholds_used?: Record<string, number>
   disclaimer?: string
   cached?: boolean
   sub_threshold_findings?: Array<{ class: string; probability: number }>

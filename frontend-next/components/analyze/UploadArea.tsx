@@ -52,7 +52,7 @@ export function UploadArea({ onFile, currentFilename, onClear, disabled = false 
     return (
       <div className="card flex items-center gap-3 px-4 py-3">
         <FileImage size={20} className="text-[var(--primary)] shrink-0" />
-        <span className="text-sm text-[var(--fg)] font-medium flex-1 truncate">{currentFilename}</span>
+        <span title={currentFilename} className="text-sm text-[var(--fg)] font-medium flex-1 min-w-0 break-all">{currentFilename}</span>
         <button
           onClick={onClear}
           className="icon-button disabled:opacity-50"
@@ -72,7 +72,7 @@ export function UploadArea({ onFile, currentFilename, onClear, disabled = false 
         aria-disabled={disabled}
         aria-label="Zona de carga: arrastra una radiografía de tórax o haz clic para seleccionar"
         className={cn(
-          'flex flex-col items-center justify-center gap-4 min-h-56 py-8 px-6 rounded-md border border-dashed border-[var(--border)] bg-[var(--surface)] cursor-pointer transition-colors',
+          'flex flex-col items-center justify-center gap-3 min-h-48 sm:min-h-56 py-8 px-6 rounded-md border border-dashed border-[var(--border)] bg-[var(--surface)] cursor-pointer transition-colors',
           'hover:border-[var(--primary)] hover:bg-[var(--surface2)]',
           isDragActive && 'border-[var(--primary)] bg-[var(--surface2)]',
           disabled && 'opacity-50 pointer-events-none',
@@ -85,7 +85,7 @@ export function UploadArea({ onFile, currentFilename, onClear, disabled = false 
           <Upload size={22} />
         </div>
         <div className="text-center">
-          <p className="text-sm font-semibold text-[var(--fg)]">
+          <p className="text-base font-semibold text-[var(--fg)]">
             {isDragActive ? 'Soltar radiografía' : 'Seleccionar radiografía'}
           </p>
           <p className="text-xs text-[var(--fg-subtle)] mt-1">

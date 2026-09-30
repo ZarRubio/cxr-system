@@ -1,6 +1,6 @@
 'use client'
 import { useQuery } from '@tanstack/react-query'
-import { Microscope, AlertCircle, FlaskConical, RotateCcw } from 'lucide-react'
+import { Microscope, AlertCircle, FlaskConical, RotateCcw, Check } from 'lucide-react'
 import { UploadArea } from '@/components/analyze/UploadArea'
 import { StudyMetaForm } from '@/components/analyze/StudyMetaForm'
 import { ResultsSection } from '@/components/analyze/ResultsSection'
@@ -76,35 +76,34 @@ export default function AnalyzePage() {
         </div>
 
         {/* Workflow steps */}
-        <ol aria-label="Estado del estudio" className="flex flex-wrap items-center gap-x-6 gap-y-3 text-xs text-[var(--fg-subtle)]">
-          {steps.map(({ n, label, done }, i) => (
-            <li key={n} aria-current={n === activeStep ? 'step' : undefined} className="flex items-center gap-2">
+        <ol aria-label="Estado del estudio" className="grid grid-cols-1 sm:grid-cols-3 gap-2 border-b border-[var(--border-subtle)] pb-5 text-sm text-[var(--fg-muted)]">
+          {steps.map(({ n, label, done }) => (
+            <li key={n} aria-current={n === activeStep ? 'step' : undefined} className="flex items-center gap-2 min-h-11">
               <span
                 className="flex items-center gap-1.5 font-semibold shrink-0"
                 style={{ color: done || n === activeStep ? 'var(--primary)' : undefined }}
               >
                 <span className={[
-                  'w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0',
-                  done         ? 'bg-[#16A34A] text-white' :
+                  'w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold shrink-0',
+                  done         ? 'bg-[var(--action)] text-white' :
                   n === activeStep ? 'bg-[var(--action)] text-white' :
-                  'bg-[var(--border)] text-[var(--fg-subtle)]',
+                  'border border-[var(--border)] text-[var(--fg-muted)]',
                 ].join(' ')}>
-                  {done ? '✓' : String(n)}
+                  {done ? <Check size={15} aria-label="Completado" /> : String(n)}
                 </span>
                 {label}
               </span>
-              {i < steps.length - 1 && <span className="flex-1 h-px bg-[var(--border-subtle)]" />}
             </li>
           ))}
         </ol>
 
         {/* Backend warning */}
         {backendError && (
-          <div className="flex items-start gap-3 rounded-xl bg-[#FEF3C7] dark:bg-[#451A03] border border-[#FCD34D] px-4 py-3">
+          <div role="alert" className="flex items-start gap-3 rounded-md badge-high px-4 py-3">
             <AlertCircle size={16} className="text-[#D97706] mt-0.5 shrink-0" />
             <div>
-              <p className="text-sm font-semibold text-[#92400E] dark:text-[#FCD34D]">Backend no disponible</p>
-              <p className="text-xs text-[#78350F] dark:text-[#FCD34D] mt-0.5">{backendError}</p>
+              <p className="text-sm font-semibold">Servicio de análisis no disponible</p>
+              <p className="text-sm mt-0.5">{backendError}</p>
             </div>
           </div>
         )}
@@ -123,7 +122,7 @@ export default function AnalyzePage() {
               <button
                 onClick={handleLoadDemo}
                 disabled={loadingDemo}
-                className="text-[var(--primary)] font-semibold hover:underline disabled:opacity-50 cursor-pointer"
+                className="min-h-11 text-sm text-[var(--primary)] font-medium hover:underline disabled:opacity-50 cursor-pointer"
               >
                 <FlaskConical size={11} className="inline mr-0.5 mb-0.5" />
                 {loadingDemo ? 'Cargando muestra...' : 'Usar imagen sintética de demostración'}

@@ -19,9 +19,9 @@ export function BottomNav() {
         ))}
         <li className="flex-1 min-w-0 relative">
           <details key={pathname} className="group h-full">
-            <summary className="list-none flex h-full flex-col items-center justify-center gap-1 text-xs cursor-pointer text-[var(--fg-muted)]"><MoreHorizontal size={20} /><span>Más</span></summary>
+            <summary className={cn('list-none flex h-full flex-col items-center justify-center gap-1 text-xs cursor-pointer', more.some(item => item.href === pathname) ? 'text-[var(--primary)] font-semibold' : 'text-[var(--fg-muted)]')}><MoreHorizontal size={20} /><span>Más</span></summary>
             <ul className="absolute bottom-full right-2 w-56 p-2 mb-2 card shadow-lg">
-              {more.map(({ href, label, icon: Icon }) => <li key={href}><Link href={href} aria-current={pathname === href ? 'page' : undefined} className="flex items-center gap-3 p-3 rounded-md text-sm hover:bg-[var(--surface2)]"><Icon size={18} />{label}</Link></li>)}
+              {more.map(({ href, label, icon: Icon }) => <li key={href}><Link href={href} aria-current={pathname === href ? 'page' : undefined} className={cn('flex items-center gap-3 min-h-11 p-3 rounded-md text-sm hover:bg-[var(--surface2)]', pathname === href && 'bg-[var(--surface2)] text-[var(--primary)] font-semibold')}><Icon size={18} />{label}</Link></li>)}
             </ul>
           </details>
         </li>

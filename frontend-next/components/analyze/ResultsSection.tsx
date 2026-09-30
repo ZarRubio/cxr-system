@@ -1,6 +1,6 @@
 'use client'
 import type { RefObject } from 'react'
-import { Microscope, Download, FileText } from 'lucide-react'
+import { Microscope, Download, FileText, ChevronRight } from 'lucide-react'
 import { MultipleFindingsCard } from '@/components/analyze/FindingCard'
 import { FeedbackCard } from '@/components/analyze/FeedbackCard'
 import { ClinicalRecommendations } from '@/components/analyze/ClinicalRecommendations'
@@ -52,11 +52,11 @@ export function ResultsSection({
       className="space-y-5"
     >
       {/* Nuevo análisis */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--border-subtle)] pt-5">
         <h2 className="section-heading">Resultado del estudio</h2>
         <button
           onClick={onNewAnalysis}
-          className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border border-[var(--border)] text-[var(--fg-subtle)] hover:text-[var(--fg)] hover:border-[var(--primary)] hover:bg-[color-mix(in_srgb,var(--primary)_6%,transparent)] transition-all cursor-pointer"
+          className="flex items-center gap-2 min-h-11 text-sm font-medium px-3 rounded-md border border-[var(--border)] text-[var(--fg-muted)] hover:bg-[var(--surface2)] transition-colors cursor-pointer"
         >
           <Microscope size={13} />
           Nuevo análisis
@@ -112,7 +112,7 @@ export function ResultsSection({
           placeholder="Observaciones e interpretación del radiólogo"
           rows={3}
           maxLength={5000}
-          className="w-full resize-none rounded-lg border border-[var(--border)] bg-[var(--surface2)] text-sm text-[var(--fg)] placeholder:text-[var(--fg-subtle)] px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-[var(--ring)] transition-shadow leading-relaxed"
+          className="field-input resize-y min-h-28 placeholder:text-[var(--fg-subtle)] leading-relaxed"
         />
         {prediction.analysis_id && onSaveNotes ? (
           <div className="flex flex-wrap items-center gap-3">
@@ -135,8 +135,8 @@ export function ResultsSection({
 
       {/* Row 3: Technical detail — collapsible */}
       <details className="group">
-        <summary className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-[var(--fg-subtle)] hover:text-[var(--fg)] transition-colors list-none px-1 py-1 select-none">
-          <span className="w-4 h-4 rounded border border-[var(--border)] flex items-center justify-center text-[10px] group-open:rotate-90 transition-transform">▶</span>
+        <summary className="flex items-center gap-2 min-h-11 cursor-pointer text-sm font-medium text-[var(--fg-muted)] hover:text-[var(--fg)] transition-colors list-none px-1 select-none">
+          <ChevronRight size={18} className="shrink-0 group-open:rotate-90 transition-transform" aria-hidden="true" />
           Ver detalle técnico (scores por clase y hallazgos sub-umbral)
         </summary>
         <div className="mt-3 space-y-4">

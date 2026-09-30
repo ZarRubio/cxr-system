@@ -1,5 +1,6 @@
 'use client'
 import { Suspense, useMemo, useState } from 'react'
+import Link from 'next/link'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSearchParams } from 'next/navigation'
 import { useSession } from 'next-auth/react'
@@ -25,7 +26,7 @@ import type { Prediction, Severity } from '@/lib/types'
 /** Clase compartida de los selects de filtro; resalta cuando hay valor activo. */
 const selectCls = (active: boolean) =>
   cn(
-    'h-9 px-2 text-xs rounded-lg border bg-[var(--surface2)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)] cursor-pointer max-w-[190px]',
+    'min-h-11 px-3 text-sm rounded-md border bg-[var(--surface)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)] cursor-pointer max-w-full',
     active ? 'border-[var(--primary)] text-[var(--primary)] font-semibold' : 'border-[var(--border)] text-[var(--fg)]',
   )
 export default function HistoryPage() {
@@ -62,12 +63,13 @@ function HistoryContent() {
   const [cursor, setCursor] = useState<string | undefined>()
   const [pages, setPages] = useState<Array<string | undefined>>([])
   const [exportError, setExportError] = useState('')
+  const [exporting, setExporting] = useState<'csv' | 'json' | null>(null)
   const criteria = JSON.stringify([q, severity, feedback, dateFrom, dateTo, byUser])
   const [lastCriteria, setLastCriteria] = useState(criteria)
   if (criteria !== lastCriteria) { setLastCriteria(criteria); setCursor(undefined); setPages([]) }
   const serverFilters: AnalysisFilters = { q, severity: severity || undefined, feedback: feedback || undefined, dateFrom, dateTo, userName: byUser || undefined }
 
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['analyses', criteria, cursor],
     queryFn: () => fetchAnalyses(serverFilters, cursor),
     refetchOnWindowFocus: false,
@@ -91,6 +93,8 @@ function HistoryContent() {
   const filtered = useMemo(() => filterAnalyses(analyses, filters), [analyses, q, severity, feedback, dateFrom, dateTo, byUser, isAdmin]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const exportCSV = async () => {
+    if (exporting) return
+    setExporting('csv')
     setExportError('')
     try {
     const complete = (await fetchAllAnalyses(serverFilters)).analyses
@@ -106,12 +110,16 @@ function HistoryContent() {
     const csv = rows.map((r) => r.map(csvCell).join(',')).join('\n')
     downloadBlob(csv, 'cxr_historial.csv', 'text/csv')
     } catch (error) { setExportError((error as Error).message) }
+    finally { setExporting(null) }
   }
 
   const exportJSON = async () => {
+    if (exporting) return
+    setExporting('json')
     setExportError('')
     try { downloadBlob(JSON.stringify((await fetchAllAnalyses(serverFilters)).analyses, null, 2), 'cxr_historial.json', 'application/json') }
     catch (error) { setExportError((error as Error).message) }
+    finally { setExporting(null) }
   }
 
   return (
@@ -123,28 +131,12 @@ function HistoryContent() {
         </p>
       </div>
       {exportError && <p role="alert" className="badge-high p-3 text-sm">{exportError}</p>}
-      <div className="flex gap-3 items-center">
-        <Button variant="secondary" size="sm" disabled={!pages.length || isLoading} onClick={() => { setCursor(pages.at(-1)); setPages(pages.slice(0, -1)) }}>Anterior</Button>
-        <Button variant="secondary" size="sm" disabled={!data?.nextCursor || isLoading} onClick={() => { setPages([...pages, cursor]); setCursor(data?.nextCursor ?? undefined) }}>Siguiente</Button>
+      <nav aria-label="Páginas del historial" className="flex flex-wrap gap-3 items-center">
+        <Button variant="secondary" size="lg" disabled={!pages.length || isLoading} onClick={() => { setCursor(pages.at(-1)); setPages(pages.slice(0, -1)) }}>Anterior</Button>
+        <Button variant="secondary" size="lg" disabled={!data?.nextCursor || isLoading} onClick={() => { setPages([...pages, cursor]); setCursor(data?.nextCursor ?? undefined) }}>Siguiente</Button>
         <span className="text-xs text-[var(--fg-muted)]">{analyses.length} estudios en esta página</span>
-      </div>
+      </nav>
 
-      {isLoading ? (
-        <div className="text-center py-16 text-[var(--fg-subtle)]">
-          <Loader2 size={28} className="mx-auto mb-3 animate-spin opacity-40" />
-          <p className="text-sm">Cargando historial…</p>
-        </div>
-      ) : isError ? (
-        <div className="text-center py-16">
-          <p className="text-sm text-[#DC2626]">No se pudo cargar el historial. Intente nuevamente.</p>
-        </div>
-      ) : analyses.length === 0 ? (
-        <div className="text-center py-16">
-          <ClipboardList size={40} className="mx-auto mb-3 text-[var(--fg-subtle)] opacity-30" />
-          <p className="text-sm text-[var(--fg-subtle)]">Aún no hay análisis registrados.</p>
-          <p className="text-xs text-[var(--fg-subtle)] mt-1">Ve a <strong>Analizar</strong> para comenzar.</p>
-        </div>
-      ) : (
         <>
           {/* Toolbar: búsqueda + export arriba, filtros compactos debajo */}
           <div className="space-y-3">
@@ -157,22 +149,22 @@ function HistoryContent() {
                   placeholder="Buscar por estudio, lote, hallazgo, archivo…"
                   value={q}
                   onChange={(e) => setQ(e.target.value)}
-                  className="w-full h-9 pl-9 pr-8 text-sm rounded-lg border border-[var(--border)] bg-[var(--surface2)] text-[var(--fg)] placeholder:text-[var(--fg-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]"
+                  className="field-input pl-9 pr-12 placeholder:text-[var(--fg-subtle)]"
                 />
                 {q && (
                   <button
                     onClick={() => setQ('')}
                     aria-label="Limpiar búsqueda"
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--fg-subtle)] hover:text-[var(--fg)] cursor-pointer"
+                    className="icon-button absolute right-0 top-1/2 -translate-y-1/2"
                   >
                     <X size={14} />
                   </button>
                 )}
               </div>
-              <Button variant="secondary" size="sm" onClick={exportCSV}>
+              <Button variant="secondary" size="lg" disabled={!!exporting || isLoading || isError} loading={exporting === 'csv'} onClick={exportCSV}>
                 <Download size={13} /> CSV
               </Button>
-              <Button variant="secondary" size="sm" onClick={exportJSON}>
+              <Button variant="secondary" size="lg" disabled={!!exporting || isLoading || isError} loading={exporting === 'json'} onClick={exportJSON}>
                 <Download size={13} /> JSON
               </Button>
             </div>
@@ -183,7 +175,7 @@ function HistoryContent() {
               </span>
 
               {/* Rango de fechas agrupado */}
-              <div className="flex items-center gap-1 h-9 px-2 rounded-lg border border-[var(--border)] bg-[var(--surface2)]">
+              <div className="flex items-center gap-1 min-h-11 max-w-full px-2 rounded-md border border-[var(--border)] bg-[var(--surface)]">
                 <Calendar size={13} className="text-[var(--fg-subtle)] shrink-0" />
                 <input
                   type="date"
@@ -241,7 +233,7 @@ function HistoryContent() {
               {(q || severity || feedback || dateFrom || dateTo || byUser) && (
                 <button
                   onClick={() => { setQ(''); setSeverity(''); setFeedback(''); setDateFrom(''); setDateTo(''); setByUser('') }}
-                  className="text-xs text-[var(--fg-subtle)] hover:text-[var(--fg)] underline underline-offset-2 cursor-pointer"
+                  className="min-h-11 px-2 text-sm text-[var(--primary)] hover:underline cursor-pointer"
                 >
                   Limpiar
                 </button>
@@ -250,13 +242,25 @@ function HistoryContent() {
               <span className="ml-auto text-xs text-[var(--fg-subtle)]">
                 <span className="readout font-bold text-[var(--fg)]">{filtered.length}</span>
                 {filtered.length === analyses.length ? ' análisis' : ` de ${analyses.length} análisis`}
-                {analyses.length >= 500 && ' (últimos 500)'}
               </span>
             </div>
           </div>
 
+          {isLoading ? (
+            <div role="status" className="text-center py-12 text-[var(--fg-muted)]"><Loader2 size={24} className="mx-auto mb-3 animate-spin" aria-hidden="true" /><p>Cargando estudios…</p></div>
+          ) : isError ? (
+            <div role="alert" className="badge-critical rounded-md p-5 space-y-3"><p>No se pudo cargar el historial.</p><Button variant="secondary" onClick={() => refetch()}><RotateCcw size={16} />Reintentar</Button></div>
+          ) : filtered.length === 0 ? (
+            <div role="status" className="border-y border-[var(--border-subtle)] py-12 text-center space-y-3">
+              <ClipboardList size={28} className="mx-auto text-[var(--fg-muted)]" aria-hidden="true" />
+              <h2 className="section-heading">{q || severity || feedback || dateFrom || dateTo || byUser ? 'Sin resultados para estos filtros' : 'Aún no hay estudios registrados'}</h2>
+              {q || severity || feedback || dateFrom || dateTo || byUser ? <p className="text-sm text-[var(--fg-muted)]">Cambie los filtros o límpielos para volver a consultar.</p> : <Link href="/analyze" className="access-link">Nuevo estudio</Link>}
+              {data?.nextCursor && <p className="text-sm text-[var(--fg-muted)]">Hay más registros por consultar. Continúe en la siguiente página.</p>}
+            </div>
+          ) : <>
+
           {/* Table - desktop */}
-          <div className="hidden sm:block border-y border-[var(--border-subtle)] overflow-x-auto p-0">
+          <div className="hidden md:block border-y border-[var(--border-subtle)] overflow-x-auto p-0">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-[var(--border-subtle)] bg-[var(--surface2)]">
@@ -287,19 +291,20 @@ function HistoryContent() {
           </div>
 
           {/* Cards - mobile */}
-          <div className="sm:hidden space-y-3">
+          <div className="md:hidden space-y-3">
             {filtered.map((a) => (
               <HistoryCard
                 key={a.id}
                 analysis={a}
+                isAdmin={isAdmin}
                 canValidate={a.userId === sessionUserId}
                 expanded={expanded === a.id}
                 onToggle={() => setExpanded(expanded === a.id ? null : a.id)}
               />
             ))}
           </div>
+          </>}
         </>
-      )}
     </div>
   )
 }
@@ -393,7 +398,9 @@ function HistoryRow({ analysis, isAdmin, canValidate, expanded, onToggle, onBatc
           {formatConfidence(analysis.confidence)}
         </td>
         <td className="px-4 py-3 text-[var(--fg-subtle)]">
-          {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+          <button type="button" className="icon-button" aria-expanded={expanded} aria-label={`${expanded ? 'Cerrar' : 'Abrir'} estudio ${analysis.studyId ?? analysis.filename}`} onClick={event => { event.stopPropagation(); onToggle() }}>
+            {expanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+          </button>
         </td>
       </tr>
       {expanded && (
@@ -437,6 +444,7 @@ function HistoryCard({ analysis, isAdmin, canValidate, expanded, onToggle }: Row
 function HistoryDetail({ analysis, canValidate, isAdmin }: { analysis: AnalysisRecord; canValidate: boolean; isAdmin: boolean }) {
   const queryClient = useQueryClient()
   const [pdfLoading, setPdfLoading] = useState(false)
+  const [pdfError, setPdfError] = useState<string | null>(null)
   const [retrying, setRetrying] = useState<'admin' | 'radiologist' | null>(null)
   const [retryError, setRetryError] = useState<string | null>(null)
 
@@ -471,7 +479,9 @@ function HistoryDetail({ analysis, canValidate, isAdmin }: { analysis: AnalysisR
   }
 
   const handleDownloadPdf = async () => {
+    if (pdfLoading) return
     setPdfLoading(true)
+    setPdfError(null)
     try {
       const meta: StudyMeta = {
         analyzedAt: analysis.createdAt,
@@ -485,7 +495,7 @@ function HistoryDetail({ analysis, canValidate, isAdmin }: { analysis: AnalysisR
       const bytes = await buildPdf(analysis.filename, null, prediction, analysis.notes ?? '', meta, analysis.feedback)
       downloadBlob(bytes, `${meta.studyId || analysis.id.slice(0, 8)}_reporte_cxr.pdf`, 'application/pdf')
     } catch (e) {
-      console.error('PDF error:', e)
+      setPdfError(e instanceof Error ? e.message : 'No se pudo generar el PDF. Intente nuevamente.')
     } finally {
       setPdfLoading(false)
     }
@@ -511,6 +521,7 @@ function HistoryDetail({ analysis, canValidate, isAdmin }: { analysis: AnalysisR
         </div>
       )}
       {retryError && <p role="alert" className="text-xs badge-high p-2">{retryError}</p>}
+      {pdfError && <p role="alert" className="text-sm badge-high p-3">{pdfError}</p>}
       <DecisionSupportAlert support={prediction.decision_support} />
       <div className="flex flex-wrap items-center gap-x-6 gap-y-1 text-xs text-[var(--fg-subtle)] pb-3 border-b border-[var(--border-subtle)]">
         {analysis.studyId && (

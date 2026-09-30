@@ -16,11 +16,12 @@ export function AnalyzingOverlay({ filename }: Props) {
     <Dialog.Root open>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-50 bg-black/40" />
-        <Dialog.Content onEscapeKeyDown={e => e.preventDefault()} onPointerDownOutside={e => e.preventDefault()} className="fixed z-50 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[calc(100%-2rem)] max-w-md card p-6">
+        <Dialog.Content onEscapeKeyDown={e => e.preventDefault()} onPointerDownOutside={e => e.preventDefault()} className="fixed z-50 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[calc(100%-2rem)] max-w-md max-h-[85dvh] overflow-y-auto card p-6">
           <div className="flex items-center gap-3 mb-3"><Loader2 size={20} className="animate-spin text-[var(--primary)]" aria-hidden="true" /><Dialog.Title className="text-lg font-semibold">Procesando estudio</Dialog.Title></div>
           <Dialog.Description className="text-sm text-[var(--fg-muted)]">Esperando el resultado del servicio de análisis.</Dialog.Description>
           <p className="text-sm break-all mt-4">{filename}</p>
           <p className="text-sm text-[var(--fg-subtle)] mt-4">Tiempo transcurrido: <span className="readout">{elapsed} s</span></p>
+          {elapsed >= 30 && <p role="status" className="text-sm text-[var(--fg-muted)] mt-3">El servicio sigue procesando. El primer estudio puede tardar más mientras se carga el modelo.</p>}
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>

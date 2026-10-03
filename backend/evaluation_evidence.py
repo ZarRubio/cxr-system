@@ -1,5 +1,9 @@
 """Historical NIH test evidence, shown only for matching model artifact hashes."""
 
+import json
+from functools import lru_cache
+from pathlib import Path
+
 EXPECTED_SHA256 = {
     "sprint4ml_v1.pt": "59f98c72981929fde8e6044a78ff46b8b23c519b8f50cd4ad4c85566bf34224b",
     "sprint4ml_v2.pt": "d93fa69ba1e348b8b4653502392a1faee6ef3883a1138968bf6ac05531401813",
@@ -41,3 +45,48 @@ def evidence_for_manifest(manifest: dict | None) -> dict | None:
     if any(hashes.get(name) != expected for name, expected in EXPECTED_SHA256.items()):
         return None
     return HISTORICAL_TEST
+
+
+@lru_cache(maxsize=1)
+def _threshold_report() -> dict | None:
+    try:
+        report = json.loads(
+            Path(__file__).with_name("historical_threshold_evaluation.json").read_text(encoding="utf-8")
+        )
+        if report["schema_version"] != 1 or report["status"] != "historical_fixed_thresholds":
+            return None
+        required = {
+            "artifact_sha256", "thresholds", "temperature", "weights", "dataset", "evaluation_date",
+            "n_images", "n_patients", "decision_rule", "preprocessing", "predictions_sha256",
+            "runtime_preprocessing_equivalence", "per_class", "limitations", "threshold_selection",
+        }
+        if not required.issubset(report):
+            return None
+        if not all(isinstance(report[key], dict) for key in ("artifact_sha256", "thresholds", "per_class")):
+            return None
+        if set(report["per_class"]) != set(HISTORICAL_TEST["metrics"]):
+            return None
+        if report["decision_rule"] != "round_score_6_decimals_greater_or_equal":
+            return None
+        return report
+    except (OSError, ValueError, KeyError, TypeError):
+        return None
+
+
+def threshold_evidence_for_configuration(manifest: dict | None, thresholds: dict, ensemble: dict) -> dict | None:
+    if evidence_for_manifest(manifest) is None:
+        return None
+    report = _threshold_report()
+    if report is None:
+        return None
+    hashes = manifest["artifact_sha256"]
+    if any(hashes.get(name) != value for name, value in report["artifact_sha256"].items()):
+        return None
+    if thresholds != report["thresholds"] or ensemble.get("thresholds") != thresholds:
+        return None
+    temperature = ensemble.get("temperature", 1.)
+    if isinstance(temperature, bool) or temperature != report["temperature"]:
+        return None
+    if [ensemble.get("weight_v1"), ensemble.get("weight_v2")] != report["weights"]:
+        return None
+    return report

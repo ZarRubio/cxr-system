@@ -11,13 +11,6 @@ const CLASS_NAMES = [
   'Pneumonia', 'Pneumothorax',
 ]
 
-const CLASS_COLORS: Record<string, string> = {
-  Atelectasis: 'var(--primary)', Cardiomegaly: '#B91C1C', Consolidation: '#0369A1',
-  Edema: '#DC2626', Effusion: '#1D4ED8', Emphysema: '#D97706', Fibrosis: '#475569',
-  Hernia: '#7C3AED', Infiltration: '#C2410C', Mass: '#7C3AED', Nodule: '#64748B',
-  Pleural_Thickening: '#334155', Pneumonia: '#B91C1C', Pneumothorax: '#DC2626',
-}
-
 function MetricCard({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
     <div className="min-w-0 py-3 pr-3 border-b border-[var(--border-subtle)]">
@@ -26,6 +19,11 @@ function MetricCard({ label, value, sub }: { label: string; value: string; sub?:
       {sub && <p className="text-[11px] text-[var(--fg-subtle)] mt-1">{sub}</p>}
     </div>
   )
+}
+
+function percentage(value: number | null | undefined) {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= 1
+    ? `${(value * 100).toFixed(1)}%` : 'No calculada'
 }
 
 export default function ModelPage() {
@@ -38,6 +36,9 @@ export default function ModelPage() {
   const live = info?.metrics ?? {}
   const thresholds = info?.thresholds ?? {}
   const evaluation = info?.evaluation_status
+  const thresholdEvaluation = info?.threshold_evaluation
+  const hasThresholdEvidence = thresholdEvaluation?.status === 'available'
+    && thresholdEvaluation.scope === 'retrospective_historical_test'
   const classes = Object.values(info?.classes ?? {}).length
     ? Object.values(info?.classes ?? {})
     : CLASS_NAMES
@@ -47,9 +48,10 @@ export default function ModelPage() {
     auc: live[cls]?.auc,
     ap: live[cls]?.ap,
     positives: live[cls]?.n_positive,
-    sensitivity: live[cls]?.sensitivity,
-    specificity: live[cls]?.specificity,
-    color: CLASS_COLORS[cls] ?? 'var(--primary)',
+    operating: hasThresholdEvidence
+      && thresholdEvaluation.per_class?.[cls]?.threshold === thresholds[cls]
+      && thresholdEvaluation.thresholds?.[cls] === thresholds[cls]
+      ? thresholdEvaluation.per_class[cls] : undefined,
   })).sort((a, b) => linkedEvidence ? (a.auc ?? 1) - (b.auc ?? 1) : CLASS_NAMES.indexOf(a.cls) - CLASS_NAMES.indexOf(b.cls))
 
   return (
@@ -134,44 +136,60 @@ export default function ModelPage() {
       <div className="card overflow-hidden p-0">
         <div className="px-5 py-4 border-b border-[var(--border-subtle)] flex items-center gap-2">
           <Target size={16} className="text-[var(--primary)]" />
-          <h3 className="text-sm font-bold text-[var(--fg)]">Sensibilidad y especificidad</h3>
+          <h3 className="text-sm font-bold text-[var(--fg)]">Sensibilidad y especificidad · test NIH histórico</h3>
+        </div>
+        <div className="px-5 py-3 border-b border-[var(--border-subtle)] text-xs text-[var(--fg-muted)] leading-5">
+          {hasThresholdEvidence ? (
+            <>
+              <p>{thresholdEvaluation.dataset} · {thresholdEvaluation.n_images?.toLocaleString('es-PE')} imágenes,
+                {' '}{thresholdEvaluation.n_patients?.toLocaleString('es-PE')} pacientes · temperatura {thresholdEvaluation.temperature}
+                {' · '}pesos {thresholdEvaluation.weights?.join(' / ')} · evaluación {thresholdEvaluation.evaluation_date}.</p>
+              <p className="mt-1">Evaluación retrospectiva con los umbrales actuales, sin optimizarlos en test.
+                {' '}Preprocesamiento histórico; equivalencia con la API no verificada. No es validación clínica del despliegue.</p>
+            </>
+          ) : (
+            <p>No hay una evaluación compatible con los artefactos, la temperatura y los umbrales actuales.</p>
+          )}
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-[var(--surface2)] border-b border-[var(--border-subtle)]">
-                {['Clase', 'Sensibilidad', 'Especificidad', 'Umbral', 'Nota'].map((h) => (
-                  <th key={h} className="tech-label text-left px-4 py-3">{h}</th>
+                {['Hallazgo', 'Sensibilidad', 'Especificidad', 'VPP', 'Umbral', 'VP / FN', 'FP / VN'].map((h) => (
+                  <th key={h} scope="col" className="tech-label text-left px-4 py-3 whitespace-nowrap">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {rows.map(({ cls, sensitivity, specificity, color }) => {
+              {rows.map(({ cls, operating }) => {
                 const thrRaw = thresholds[cls]
-                const thrStr = thrRaw !== undefined ? `${(Number(thrRaw) * 100).toFixed(0)}%` : '—'
+                const thrStr = thrRaw !== undefined ? percentage(thrRaw) : '—'
                 return (
                   <tr key={cls} className="border-b border-[var(--border-subtle)] hover:bg-[var(--surface2)] transition-colors">
-                    <td className="px-4 py-3 text-sm" style={{ color }}>
+                    <th scope="row" className="px-4 py-3 text-left text-sm text-[var(--fg)]">
                       <span className="font-bold">{cls}</span>
-                    </td>
+                    </th>
                     <td className="readout px-4 py-3 text-sm font-bold">
-                      {sensitivity !== undefined ? `${(sensitivity * 100).toFixed(1)}%` : 'No calculada'}
+                      {percentage(operating?.sensitivity)}
                     </td>
                     <td className="readout px-4 py-3 font-bold text-sm">
-                      {specificity !== undefined ? `${(specificity * 100).toFixed(1)}%` : 'No calculada'}
+                      {percentage(operating?.specificity)}
                     </td>
+                    <td className="readout px-4 py-3 text-sm">{percentage(operating?.precision)}</td>
                     <td className="readout px-4 py-3 text-sm text-[var(--fg-muted)]">{thrStr}</td>
-                    <td className="px-4 py-3 text-xs text-[var(--fg-subtle)]">
-                      {sensitivity === undefined || specificity === undefined
-                        ? 'Falta evaluación reproducible para este umbral.'
-                        : 'Reportada por el backend.'}
-                    </td>
+                    <td className="readout px-4 py-3 text-sm whitespace-nowrap">{operating ? `${operating.tp} / ${operating.fn}` : '—'}</td>
+                    <td className="readout px-4 py-3 text-sm whitespace-nowrap">{operating ? `${operating.fp} / ${operating.tn}` : '—'}</td>
                   </tr>
                 )
               })}
             </tbody>
           </table>
         </div>
+        <p className="px-5 py-3 text-xs text-[var(--fg-subtle)] leading-5">
+          VPP: valor predictivo positivo. VP: verdaderos positivos; FN: falsos negativos;
+          FP: falsos positivos; VN: verdaderos negativos. Los puntos de operación pueden generar numerosos falsos positivos;
+          la sensibilidad alta por sí sola no demuestra utilidad clínica. Sin intervalos de confianza.
+        </p>
       </div>
 
       {/* Architecture (collapsible) */}

@@ -476,11 +476,36 @@ class TestModelInfoEndpoint:
 
     def test_exposes_metrics_only_for_matching_artifact_hashes(self, client: TestClient):
         app.state.model_manifest = {"artifact_sha256": dict(EXPECTED_SHA256)}
+        app.state.ensemble.update(weight_v1=.3, weight_v2=.7)
         data = client.get("/model-info").json()
         assert data["metrics_provenance"] == "local_reproduced_historical_test"
         assert data["auc_macro"] == pytest.approx(0.8044989191922561)
         assert data["val_auc_macro"] == pytest.approx(0.7990317790600593)
         assert data["metrics"]["Pneumonia"]["n_positive"] == 25
+
+    def test_exposes_historical_operating_points_for_matching_configuration(self, client):
+        import json
+        report = json.loads((BACKEND_DIR / "historical_threshold_evaluation.json").read_text())
+        app.state.model_manifest = {"artifact_sha256": dict(report["artifact_sha256"])}
+        app.state.thresholds = dict(report["thresholds"])
+        app.state.ensemble.update(weight_v1=.3, weight_v2=.7, temperature=1.,
+                                  thresholds=dict(report["thresholds"]))
+        data = client.get("/model-info").json()
+        evaluation = data["threshold_evaluation"]
+        assert evaluation["status"] == "available"
+        assert evaluation["scope"] == "retrospective_historical_test"
+        assert evaluation["runtime_preprocessing_equivalence"] == "not_verified"
+        assert len(evaluation["per_class"]) == 14
+        assert evaluation["per_class"]["Pneumonia"]["tp"] == 21
+        assert evaluation["per_class"]["Pneumonia"]["fp"] == 2064
+        assert data["evaluation_status"]["unavailable_metrics"] == ["calibration_error"]
+
+    def test_hides_historical_metrics_when_temperature_changes(self, client):
+        app.state.model_manifest = {"artifact_sha256": dict(EXPECTED_SHA256)}
+        app.state.ensemble.update(weight_v1=.3, weight_v2=.7, temperature=.6586)
+        data = client.get("/model-info").json()
+        assert data["metrics"] == {}
+        assert data["threshold_evaluation"]["status"] == "unavailable"
 
 
 # ══════════════════════════════════════════════════════════════════════════════

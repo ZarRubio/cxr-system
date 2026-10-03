@@ -8,7 +8,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 
 from auth import require_api_key
-from evaluation_evidence import evidence_for_manifest
+from evaluation_evidence import evidence_for_manifest, threshold_evidence_for_configuration
 from middleware import RequestContextMiddleware
 from model_manifest import build_manifest, verify_manifest
 from rate_limit import RATE_LIMITING_AVAILABLE, limiter
@@ -180,14 +180,32 @@ async def model_info(request: Request):
     cfg = getattr(request.app.state, "model_config", {})
     ens_cfg = getattr(request.app.state, "ensemble_config", {})
     ensemble = getattr(request.app.state, "ensemble", None) or {}
+    historical_scoring = (
+        ensemble.get("temperature", 1.0) == 1.0
+        and ensemble.get("weight_v1") == 0.3 and ensemble.get("weight_v2") == 0.7
+    )
     evidence = (
         evidence_for_manifest(getattr(request.app.state, "model_manifest", None))
-        if ensemble else None
+        if ensemble and historical_scoring else None
     )
     thresholds = getattr(request.app.state, "thresholds", {})
     cache_size = len(getattr(request.app.state, "prediction_cache", {}))
     calibration_configured = getattr(request.app.state, "calibration_configured", False)
     temperature = ensemble.get("temperature", 1.0)
+    threshold_evidence = threshold_evidence_for_configuration(
+        getattr(request.app.state, "model_manifest", None), thresholds, ensemble,
+    )
+    threshold_evaluation = {"status": "unavailable"}
+    if threshold_evidence:
+        threshold_evaluation = {
+            "status": "available", "scope": "retrospective_historical_test",
+            **{key: threshold_evidence[key] for key in (
+                "dataset", "evaluation_date", "n_images", "n_patients", "thresholds",
+                "temperature", "weights", "decision_rule", "preprocessing",
+                "runtime_preprocessing_equivalence", "predictions_sha256", "per_class",
+                "limitations", "threshold_selection",
+            )},
+        }
 
     return {
         "type": "ensemble",
@@ -210,6 +228,7 @@ async def model_info(request: Request):
         },
         "classes": LABELS_14,
         "thresholds": thresholds,
+        "threshold_evaluation": threshold_evaluation,
         "metrics": evidence["metrics"] if evidence else {},
         "metrics_provenance": (
             "local_reproduced_historical_test" if evidence else "not_linked_to_running_artifacts"
@@ -235,13 +254,12 @@ async def model_info(request: Request):
                 if evidence else "not_linked_to_running_artifacts"
             ),
             "threshold_optimization": "not_documented_in_repository",
-            "unavailable_metrics": [
+            "unavailable_metrics": ([
                 "per_class_sensitivity",
                 "per_class_specificity",
                 "per_class_precision",
                 "per_class_f1",
-                "calibration_error",
-            ],
+            ] if not threshold_evidence else []) + ["calibration_error"],
         },
         "reference": "Wang et al. 2017 (different test protocol; not a controlled comparison)",
         "cache_entries": cache_size,

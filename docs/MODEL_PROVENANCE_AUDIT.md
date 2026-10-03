@@ -24,6 +24,15 @@ en CHECK REQUIRED. El AUC del test historico se reprodujo localmente dentro de
 
 ## Artefactos usados por cada despliegue
 
+### Actualizacion retrospectiva del 3 de octubre
+
+La revision de checkpoints, notebooks y del log concatenado aclaro la diferencia
+entre el checkpoint v1 retenido y el historial de una corrida posterior. Tambien
+identifico funciones incompatibles de calibracion y produjo un candidato offline
+con ajuste exclusivo en validacion. Ver
+[TRAINING_AND_CALIBRATION_AUDIT_2026-10-03.md](TRAINING_AND_CALIBRATION_AUDIT_2026-10-03.md).
+Esto no resuelve la independencia del preentrenamiento NIH ni verifica el bucket.
+
 El workflow descarga los seis archivos del bucket y ejecuta
 `backend/model_manifest.py` antes de construir la imagen. El manifiesto registra el
 SHA-256 de cada archivo, un fingerprint conjunto y el commit de `cxr-system`. Al

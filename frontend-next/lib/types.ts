@@ -74,6 +74,20 @@ export interface ModelInfo {
   thresholds?: Record<string, number>
   metrics?: Record<string, ClassMetrics>
   metrics_provenance?: string
+  threshold_evaluation?: {
+    status: 'available' | 'unavailable'
+    scope?: 'retrospective_historical_test'
+    dataset?: string
+    evaluation_date?: string
+    n_images?: number
+    n_patients?: number
+    temperature?: number
+    weights?: number[]
+    thresholds?: Record<string, number>
+    preprocessing?: string
+    runtime_preprocessing_equivalence?: string
+    per_class?: Record<string, ThresholdClassMetrics>
+  }
   checkpoint_metrics?: Record<string, {
     phase?: string
     epoch?: number
@@ -100,6 +114,21 @@ export interface ClassMetrics {
   n_positive?: number
   sensitivity?: number
   specificity?: number
+}
+
+export interface ThresholdClassMetrics {
+  threshold: number
+  sensitivity: number | null
+  specificity: number | null
+  precision: number | null
+  npv: number | null
+  f1: number | null
+  tp: number
+  fp: number
+  tn: number
+  fn: number
+  n_positive: number
+  n_negative: number
 }
 
 export type Severity = 'critical' | 'high' | 'moderate' | 'normal'

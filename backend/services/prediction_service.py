@@ -177,6 +177,10 @@ def _run_prediction(ensemble: dict, img_array: np.ndarray, options: PredictOptio
         generate_gradcam_layers(ensemble["model_v2"], tensor, img_array, gradcam_label, options.gradcam_method)
         if options.include_gradcam else ("", "")
     )
+    result["gradcam_status"] = (
+        "not_requested" if not options.include_gradcam
+        else "valid" if gradcam_image else "not_interpretable"
+    )
     return result, gradcam_image, gradcam_cls, gradcam_heatmap
 
 
@@ -205,6 +209,7 @@ def _build_response_data(
         decision_support=result["decision_support"],
         gradcam_image=gradcam_image,
         gradcam_heatmap=gradcam_heatmap,
+        gradcam_status=result.get("gradcam_status", "unknown"),
         image_preview=preview_uri,
         gradcam_class=gradcam_cls,
         processing_time_ms=elapsed_ms,

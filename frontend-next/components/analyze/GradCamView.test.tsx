@@ -9,6 +9,16 @@ vi.mock('@/lib/api', () => ({ predict: vi.fn() }))
 vi.mock('@/lib/utils', async importOriginal => ({ ...await importOriginal<typeof import('@/lib/utils')>(), blendImagesOnCanvas: vi.fn() }))
 vi.mock('./ImageLightbox', () => ({ ImageLightbox: () => null }))
 const prediction: Prediction = { predicted_class: 'Effusion', confidence: 0.7, probabilities: { Effusion: 0.7 }, positive_findings: ['Effusion'], processing_time_ms: 10, gradcam_image: 'data:image/png;base64,AA==', gradcam_heatmap: 'data:image/png;base64,AQ==', gradcam_class: 'Effusion' }
+it('does not display or blend an uninterpretable map', () => {
+  vi.mocked(blendImagesOnCanvas).mockClear()
+  render(<GradCamView prediction={{ ...prediction, gradcam_status: 'not_interpretable' }} originalBytes={new Uint8Array([0])} />)
+  expect(screen.getByRole('status').textContent).toContain('Mapa no interpretable')
+  expect(screen.queryByRole('slider')).toBeNull()
+  expect(screen.queryByAltText('Overlay Grad-CAM')).toBeNull()
+  expect(screen.queryByRole('button', { name: 'Generar mapa de calor' })).toBeNull()
+  expect(blendImagesOnCanvas).not.toHaveBeenCalled()
+  expect(screen.getByAltText('Radiografia sin mapa de calor')).toBeTruthy()
+})
 beforeEach(() => {
   vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: vi.fn(() => 'blob:preview'), revokeObjectURL: vi.fn() }))
 })

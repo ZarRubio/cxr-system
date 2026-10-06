@@ -48,6 +48,12 @@ def generate_gradcam_layers(
     with cam_cls(model=model, target_layers=[target_layer]) as cam:
         grayscale_cam = cam(input_tensor=tensor, targets=targets)
 
+    if (grayscale_cam.shape != (1, 224, 224)
+            or not np.isfinite(grayscale_cam).all()
+            or np.ptp(grayscale_cam[0]) <= 1e-8
+            or grayscale_cam.min() < 0 or grayscale_cam.max() > 1):
+        return "", ""
+
     heatmap_overlay = show_cam_on_image(img_rgb, grayscale_cam[0], use_rgb=True)
     heatmap = cv2.cvtColor(
         cv2.applyColorMap(np.uint8(255 * grayscale_cam[0]), cv2.COLORMAP_JET),

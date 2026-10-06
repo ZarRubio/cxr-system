@@ -22,8 +22,9 @@ export function GradCamView({ prediction, originalBytes, filename = 'image.png',
   const [lightbox, setLightbox]     = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const gradcamUri = prediction.gradcam_image
-  const heatmapUri = prediction.gradcam_heatmap
+  const unavailable = prediction.gradcam_status === 'not_interpretable'
+  const gradcamUri = unavailable ? undefined : prediction.gradcam_image
+  const heatmapUri = unavailable ? undefined : prediction.gradcam_heatmap
   const displayBytes = useMemo(() => prediction.image_preview ? decodeDataUri(prediction.image_preview) : originalBytes, [prediction.image_preview, originalBytes])
   const blended = blendResult?.source === heatmapUri && blendResult?.bytes === displayBytes ? blendResult.uri : null
   const renderedMap = heatmapUri ? blended : gradcamUri
@@ -63,7 +64,7 @@ export function GradCamView({ prediction, originalBytes, filename = 'image.png',
     setGenerating(true)
     try {
       const updated = await predict(originalBytes, filename, 'gradcam', true, { explanationId: prediction.analysis_id })
-      onPredictionUpdate?.({ ...prediction, gradcam_image: updated.gradcam_image, gradcam_heatmap: updated.gradcam_heatmap, gradcam_class: updated.gradcam_class, image_preview: updated.image_preview ?? prediction.image_preview })
+      onPredictionUpdate?.({ ...prediction, gradcam_image: updated.gradcam_image, gradcam_heatmap: updated.gradcam_heatmap, gradcam_status: updated.gradcam_status, gradcam_class: updated.gradcam_class, image_preview: updated.image_preview ?? prediction.image_preview })
     } catch {
       setError('No se pudo generar el mapa de calor. Intente nuevamente.')
     } finally {
@@ -94,12 +95,12 @@ export function GradCamView({ prediction, originalBytes, filename = 'image.png',
 
         {prediction.gradcam_class && (
           <p className="text-xs text-[var(--fg-subtle)]">
-            Regiones activadas para: <strong>{prediction.gradcam_class}</strong>
+            Clase evaluada: <strong>{prediction.gradcam_class}</strong>
           </p>
         )}
 
         {/* No Grad-CAM yet */}
-        {!gradcamUri && (
+        {!gradcamUri && !unavailable && (
           <div className="text-center py-6">
             <p className="text-sm text-[var(--fg-subtle)] mb-3">
               El análisis rápido no incluye el mapa de calor.
@@ -107,6 +108,17 @@ export function GradCamView({ prediction, originalBytes, filename = 'image.png',
             <Button onClick={handleGenerate} loading={generating} size="md">
               {generating ? 'Generando...' : 'Generar mapa de calor'}
             </Button>
+          </div>
+        )}
+
+        {unavailable && (
+          <div className="space-y-3">
+            <p role="status" className="text-sm text-[var(--fg-muted)]">
+              Mapa no interpretable. No se obtuvo una atribución espacial válida para esta clase.
+              Esto no confirma ni descarta enfermedad.
+            </p>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={originalSrc ?? undefined} alt="Radiografia sin mapa de calor" className="w-full max-w-sm aspect-square object-contain rounded-md bg-[#111111]" />
           </div>
         )}
 

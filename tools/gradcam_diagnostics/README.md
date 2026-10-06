@@ -1,0 +1,47 @@
+# Auditoria exploratoria de Grad-CAM
+
+Estas herramientas comparan explicaciones sin modificar pesos, umbrales o el
+preprocesamiento del servicio. No seleccionan automaticamente un metodo de
+produccion ni miden precision diagnostica. Usan las dependencias del backend.
+
+## Ejecucion
+
+Colocar las imagenes PNG en una carpeta local `muestra/images`. Elegir una salida
+nueva: el programa rechaza carpetas existentes para preservar evidencias.
+
+```powershell
+python tools/gradcam_diagnostics/compare_cam_methods.py --repo . --sample muestra --output resultados_cam --targets Emphysema Effusion Cardiomegaly Mass --extended
+python tools/gradcam_diagnostics/summarize_multiclass_cam.py resultados_cam
+python -m pytest tools/gradcam_diagnostics/test_cam_diagnostics.py tools/gradcam_diagnostics/test_gradcam_block_controls.py -q
+```
+
+`--extended` compara el GradCAM actual de v2 con GradCAM y HiResCAM del score
+ponderado del ensemble. Sin esta opcion compara cinco variantes de capa/metodo.
+La configuracion, clases y hashes se guardan antes de evaluar las imagenes.
+
+El ensemble se explica diferenciando su salida ponderada de sigmoides. Las
+contribuciones firmadas de ambas ramas se suman antes de ReLU y normalizacion.
+No se promedian mapas coloreados ni mapas normalizados por separado.
+
+## Interpretacion
+
+- Un mapa constante, no finito o sin variacion espacial no es una explicacion util.
+- GradCAM puede producir un mapa cero con gradientes no nulos: ReLU elimina
+  contribuciones negativas. No invertir el signo ni usar valor absoluto para
+  fabricar zonas positivas.
+- La prueba exploratoria oculta bloques 32x32 con desenfoque gaussiano y veinte
+  controles aleatorios, semilla 42. Su criterio es una caida positiva mayor que
+  la del bloque de menor atribucion y la media de los controles aleatorios.
+- Los campos heredados `logit_drop` y `baseline_logit` estan en unidades de la
+  salida explicada. Para el ensemble son scores; para v2 son logits. Revisar
+  `output_units` y no comparar magnitudes entre esas salidas.
+- Un control satisfactorio no demuestra localizacion correcta ni diagnostico.
+  Mantener todos los casos en el denominador, incluidos mapas no interpretables.
+
+Para seleccionar un metodo se requiere validacion etiquetada separada por paciente,
+con clases y criterios fijados antes de evaluar, varios tamanos y rellenos de
+oclusion, y posteriormente una evaluacion independiente con anotaciones de lesiones.
+No ajustar la muestra ni escoger mapas hasta obtener una cifra objetivo como 9/10.
+
+Las salidas contienen imagenes y evidencias privadas. No subirlas ni subir los
+checkpoints, credenciales o enlaces autenticados de descarga al repositorio.

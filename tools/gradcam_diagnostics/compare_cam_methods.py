@@ -1,5 +1,6 @@
 """Bounded exploratory comparison; never selects a production CAM method."""
 import argparse
+import csv
 import hashlib
 import json
 import sys
@@ -15,6 +16,27 @@ from cam_diagnostics import (DiagnosticGradCAM, DiagnosticHiResCAM, DiagnosticLa
 from gradcam_block_controls import evaluate_blocks
 
 
+def case_pairs(files, targets, cohort=None, source_protocol=None):
+    if cohort is None:
+        return [(path, name) for path in files for name in targets]
+    if source_protocol is None:
+        raise ValueError('Frozen cohort protocol is required')
+    digest = hashlib.sha256(cohort.read_bytes()).hexdigest()
+    if digest != source_protocol['selection_sha256']:
+        raise ValueError('Frozen cohort hash mismatch')
+    with cohort.open(newline='', encoding='utf-8') as source:
+        rows = list(csv.DictReader(source))
+    lookup = {path.name: path for path in files}
+    if set(lookup) != {row['image'] for row in rows}:
+        raise ValueError('Sample images must exactly match the frozen cohort')
+    pairs = [(row['image'], row['target_class']) for row in rows]
+    if len(pairs) != len(set(pairs)) or any(row['split'] != 'val' for row in rows):
+        raise ValueError('Duplicate pairs or non-validation cohort')
+    if any(name not in targets for _, name in pairs):
+        raise ValueError('Cohort target is outside requested classes')
+    return [(lookup[image], name) for image, name in pairs]
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--repo', type=Path, required=True)
@@ -22,6 +44,9 @@ def main():
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--targets', nargs='+', default=['Emphysema'])
     parser.add_argument('--extended', action='store_true')
+    parser.add_argument('--cohort', type=Path)
+    parser.add_argument('--device', choices=['cpu', 'cuda', 'auto'], default='cpu')
+    parser.add_argument('--robust-controls', action='store_true')
     args = parser.parse_args()
     if args.output.exists():
         raise FileExistsError('Evidence is never overwritten')
@@ -30,6 +55,11 @@ def main():
     from services.model_service import CLASSES_14
     from utils.image_utils import preprocess_for_model
     torch.set_num_threads(2)
+    device = 'cuda' if args.device == 'auto' and torch.cuda.is_available() else args.device
+    if device == 'auto':
+        device = 'cpu'
+    if device == 'cuda' and not torch.cuda.is_available():
+        raise ValueError('CUDA was requested but is unavailable')
     if len(set(args.targets)) != len(args.targets) or any(name not in CLASSES_14 for name in args.targets):
         raise ValueError('Unknown class')
     artifacts = args.repo / 'backend' / 'artifacts'
@@ -42,7 +72,7 @@ def main():
                        embedding_dim=cfg['embedding_dim'], num_heads=cfg['num_heads'],
                        num_layers=cfg[f'num_layers_{version}'], mlp_dim=cfg['mlp_dim'])
         model.load_state_dict(torch.load(path, map_location='cpu', weights_only=True)['model_state_dict'])
-        models[version] = model.eval()
+        models[version] = model.eval().to(device)
         hashes[version] = hashlib.sha256(path.read_bytes()).hexdigest()
     v1, v2 = models['v1'], models['v2']
     wrapper = EnsembleScore(v1, v2, ens['weight_v1'], ens['weight_v2'], ens.get('temperature', 1.0)).eval()
@@ -61,19 +91,29 @@ def main():
     files = sorted((args.sample / 'images').glob('*.png'))
     if not files:
         raise ValueError('No PNG images found in sample/images')
+    frozen_protocol = None
+    if args.cohort:
+        frozen_protocol = json.loads((args.sample / 'protocol.json').read_text())
+    elif (args.sample / 'selection.private.csv').exists():
+        raise ValueError('Use --cohort for a frozen balanced sample')
+    pairs = case_pairs(files, args.targets, args.cohort, frozen_protocol)
     args.output.mkdir(parents=True)
     protocol = {'variants': [v[0] for v in variants], 'targets': args.targets,
                 'images': [p.name for p in files], 'checkpoint_sha256': hashes,
-                'occlusion': '32x32 gaussian_blur, 20 random controls',
+                'device': device,
+                'occlusion': ('32x32 and 64x64; image_mean and gaussian_blur; 20 random controls each'
+                              if args.robust_controls else '32x32 gaussian_blur, 20 random controls'),
+                'cohort_sha256': frozen_protocol['selection_sha256'] if frozen_protocol else None,
+                'image_class_pairs': len(pairs),
                 'limitations': ['Convenience sample; labels and split membership unverified',
                                 'Exploratory only; no clinical validation or method selection',
                                 'Ensemble drops are score units; v2 drops are logit units']}
     (args.output / 'protocol.json').write_text(json.dumps(protocol, indent=2))
     rows = []
-    for path, target_name in [(p, name) for p in files for name in args.targets]:
+    for path, target_name in pairs:
         target = CLASSES_14.index(target_name)
         pixels = np.array(Image.open(path).convert('L'))
-        tensor = preprocess_for_model(pixels)
+        tensor = preprocess_for_model(pixels).to(device)
         for name, model, method, layers, reshape in variants:
             folder = args.output / path.stem / target_name / name
             folder.mkdir(parents=True)
@@ -83,8 +123,10 @@ def main():
                 for i, raw in enumerate(cam.raw_maps):
                     np.save(folder / f'raw_signed_{i}.npy', raw)
             valid = bool(np.isfinite(scalar).all() and np.ptp(scalar) > 1e-8)
-            controls = evaluate_blocks(model, tensor, scalar, target, sizes=(32,),
-                                      repeats=20, fill_names=('gaussian_blur',)) if valid else None
+            controls = evaluate_blocks(model, tensor, scalar, target,
+                                      sizes=(32, 64) if args.robust_controls else (32,), repeats=20,
+                                      fill_names=('image_mean', 'gaussian_blur') if args.robust_controls
+                                      else ('gaussian_blur',)) if valid else None
             row = {'image': path.name, 'method': name, 'image_sha256': hashlib.sha256(path.read_bytes()).hexdigest(),
                    'target_class': target_name, 'output_units': 'score' if model is wrapper else 'logit',
                    'status': 'variable' if valid else 'not_interpretable',

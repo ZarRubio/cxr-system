@@ -3,7 +3,14 @@ import sys
 
 from PIL import Image
 
-from summarize_multiclass_cam import main
+from summarize_multiclass_cam import main, consistent
+
+
+def test_every_prespecified_control_must_pass():
+    good = {'high_logit_drop': .3, 'low_logit_drop': .1, 'random_mean_logit_drop': .2}
+    bad = dict(good, high_logit_drop=.05)
+    assert consistent({'status': 'variable', 'controls': {'controls': [good, good]}})
+    assert not consistent({'status': 'variable', 'controls': {'controls': [good, bad]}})
 
 
 def test_report_keeps_uninterpretable_cases_and_label_denominators(tmp_path, monkeypatch):

@@ -11,9 +11,10 @@ from PIL import Image, ImageDraw
 def consistent(row):
     if row['status'] != 'variable':
         return False
-    control = row['controls']['controls'][0]
-    high = control['high_logit_drop']
-    return high > 0 and high > control['low_logit_drop'] and high > control['random_mean_logit_drop']
+    controls = row['controls']['controls']
+    return bool(controls) and all(
+        c['high_logit_drop'] > 0 and c['high_logit_drop'] > c['low_logit_drop']
+        and c['high_logit_drop'] > c['random_mean_logit_drop'] for c in controls)
 
 
 def main():
@@ -40,7 +41,7 @@ def main():
     (args.root / 'counts.json').write_text(json.dumps(counts, indent=2))
     # Every case is shown, including empty maps. No post-hoc visual selection.
     for target in report['protocol']['targets']:
-        images = report['protocol']['images']
+        images = sorted({row['image'] for row in report['cases'] if row['target_class'] == target})
         methods = report['protocol']['variants']
         canvas = Image.new('RGB', (224*len(methods), 264*len(images)), 'white')
         draw = ImageDraw.Draw(canvas)
@@ -64,8 +65,9 @@ def main():
              '| --- | --- | --- | --- |']
     for row in counts:
         lines.append(f"| {row['class']} | {row['method']} | {row['variable']}/{row['total']} | {row['consistent']}/{row['total']} |")
-    lines.extend(['', 'Control: 32x32 Gaussian blur, twenty random blocks, seed 42.',
+    lines.extend(['', 'Controls: ' + report['protocol'].get('occlusion', 'See protocol.json') + '; base seed 42.',
                   'Pass: positive output drop larger than both the low-attribution drop and the random mean.',
+                  'When several controls are specified, all must pass; no best-condition selection.',
                   'No statistical significance or generalization claim. Do not tune methods on these cases to reach 9/10.',
                   'Output units differ: ensemble score versus v2 logit. Do not compare drop magnitudes across these outputs.',
                   'Next: frozen labeled patient-disjoint validation and multiple block sizes/fills, followed by an independent localization evaluation.'])

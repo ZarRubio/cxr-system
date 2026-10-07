@@ -53,3 +53,29 @@ No ajustar la muestra ni escoger mapas hasta obtener una cifra objetivo como 9/1
 
 Las salidas contienen imagenes y evidencias privadas. No subirlas ni subir los
 checkpoints, credenciales o enlaces autenticados de descarga al repositorio.
+
+## Cohorte balanceada fija
+
+`prepare_cam_cohort.py` utiliza solo `val.csv`, verifica su hash contra el manifest
+y fija diez positivos/diez negativos por clase, con pacientes distintos en toda
+la muestra. No selecciona segun scores o mapas; admite exclusion de pacientes ya
+inspeccionados. `materialize_cam_cohort.py` verifica la seleccion y copia PNG de
+resolucion original sin cambiar pixeles. Falla si faltan imagenes, hay duplicados
+o solo estan disponibles PNG reducidos; no sustituye casos.
+
+```text
+python tools/gradcam_diagnostics/prepare_cam_cohort.py --val SPLITS/val.csv --manifest SPLITS/manifest.json --output COHORTE_NUEVA
+python tools/gradcam_diagnostics/materialize_cam_cohort.py --cohort COHORTE_NUEVA --images-root ORIGINALES --output MUESTRA_NUEVA
+python tools/gradcam_diagnostics/compare_cam_methods.py --repo . --sample MUESTRA_NUEVA --cohort MUESTRA_NUEVA/selection.private.csv --output RESULTADOS_NUEVOS --targets Emphysema Effusion Cardiomegaly Mass --extended --robust-controls --device auto
+python tools/gradcam_diagnostics/summarize_multiclass_cam.py RESULTADOS_NUEVOS --labels MUESTRA_NUEVA/labels.private.json
+```
+
+`--cohort` evalua solo los pares imagen-clase fijados, no un cruce de todas las
+imagenes y clases. `--robust-controls` prueba tamanos 32/64 y rellenos media/desenfoque;
+el informe exige que TODAS las condiciones pasen. `--device auto` usa CUDA cuando
+esta disponible y registra el dispositivo. Comparar todos los metodos bajo la
+misma configuracion; no mezclar ejecuciones CPU/GPU como si fueran una sola.
+
+La cohorte es exploratoria para los pesos historicos: val nuevo no implica que
+estos pesos nunca hayan visto a sus pacientes. No incluye anotaciones de lesiones
+ni convierte controles de oclusion en medidas de localizacion o diagnostico.

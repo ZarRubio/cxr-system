@@ -15,6 +15,14 @@ python tools/gradcam_diagnostics/summarize_multiclass_cam.py resultados_cam
 python -m pytest tools/gradcam_diagnostics/test_cam_diagnostics.py tools/gradcam_diagnostics/test_gradcam_block_controls.py -q
 ```
 
+Para cruzar etiquetas sin cambiar los controles, el informe admite
+`--labels etiquetas.private.json`: una lista JSON con `image` y columnas por
+clase, usando 0/1 o "0"/"1". Conserva todos los casos y agrega el denominador
+positivo por clase; 0/0 significa que no hay casos positivos, no precision cero.
+El informe calcula el numero real de imagenes y prefijos de paciente.
+Las etiquetas NIH son referencias potencialmente ruidosas, no anotaciones de lesiones.
+Una particion nueva no convierte pesos historicos en un modelo con test independiente.
+
 `--extended` compara el GradCAM actual de v2 con GradCAM y HiResCAM del score
 ponderado del ensemble. Sin esta opcion compara cinco variantes de capa/metodo.
 La configuracion, clases y hashes se guardan antes de evaluar las imagenes.

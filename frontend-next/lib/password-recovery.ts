@@ -8,6 +8,12 @@ import { consumeLimit, mutateSecurity, securityId } from './security-state'
 
 export const RECOVERY_MESSAGE = 'Si existe una cuenta activa con ese correo, recibira un codigo valido durante 10 minutos.'
 
+export class RecoveryRequestError extends Error {
+  constructor(message: string, public readonly status: number) {
+    super(message)
+  }
+}
+
 function digest(requestId: string, code: string): string {
   const secret = process.env.AUTH_SECRET
   if (!secret || secret.length < 32) throw new Error('Servicio de recuperacion no configurado.')
@@ -24,11 +30,12 @@ export async function requestPasswordRecovery(emailInput: unknown, ip: string, s
   const requestId = randomUUID()
   const code = String(randomInt(0, 1_000_000)).padStart(6, '0')
   const codeHash = digest(requestId, code)
-  if (!(await consumeLimit(`recovery-ip:${ip}`, 10, 900_000))) return requestId
-  if (!(await consumeLimit(`recovery-email:${email}`, 1, 60_000))) return requestId
+  if (!(await consumeLimit(`recovery-ip:${ip}`, 10, 900_000))) throw new RecoveryRequestError('Demasiadas solicitudes. Intente mas tarde.', 429)
+  if (!(await consumeLimit(`recovery-email:${email}`, 1, 60_000))) throw new RecoveryRequestError('Espere un minuto antes de solicitar otro codigo.', 429)
   const users = (await getDataStore().getUsersByEmail(email)).filter(u => u.active)
   // Ambiguous legacy emails must be resolved by an administrator, never pick a random account.
-  if (users.length !== 1) return requestId
+  if (users.length === 0) throw new RecoveryRequestError('El correo no esta registrado en una cuenta activa.', 400)
+  if (users.length !== 1) throw new RecoveryRequestError('No se puede recuperar esta cuenta por correo. Contacte al administrador.', 400)
   const user = users[0]
   await mutateSecurity(`recovery:${requestId}`, () => ({ data: {
     userId: user.id, previousPassword: user.password, email, codeHash, attempts: 0,

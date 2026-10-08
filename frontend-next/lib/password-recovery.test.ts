@@ -48,10 +48,25 @@ describe('password recovery', () => {
     for (let i = 0; i < 5; i++) expect(await completePasswordRecovery(id, wrong, 'new-password-test-123', 'ip')).toBe(false)
     expect(await completePasswordRecovery(id, code, 'new-password-test-123', 'ip')).toBe(false)
   })
-  it('does not reveal unknown or duplicate emails through the response shape', async () => {
+  it('rejects unknown emails without creating a challenge or sending mail', async () => {
     mocks.getUsersByEmail.mockResolvedValue([])
-    expect(await requestPasswordRecovery('unknown@example.com', 'ip')).toMatch(/^[a-f0-9-]{36}$/)
+    await expect(requestPasswordRecovery('unknown@example.com', 'ip')).rejects.toThrow('El correo no esta registrado')
     expect(mocks.sendMail).not.toHaveBeenCalled()
+  })
+  it('rejects disabled accounts without sending mail', async () => {
+    mocks.getUsersByEmail.mockResolvedValue([{ ...user, active: false }])
+    await expect(requestPasswordRecovery(user.email, 'ip')).rejects.toThrow('El correo no esta registrado')
+    expect(mocks.sendMail).not.toHaveBeenCalled()
+  })
+  it('rejects duplicate active emails instead of selecting an account', async () => {
+    mocks.getUsersByEmail.mockResolvedValue([user, { ...user, id: 'other' }])
+    await expect(requestPasswordRecovery(user.email, 'ip')).rejects.toThrow('Contacte al administrador')
+    expect(mocks.sendMail).not.toHaveBeenCalled()
+  })
+  it('rejects repeated requests without resending mail', async () => {
+    await challenge()
+    await expect(requestPasswordRecovery(user.email, '127.0.0.1')).rejects.toMatchObject({ status: 429 })
+    expect(mocks.sendMail).toHaveBeenCalledTimes(1)
   })
   it('rejects expired codes', async () => {
     const { id, code } = await challenge()

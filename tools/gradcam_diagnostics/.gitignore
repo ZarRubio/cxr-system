@@ -1,0 +1,9 @@
+__pycache__/
+.pytest_cache/
+*.png
+*.npy
+*.npz
+*.pt
+*.pth
+*private*.json
+*private*.csv

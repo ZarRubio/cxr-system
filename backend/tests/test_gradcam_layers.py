@@ -60,3 +60,21 @@ def test_occlusion_detects_known_dependency_and_restores_mode():
 def test_constant_cam_is_not_presented_as_evidence():
     with pytest.raises(ValueError, match='constant'):
         evaluate_occlusion(CornerModel(), torch.zeros(1, 1, 4, 4), np.zeros((4, 4)), 0)
+
+
+@pytest.mark.parametrize('value', [0.0, 1.0, float('nan'), float('inf')])
+def test_uninterpretable_cam_has_no_encoded_map(monkeypatch, value):
+    class FakeCAM:
+        def __init__(self, **kwargs):
+            pass
+        def __enter__(self):
+            return self
+        def __exit__(self, *args):
+            pass
+        def __call__(self, **kwargs):
+            return np.full((1, 224, 224), value)
+    monkeypatch.setattr(gradcam_service, 'GradCAM', FakeCAM)
+    model = SimpleNamespace(cnn_features=SimpleNamespace(denseblock4=object()))
+    assert gradcam_service.generate_gradcam_layers(
+        model, torch.zeros(1, 1, 224, 224), np.zeros((224, 224), dtype=np.uint8), 0
+    ) == ('', '')

@@ -266,7 +266,7 @@ function HistoryContent() {
                 <tr className="border-b border-[var(--border-subtle)] bg-[var(--surface2)]">
                   <th className="tech-label text-left px-4 py-3">Fecha</th>
                   <th className="tech-label text-left px-4 py-3">Estudio</th>
-                  {isAdmin && <th className="tech-label text-left px-4 py-3">Radiólogo</th>}
+                  {isAdmin && <th className="tech-label text-left px-4 py-3">Registrado por</th>}
                   <th className="tech-label text-left px-4 py-3">Hallazgo</th>
                   <th className="tech-label text-left px-4 py-3">Prioridad IA</th>
                   <th className="tech-label text-left px-4 py-3">Validación</th>
@@ -530,7 +530,7 @@ function HistoryDetail({ analysis, canValidate, isAdmin }: { analysis: AnalysisR
         {analysis.batchId && (
           <span>Lote <span className="readout font-bold text-[var(--primary)]">{analysis.batchId}</span></span>
         )}
-        <span>Dr(a). {analysis.userName}</span>
+        <span>Registrado por: {analysis.userName}</span>
         {analysis.patientAge != null && <span>Edad: {analysis.patientAge} años</span>}
         {analysis.patientSex && <span>Sexo: {analysis.patientSex}</span>}
         {analysis.projection && <span>Proyección: {analysis.projection}</span>}

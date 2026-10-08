@@ -205,6 +205,7 @@ export async function buildPdf(
   if (meta?.clinicalIndication) y = kvRow('Indicación clínica',  meta.clinicalIndication, y)
   y = kvRow('Fecha del informe', now, y)
   if (prediction.analysis_id) y = kvRow('ID de análisis', prediction.analysis_id, y)
+  if (meta?.radiologistName) y = kvRow('Registrado por', meta.radiologistName, y)
   y = kvRow('Revisión profesional', feedback ? 'Concordancia o discrepancia registrada; no equivale a firma del informe.' : 'Pendiente de validación del radiólogo.', y)
   y = kvRow('Prioridad profesional', feedback?.reviewPriority ? ({ routine: 'Habitual', priority: 'Prioritaria', urgent: 'Urgente' })[feedback.reviewPriority] : 'No registrada. La alerta de IA no determina gravedad clinica.', y)
   if (meta?.analyzedAt) y = kvRow('Fecha del análisis', new Date(meta.analyzedAt).toLocaleString('es-PE', { timeZone: 'America/Lima' }), y)
@@ -555,14 +556,14 @@ export async function buildPdf(
   doc.setFontSize(8)
   doc.setTextColor(15, 23, 42)
   doc.text(
-    meta?.radiologistName ? meta.radiologistName : 'Médico radiólogo',
+    'Profesional validador: __________________',
     M + SIG_W / 2, SIG_Y + 43, { align: 'center' }
   )
   doc.setFont('helvetica', 'normal')
   doc.setFontSize(7.5)
   doc.setTextColor(100, 116, 139)
   doc.text(
-    meta?.radiologistCmp ? `CMP ${meta.radiologistCmp}` : 'CMP ______',
+    'CMP ______',
     M + SIG_W / 2, SIG_Y + 52, { align: 'center' }
   )
   doc.setFont('helvetica', 'normal')

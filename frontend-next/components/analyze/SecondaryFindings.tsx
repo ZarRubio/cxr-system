@@ -67,7 +67,7 @@ export function SecondaryFindings({ prediction, thresholds }: SecondaryFindingsP
             </h4>
           </div>
           <p className="text-[11px] text-[var(--fg-subtle)] mb-2 leading-4">
-            Señales débiles (10–umbral%). No superan el umbral diagnóstico pero pueden ser relevantes en contexto clínico.
+            Señales débiles (10–umbral%). No superan el umbral del modelo y requieren interpretación profesional.
           </p>
           <div className="space-y-1.5">
             {subThreshold

@@ -22,7 +22,7 @@ export function ProbabilityBars({ prediction, thresholds }: ProbabilityBarsProps
         Score IA por clase
       </h4>
       <p className="text-[10px] text-[var(--fg-subtle)] mb-3">
-        La línea vertical indica el umbral diagnóstico por clase. Las barras que la superan son hallazgos positivos.
+        La línea vertical indica el umbral del modelo por clase. Las barras que la superan son clases sobre umbral, no diagnósticos confirmados.
       </p>
       {visible.map(([cls, prob]) => {
         const severity = getSeverity(cls)

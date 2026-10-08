@@ -16,7 +16,10 @@ const prediction: Prediction = {
 
 describe('buildPdf desde el historial (sin imagen)', () => {
   it('identifies the recording account without assigning it a professional signature', async () => {
-    const bytes = await buildPdf('img.png', null, prediction, '', { radiologistName: 'Administrador', radiologistCmp: '999999' })
+    const bytes = await buildPdf('img.png', null, prediction, '', {
+      studyId: 'TEST-AUTHOR', projection: 'Otro', clinicalIndication: 'Prueba tecnica',
+      radiologistName: 'Administrador', radiologistCmp: '999999',
+    })
     const source = new TextDecoder('latin1').decode(bytes)
     expect(source).toContain('Registrado por')
     expect(source.match(/Administrador/g)).toHaveLength(1)

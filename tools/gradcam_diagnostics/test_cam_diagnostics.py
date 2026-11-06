@@ -3,7 +3,13 @@ import pytest
 import torch
 from pytorch_grad_cam.utils.model_targets import ClassifierOutputTarget
 
-from cam_diagnostics import DiagnosticGradCAM, EnsembleScore, EnsembleGradCAM, EnsembleHiResCAM, patch_tokens_to_grid
+from cam_diagnostics import (
+    DiagnosticGradCAM,
+    EnsembleGradCAM,
+    EnsembleHiResCAM,
+    EnsembleScore,
+    patch_tokens_to_grid,
+)
 
 
 class Toy(torch.nn.Module):

@@ -4,13 +4,14 @@ import { ChevronDown, ChevronUp } from 'lucide-react'
 import { getSeverity } from '@/lib/utils'
 import { SEVERITY_COLORS } from '@/lib/constants'
 import type { Prediction } from '@/lib/types'
+import { recordedThreshold } from '@/lib/recordedThreshold'
 
 interface ProbabilityBarsProps {
   prediction: Prediction
   thresholds?: Record<string, number>
 }
 
-export function ProbabilityBars({ prediction, thresholds }: ProbabilityBarsProps) {
+export function ProbabilityBars({ prediction }: ProbabilityBarsProps) {
   const [showAll, setShowAll] = useState(false)
   const sorted = Object.entries(prediction.probabilities).sort(([, a], [, b]) => b - a)
   const visible = showAll ? sorted : sorted.filter(([, p]) => p >= 0.03)
@@ -28,7 +29,8 @@ export function ProbabilityBars({ prediction, thresholds }: ProbabilityBarsProps
         const severity = getSeverity(cls)
         const colors   = SEVERITY_COLORS[severity]
         const pct      = prob * 100
-        const thr      = (thresholds?.[cls] ?? 0.3) * 100
+        const threshold = recordedThreshold(prediction, cls)
+        const thr = threshold === undefined ? undefined : threshold * 100
 
         return (
           <div key={cls} className="flex items-center gap-3">
@@ -46,11 +48,11 @@ export function ProbabilityBars({ prediction, thresholds }: ProbabilityBarsProps
                 />
               </div>
               {/* Threshold marker */}
-              <div
+              {thr !== undefined && <div
                 className="absolute top-[-3px] w-[2px] h-[18px] bg-[var(--fg)] opacity-30 rounded"
                 style={{ left: `${thr.toFixed(1)}%` }}
                 title={`Umbral: ${thr.toFixed(0)}%`}
-              />
+              />}
             </div>
             <span
               className="readout w-10 shrink-0 text-right text-xs font-bold"
@@ -58,6 +60,7 @@ export function ProbabilityBars({ prediction, thresholds }: ProbabilityBarsProps
             >
               {pct.toFixed(1)}%
             </span>
+            {thr === undefined && <span className="text-[10px] text-[var(--fg-subtle)]">Umbral no registrado</span>}
           </div>
         )
       })}

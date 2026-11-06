@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { X, ZoomIn, ZoomOut, RotateCcw, Download } from 'lucide-react'
+import * as Dialog from '@radix-ui/react-dialog'
 
 interface ImageLightboxProps {
   originalSrc: string
@@ -25,25 +26,13 @@ export function ImageLightbox({
   const dragStart  = useRef({ x: 0, y: 0, ox: 0, oy: 0 })
   const zoomRef    = useRef(1)       // mirror of zoom for use inside non-React listeners
   const containerRef = useRef<HTMLDivElement>(null)
+  const closeRef = useRef<HTMLButtonElement>(null)
+  const returnFocusRef = useRef<HTMLElement | null>(null)
 
   const clampZoom = (z: number) => Math.min(4, Math.max(1, z))
 
   // Keep zoomRef in sync
   useEffect(() => { zoomRef.current = zoom }, [zoom])
-
-  // Close on Escape
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
-    window.addEventListener('keydown', handler)
-    return () => window.removeEventListener('keydown', handler)
-  }, [onClose])
-
-  // Block page scroll: both body overflow AND a non-passive wheel listener
-  useEffect(() => {
-    const prev = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    return () => { document.body.style.overflow = prev }
-  }, [])
 
   // Non-passive wheel listener on the image area so preventDefault works
   useEffect(() => {
@@ -93,12 +82,26 @@ export function ImageLightbox({
   }
 
   return (
-    <div
+    <Dialog.Root open onOpenChange={open => { if (!open) onClose() }}>
+    <Dialog.Portal>
+    <Dialog.Content
+      aria-modal="true"
       className="fixed inset-0 z-50 flex flex-col bg-black/95"
       style={{ backdropFilter: 'blur(4px)' }}
+      onOpenAutoFocus={event => {
+        returnFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
+        event.preventDefault()
+        closeRef.current?.focus()
+      }}
+      onCloseAutoFocus={event => {
+        event.preventDefault()
+        returnFocusRef.current?.focus()
+      }}
     >
+      <Dialog.Title className="sr-only">Visor ampliado del mapa Grad-CAM</Dialog.Title>
+      <Dialog.Description className="sr-only">Comparacion de la radiografia original y las regiones que influyeron en el modelo. No confirma una lesion ni su localizacion.</Dialog.Description>
       {/* ── Top bar ── */}
-      <div className="flex items-center justify-between px-5 py-3 border-b border-white/10 shrink-0">
+      <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-b border-white/10 shrink-0">
         <div>
           <p className="text-sm font-bold text-white">Mapa de activación — Grad-CAM</p>
           {gradcamClass && (
@@ -108,7 +111,7 @@ export function ImageLightbox({
           )}
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex w-full min-w-0 flex-wrap items-center gap-2 sm:w-auto">
           {/* Zoom controls */}
           <button
             onClick={() => setZoom((z) => clampZoom(z - 0.25))}
@@ -156,7 +159,11 @@ export function ImageLightbox({
           <div className="w-px h-5 bg-white/20 mx-1" />
 
           <button
+            ref={closeRef}
+            type="button"
             onClick={onClose}
+            aria-label="Cerrar visor del mapa"
+            title="Cerrar visor del mapa"
             className="p-2 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
           >
             <X size={18} />
@@ -230,6 +237,7 @@ export function ImageLightbox({
         <span className="text-xs text-white/50 shrink-0">Opacidad del mapa:</span>
         <input
           type="range"
+          aria-label="Opacidad del mapa ampliado"
           min={0} max={100} step={5}
           value={Math.round(opacity * 100)}
           onChange={(e) => onOpacityChange(Number(e.target.value) / 100)}
@@ -238,10 +246,12 @@ export function ImageLightbox({
         <span className="readout text-xs font-bold text-white/70 w-10 text-right">
           {Math.round(opacity * 100)}%
         </span>
-        <p className="text-[10px] text-white/30 ml-2 shrink-0">
-          Rueda del ratón para zoom · Arrastar para desplazar
+        <p className="hidden sm:block text-[10px] text-white/30 ml-2 shrink-0">
+          Rueda del ratón para zoom · Arrastrar para desplazar
         </p>
       </div>
-    </div>
+    </Dialog.Content>
+    </Dialog.Portal>
+    </Dialog.Root>
   )
 }

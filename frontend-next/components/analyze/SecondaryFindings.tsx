@@ -2,13 +2,14 @@ import { Info, Eye } from 'lucide-react'
 import { getSeverity } from '@/lib/utils'
 import { SEVERITY_COLORS, BADGES } from '@/lib/constants'
 import type { Prediction } from '@/lib/types'
+import { recordedThreshold } from '@/lib/recordedThreshold'
 
 interface SecondaryFindingsProps {
   prediction: Prediction
   thresholds?: Record<string, number>
 }
 
-export function SecondaryFindings({ prediction, thresholds }: SecondaryFindingsProps) {
+export function SecondaryFindings({ prediction }: SecondaryFindingsProps) {
   const predicted  = prediction.predicted_class
   const additional = (prediction.positive_findings ?? []).filter((f) => f !== predicted)
   const subThreshold = prediction.sub_threshold_findings ?? []
@@ -30,7 +31,7 @@ export function SecondaryFindings({ prediction, thresholds }: SecondaryFindingsP
           <div className="space-y-2">
             {additional.map((cls) => {
               const prob = prediction.probabilities[cls] ?? 0
-              const thr  = thresholds?.[cls] ?? 0.3
+              const thr = recordedThreshold(prediction, cls)
               const sv   = getSeverity(cls)
               const c    = SEVERITY_COLORS[sv]
               return (
@@ -48,7 +49,7 @@ export function SecondaryFindings({ prediction, thresholds }: SecondaryFindingsP
                     {(prob * 100).toFixed(1)}%
                   </span>
                   <span className="readout text-[10px] text-[var(--fg-subtle)]">
-                    (umbral {(thr * 100).toFixed(0)}%)
+                    {thr === undefined ? '(umbral no registrado)' : `(umbral ${(thr * 100).toFixed(0)}%)`}
                   </span>
                 </div>
               )

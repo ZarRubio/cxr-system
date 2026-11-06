@@ -38,3 +38,18 @@ def test_report_keeps_uninterpretable_cases_and_label_denominators(tmp_path, mon
     report = (tmp_path / 'RESULTADOS.md').read_text()
     assert '2 images, 2 distinct' in report
     assert 'not an independent test' in report
+
+
+def test_targets_without_cases_and_missing_overlays_do_not_crash(tmp_path, monkeypatch):
+    row = {'image': '00000001_000.png', 'target_class': 'Effusion', 'method': 'method',
+           'status': 'not_interpretable', 'controls': None}
+    protocol = {'images': [row['image']], 'variants': ['method'], 'targets': ['Effusion', 'Pneumonia']}
+    (tmp_path / 'summary.json').write_text(json.dumps({'protocol': protocol, 'cases': [row]}))
+    folder = tmp_path / '00000001_000' / 'Effusion' / 'method'
+    folder.mkdir(parents=True)
+    (folder / 'report.json').write_text(json.dumps(row))
+    monkeypatch.setattr(sys, 'argv', ['summarize', str(tmp_path)])
+    main()
+    assert (tmp_path / 'panel_Effusion.png').exists()
+    assert not (tmp_path / 'panel_Pneumonia.png').exists()
+    assert (tmp_path / 'RESULTADOS.md').exists()

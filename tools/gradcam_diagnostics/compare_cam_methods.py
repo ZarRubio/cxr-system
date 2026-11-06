@@ -24,6 +24,8 @@ def case_pairs(files, targets, cohort=None, source_protocol=None):
     digest = hashlib.sha256(cohort.read_bytes()).hexdigest()
     if digest != source_protocol['selection_sha256']:
         raise ValueError('Frozen cohort hash mismatch')
+    if source_protocol.get('split') != 'val':
+        raise ValueError('Frozen cohort protocol must declare the validation split')
     with cohort.open(newline='', encoding='utf-8') as source:
         rows = list(csv.DictReader(source))
     lookup = {path.name: path for path in files}
@@ -55,9 +57,10 @@ def main():
     from services.model_service import CLASSES_14
     from utils.image_utils import preprocess_for_model
     torch.set_num_threads(2)
-    device = 'cuda' if args.device == 'auto' and torch.cuda.is_available() else args.device
-    if device == 'auto':
-        device = 'cpu'
+    if args.device == 'auto':
+        device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    else:
+        device = args.device
     if device == 'cuda' and not torch.cuda.is_available():
         raise ValueError('CUDA was requested but is unavailable')
     if len(set(args.targets)) != len(args.targets) or any(name not in CLASSES_14 for name in args.targets):
@@ -105,7 +108,9 @@ def main():
                               if args.robust_controls else '32x32 gaussian_blur, 20 random controls'),
                 'cohort_sha256': frozen_protocol['selection_sha256'] if frozen_protocol else None,
                 'image_class_pairs': len(pairs),
-                'limitations': ['Convenience sample; labels and split membership unverified',
+                'limitations': [('Frozen validation cohort; selection hash verified against protocol.json'
+                                 if frozen_protocol else
+                                 'Convenience sample; labels and split membership unverified'),
                                 'Exploratory only; no clinical validation or method selection',
                                 'Ensemble drops are score units; v2 drops are logit units']}
     (args.output / 'protocol.json').write_text(json.dumps(protocol, indent=2))
@@ -114,6 +119,8 @@ def main():
         target = CLASSES_14.index(target_name)
         pixels = np.array(Image.open(path).convert('L'))
         tensor = preprocess_for_model(pixels).to(device)
+        image_sha256 = hashlib.sha256(path.read_bytes()).hexdigest()
+        rgb = np.repeat(cv2.resize(pixels, (224, 224))[:, :, None], 3, axis=2)
         for name, model, method, layers, reshape in variants:
             folder = args.output / path.stem / target_name / name
             folder.mkdir(parents=True)
@@ -127,15 +134,17 @@ def main():
                                       sizes=(32, 64) if args.robust_controls else (32,), repeats=20,
                                       fill_names=('image_mean', 'gaussian_blur') if args.robust_controls
                                       else ('gaussian_blur',)) if valid else None
-            row = {'image': path.name, 'method': name, 'image_sha256': hashlib.sha256(path.read_bytes()).hexdigest(),
+            row = {'image': path.name, 'method': name, 'image_sha256': image_sha256,
                    'target_class': target_name, 'output_units': 'score' if model is wrapper else 'logit',
                    'status': 'variable' if valid else 'not_interpretable',
                    'diagnostics': diagnostics, 'controls': controls}
             np.save(folder / 'scalar_cam.npy', scalar)
-            rgb = np.repeat(cv2.resize(pixels, (224, 224))[:, :, None], 3, axis=2)
-            heat = cv2.cvtColor(cv2.applyColorMap((scalar*255).astype('uint8'), cv2.COLORMAP_JET), cv2.COLOR_BGR2RGB)
-            alpha = .4 * scalar[:, :, None]
-            Image.fromarray(np.clip(rgb*(1-alpha)+heat*alpha, 0, 255).astype('uint8')).save(folder / 'overlay.png')
+            if valid:
+                # Uninterpretable maps get no overlay: never render a fabricated heatmap.
+                heat = cv2.cvtColor(cv2.applyColorMap((scalar*255).astype('uint8'), cv2.COLORMAP_JET),
+                                    cv2.COLOR_BGR2RGB)
+                alpha = .4 * scalar[:, :, None]
+                Image.fromarray(np.clip(rgb*(1-alpha)+heat*alpha, 0, 255).astype('uint8')).save(folder / 'overlay.png')
             (folder / 'report.json').write_text(json.dumps(row, indent=2))
             rows.append(row)
             print(path.name, target_name, name, row['status'], flush=True)

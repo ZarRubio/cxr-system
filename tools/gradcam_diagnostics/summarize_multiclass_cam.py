@@ -42,6 +42,8 @@ def main():
     # Every case is shown, including empty maps. No post-hoc visual selection.
     for target in report['protocol']['targets']:
         images = sorted({row['image'] for row in report['cases'] if row['target_class'] == target})
+        if not images:
+            continue
         methods = report['protocol']['variants']
         canvas = Image.new('RGB', (224*len(methods), 264*len(images)), 'white')
         draw = ImageDraw.Draw(canvas)
@@ -49,7 +51,11 @@ def main():
             for x, method in enumerate(methods):
                 path = args.root / Path(name).stem / target / method
                 row = json.loads((path / 'report.json').read_text())
-                canvas.paste(Image.open(path / 'overlay.png'), (224*x, 264*y+40))
+                overlay = path / 'overlay.png'
+                if overlay.exists():
+                    canvas.paste(Image.open(overlay), (224*x, 264*y+40))
+                else:
+                    draw.rectangle((224*x, 264*y+40, 224*x+223, 264*y+263), fill='lightgray')
                 label = f'{name}\n{method}\n' + ('control passes' if consistent(row) else row['status'])
                 draw.multiline_text((224*x+4, 264*y+2), label, fill='black', spacing=0)
         canvas.save(args.root / f'panel_{target}.png')

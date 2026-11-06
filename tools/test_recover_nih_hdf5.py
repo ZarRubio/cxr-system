@@ -9,7 +9,7 @@ import h5py
 import numpy as np
 from PIL import Image
 
-from recover_nih_hdf5 import IMAGE_PREFIX, CSV_MEMBER, restore, sha256_file
+from recover_nih_hdf5 import CSV_MEMBER, IMAGE_PREFIX, restore, sha256_file
 
 
 class TestNIHRecovery(unittest.TestCase):

@@ -233,19 +233,25 @@ nombre de archivo, indicación clínica ni datos demográficos del paciente.
 - El secreto de GitHub solo estará disponible tras desplegar el nuevo workflow. En local, configurar SMTP en `.env.local` y `AUTH_URL`.
 
 ```bash
-# Backend: 100 tests
+# Backend
 cd backend
 CXR_SKIP_MODEL_LOAD=1 python -m pytest tests/ -q
 python -m ruff check .
 
+# Herramientas de investigación (desde la raíz; requieren también tools/requirements.txt)
+pip install -r tools/requirements.txt
+python -m pytest tools -q
+python -m ruff check tools
+
 # Frontend
 cd frontend-next
-npm run lint && npx tsc --noEmit && npm run build
+npm run lint && npx tsc --noEmit && npm test && npm run build
 ```
 
 ## Despliegue (CI/CD)
 
-- **`ci.yml`**: en cada PR — ruff + pytest (backend), eslint + tsc + build (frontend).
+- **`ci.yml`**: en cada PR — ruff + pytest (backend), ruff + pytest (`tools/`),
+  eslint + tsc + vitest + build (frontend).
 - **`deploy.yml`**: en cada push a `master` — corre CI como gate, descarga checkpoints de GCS,
   genera y verifica un manifiesto SHA-256, construye imágenes, publica en Artifact Registry y
   despliega a Cloud Run (`us-central1`).
@@ -293,14 +299,15 @@ cxr-system/
 │   ├── utils/                      # image_utils, cache (LRU thread-safe)
 │   ├── models/cnn_vit.py           # Arquitectura CNN-ViT
 │   ├── schemas/prediction.py       # Modelos Pydantic
-│   ├── tests/                      # 80 tests
+│   ├── tests/                      # pytest (CXR_SKIP_MODEL_LOAD=1)
 │   └── Dockerfile                  # non-root, pre-descarga de pesos
 ├── frontend-next/
 │   ├── app/                        # Páginas + rutas /api (proxy autenticado)
 │   ├── lib/                        # api, backend (proxy), db (SQLite), user-store, pdf
 │   ├── components/                 # analyze/, layout/, ui/
 │   └── Dockerfile                  # multi-stage, non-root, standalone
-├── .github/workflows/              # ci.yml + deploy.yml
+├── tools/                          # Reproducción, calibración y auditorías offline del modelo
+├── .github/workflows/              # ci.yml + deploy.yml + firestore-backup.yml
 └── docker-compose.yml
 ```
 

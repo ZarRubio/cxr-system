@@ -70,8 +70,8 @@ class EnsembleGradCAM(DiagnosticGradCAM):
             raise ValueError('Ensemble branch maps must have the same spatial grid')
         # Gradients already include ensemble weights and temperature. Sum signed
         # branch contributions before ReLU/normalization; never average RGB maps.
-        combined = np.maximum(np.sum(raw, axis=0), 0)
         self.combined_raw = np.sum(raw, axis=0)
+        combined = np.maximum(self.combined_raw, 0)
         normalized = []
         width, height = self.get_target_width_height(input_tensor)
         for item in combined:

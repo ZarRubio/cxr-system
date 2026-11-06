@@ -7,7 +7,7 @@ geometria invalida. La API comunica `not_interpretable`; la interfaz conserva la
 imagen de entrada sin mostrar un falso mapa ni su control de opacidad. No cambian
 pesos, umbrales, preprocesamiento ni correos. Los metodos nuevos permanecen offline.
 
-Las herramientas estan en `tools/gradcam_diagnostics`; sus diez pruebas y Ruff
+Las herramientas estan en `tools/gradcam_diagnostics`; sus 19 pruebas y Ruff
 pasaron localmente. Los cambios anteriores tambien pasaron CI de backend y frontend.
 
 ## Diez casos adicionales, cuatro clases

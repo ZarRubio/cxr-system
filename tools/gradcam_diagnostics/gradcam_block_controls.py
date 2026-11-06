@@ -43,11 +43,11 @@ def evaluate_blocks(model, tensor, cam, target, sizes=(32, 64), repeats=20, seed
                 for fill_name, fill in fills.items():
                     if fill_name not in fill_names:
                         continue
-                    drops = []
-                    for y, x in positions:
-                        masked = tensor.clone()
-                        masked[:, :, y:y+side, x:x+side] = fill[:, :, y:y+side, x:x+side]
-                        drops.append(baseline - float(model(masked)[0, target]))
+                    masked = tensor.repeat(len(positions), 1, 1, 1)
+                    for i, (y, x) in enumerate(positions):
+                        masked[i, :, y:y+side, x:x+side] = fill[0, :, y:y+side, x:x+side]
+                    # One batched forward per size/fill instead of one per block.
+                    drops = (baseline - model(masked)[:, target]).tolist()
                     results.append({
                         'side': side, 'pixels': side**2, 'fill': fill_name,
                         'boxes_yxyx': boxes, 'cam_block_means': [float(means[y, x]) for y, x in positions],

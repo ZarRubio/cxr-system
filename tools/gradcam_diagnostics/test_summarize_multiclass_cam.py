@@ -3,7 +3,7 @@ import sys
 
 from PIL import Image
 
-from summarize_multiclass_cam import main, consistent
+from summarize_multiclass_cam import consistent, main
 
 
 def test_every_prespecified_control_must_pass():

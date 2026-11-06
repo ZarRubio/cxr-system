@@ -11,8 +11,16 @@ import numpy as np
 import torch
 from PIL import Image
 from pytorch_grad_cam.utils.model_targets import ClassifierOutputTarget
-from cam_diagnostics import (DiagnosticGradCAM, DiagnosticHiResCAM, DiagnosticLayerCAM,
-                             EnsembleScore, EnsembleGradCAM, EnsembleHiResCAM, patch_tokens_to_grid)
+
+from cam_diagnostics import (
+    DiagnosticGradCAM,
+    DiagnosticHiResCAM,
+    DiagnosticLayerCAM,
+    EnsembleGradCAM,
+    EnsembleHiResCAM,
+    EnsembleScore,
+    patch_tokens_to_grid,
+)
 from gradcam_block_controls import evaluate_blocks
 
 

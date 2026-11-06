@@ -7,7 +7,7 @@ import io
 import json
 import sys
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from importlib.metadata import version
 from pathlib import Path
 from zipfile import ZipFile
@@ -237,7 +237,7 @@ def evaluate(archive: Path, hdf5_path: Path, artifacts: Path, output: Path,
             and max_class_auc_delta < 2e-4
             and chosen_weight == reported["weight_v1"]
         ) else "mismatch",
-        "run_utc": datetime.now(timezone.utc).isoformat(),
+        "run_utc": datetime.now(UTC).isoformat(),
         "protocol": "archived_s4ml_val_one_image_per_patient_test_one_image_per_patient",
         "source_sha256": {**source_hashes, **{name: EXPECTED[name] for name in EXPECTED if name not in source_hashes}},
         "versions": {

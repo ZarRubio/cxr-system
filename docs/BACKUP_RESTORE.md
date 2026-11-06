@@ -24,3 +24,23 @@ La aplicacion desplegada guarda usuarios y estudios en Firestore `(default)` del
 4. No apuntar la aplicacion a la base restaurada sin un plan de migracion y validacion independiente. La restauracion crea otra base; no sustituye `(default)` ni recupera datos posteriores a la copia. La prueba de restauracion puede generar cargos adicionales.
 
 Referencias: [Firestore backups](https://cloud.google.com/firestore/docs/backups), [crear programacion](https://cloud.google.com/sdk/gcloud/reference/firestore/backups/schedules/create), [restaurar base](https://cloud.google.com/sdk/gcloud/reference/firestore/databases/restore).
+
+## Permisos requeridos por el workflow
+
+Hasta noviembre de 2026 todas las ejecuciones programadas fallaron con `PERMISSION_DENIED`
+y con la API Cloud Resource Manager deshabilitada. Un administrador del proyecto debe
+habilitar la API y conceder a la cuenta de GitHub Actions los roles de programacion y lectura
+de backups (confirmar los nombres en IAM antes de aplicarlos):
+
+```bash
+gcloud services enable cloudresourcemanager.googleapis.com --project=project-962d2332-8a63-46b3-92e
+gcloud projects add-iam-policy-binding project-962d2332-8a63-46b3-92e \
+  --member="serviceAccount:github-actions@project-962d2332-8a63-46b3-92e.iam.gserviceaccount.com" \
+  --role="roles/datastore.backupSchedulesAdmin"
+gcloud projects add-iam-policy-binding project-962d2332-8a63-46b3-92e \
+  --member="serviceAccount:github-actions@project-962d2332-8a63-46b3-92e.iam.gserviceaccount.com" \
+  --role="roles/datastore.backupsViewer"
+```
+
+Despues, ejecutar el workflow **Firestore backup** manualmente con `action=setup` y,
+al dia siguiente, con `action=verify` para confirmar que existe un backup `READY`.

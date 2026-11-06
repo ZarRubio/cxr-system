@@ -1,0 +1,16 @@
+[tool.ruff]
+line-length = 110
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "B", "UP"]
+ignore = ["E501"]
+
+[tool.ruff.lint.isort]
+# Los scripts se ejecutan desde su carpeta y se importan entre si como modulos locales.
+known-first-party = [
+    "calibrate_legacy_ensemble", "create_nih_splits", "evaluate_historical_thresholds",
+    "recover_nih_hdf5", "reproduce_legacy_ensemble", "train_nih_independent", "evaluation_evidence",
+    "cam_diagnostics", "compare_cam_methods", "gradcam_block_controls", "materialize_cam_cohort",
+    "prepare_cam_cohort", "summarize_multiclass_cam",
+]

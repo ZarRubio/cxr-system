@@ -26,11 +26,11 @@ export function CXRScreeningAlert({ screening }: { screening: Prediction['cxr_sc
           'text-sm font-bold',
           compatible ? 'text-[#166534] dark:text-[#BBF7D0]' : 'text-[#92400E] dark:text-[#FDE68A]',
         ].join(' ')}>
-          {compatible ? 'Entrada compatible con radiografía de tórax' : 'Compatibilidad de imagen no confirmada'}
+          {compatible ? 'Sin señales de una entrada distinta a radiografía de tórax' : 'Compatibilidad de imagen no confirmada'}
         </p>
         <p className="mt-1 text-xs leading-5 text-[var(--fg-muted)]">
           {compatible
-            ? 'El control técnico de modalidad y apariencia fue satisfactorio.'
+            ? 'El control solo revisa modalidad DICOM, color, contraste y forma de la imagen; no confirma que sea una radiografía de tórax. Verifique la imagen antes de interpretar el resultado.'
             : screening.reasons[0] ?? 'Revise la modalidad y la adquisición antes de interpretar el resultado.'}
         </p>
         <p className="mt-1 flex items-center gap-1 text-[10px] text-[var(--fg-subtle)]">

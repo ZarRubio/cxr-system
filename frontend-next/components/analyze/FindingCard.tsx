@@ -1,6 +1,6 @@
 import { Info } from 'lucide-react'
 import { getSeverity } from '@/lib/utils'
-import { BADGES, DESCRIPTIONS, SEVERITY_LABELS } from '@/lib/constants'
+import { BADGES, DESCRIPTIONS, FINDING_NOTE, SEVERITY_LABELS } from '@/lib/constants'
 import type { Prediction } from '@/lib/types'
 
 export function FindingCard({ prediction, compact = false }: { prediction: Prediction; compact?: boolean }) {
@@ -24,6 +24,7 @@ export function FindingCard({ prediction, compact = false }: { prediction: Predi
         <p className={`badge-${severity} inline-block mt-4 rounded px-2 py-1 text-xs font-medium`}>{SEVERITY_LABELS[severity]}</p>
         <p className="text-xs text-[var(--fg-muted)] mt-3">Score no calibrado. No representa la probabilidad clínica de enfermedad.</p>
         {DESCRIPTIONS[cls] && <p className="text-sm leading-6 text-[var(--fg-muted)] border-t border-[var(--border-subtle)] mt-4 pt-4">{DESCRIPTIONS[cls]}</p>}
+        <p className="text-xs leading-5 text-[var(--fg-subtle)] mt-2">{FINDING_NOTE}</p>
       </>}
       {!compact && prediction.image_warnings?.map((warning, index) => <p key={index} className="badge-high rounded p-3 mt-3 text-xs">{warning}</p>)}
     </article>

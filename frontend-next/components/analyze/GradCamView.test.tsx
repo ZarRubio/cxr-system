@@ -1,4 +1,5 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { StrictMode } from 'react'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { GradCamView } from './GradCamView'
 import { blendImagesOnCanvas } from '@/lib/utils'
@@ -23,6 +24,21 @@ beforeEach(() => {
   vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: vi.fn(() => 'blob:preview'), revokeObjectURL: vi.fn() }))
 })
 afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals() })
+
+it('keeps a live preview URL after the strict-mode double mount', async () => {
+  let n = 0
+  const revoked = new Set<string>()
+  vi.stubGlobal('URL', Object.assign(URL, {
+    createObjectURL: vi.fn(() => `blob:preview-${++n}`),
+    revokeObjectURL: vi.fn((url: string) => { revoked.add(url) }),
+  }))
+  vi.mocked(blendImagesOnCanvas).mockResolvedValue('data:image/png;base64,bmV3')
+  render(<StrictMode><GradCamView prediction={prediction} originalBytes={new Uint8Array([0])} /></StrictMode>)
+  await waitFor(() => expect(screen.getAllByAltText('Radiografia sin mapa de calor')[0].getAttribute('src')).toMatch(/^blob:preview-/))
+  for (const img of screen.getAllByAltText('Radiografia sin mapa de calor')) {
+    expect(revoked.has(img.getAttribute('src') ?? '')).toBe(false)
+  }
+})
 
 it('ignores an obsolete blend when the opacity changes quickly', async () => {
   const pending: Array<(value: string) => void> = []

@@ -29,16 +29,20 @@ export function GradCamView({ prediction, originalBytes, filename = 'image.png',
   const blended = blendResult?.source === heatmapUri && blendResult?.bytes === displayBytes ? blendResult.uri : null
   const renderedMap = heatmapUri ? blended : gradcamUri
 
-  // URL de objeto para la imagen original; el effect solo revoca al desmontar
-  const originalSrc = useMemo(() => {
-    if (!displayBytes) return null
-    return URL.createObjectURL(new Blob([new Uint8Array(displayBytes)]))
-  }, [displayBytes])
-
+  // URL de objeto para la imagen original. Se crea y se revoca en el mismo effect: con useMemo,
+  // el doble montaje del modo estricto revocaba la URL memorizada y la imagen quedaba rota.
+  const [objectUrl, setObjectUrl] = useState<{ url: string; bytes: Uint8Array } | null>(null)
   useEffect(() => {
-    if (!originalSrc) return
-    return () => URL.revokeObjectURL(originalSrc)
-  }, [originalSrc])
+    if (!displayBytes) return
+    const url = URL.createObjectURL(new Blob([new Uint8Array(displayBytes)]))
+    let active = true
+    Promise.resolve().then(() => { if (active) setObjectUrl({ url, bytes: displayBytes }) })
+    return () => {
+      active = false
+      URL.revokeObjectURL(url)
+    }
+  }, [displayBytes])
+  const originalSrc = objectUrl?.bytes === displayBytes ? objectUrl.url : null
 
   // Blend original + Grad-CAM whenever opacity or gradcam changes
   useEffect(() => {

@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
   let body: Uint8Array
   try { body = await readBoundedBody(request, 30 * 1024 * 1024 + 64 * 1024) }
   catch (error) {
-    if (error instanceof UploadLimitError) return Response.json({ detail: 'Maximo 30 MB en total por lote y 15 MB por imagen.' }, { status: 413 })
+    if (error instanceof UploadLimitError) return Response.json({ detail: 'Máximo 30 MB en total por lote y 15 MB por imagen.' }, { status: 413 })
     throw error
   }
 

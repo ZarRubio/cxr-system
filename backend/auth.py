@@ -15,4 +15,4 @@ async def require_api_key(request: Request) -> None:
         return
     provided = request.headers.get("X-API-Key", "")
     if not hmac.compare_digest(provided, settings.api_key):
-        raise HTTPException(status_code=401, detail="API key invalida o ausente.")
+        raise HTTPException(status_code=401, detail="API key inválida o ausente.")

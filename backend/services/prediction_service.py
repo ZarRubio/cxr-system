@@ -146,8 +146,8 @@ def _decode_and_validate(file_bytes: bytes, filename: str) -> np.ndarray:
         raise HTTPException(
             status_code=422,
             detail=(
-                f"Imagen demasiado pequena ({w}x{h} px). "
-                f"Minimo requerido: {settings.min_image_dim}x{settings.min_image_dim} px."
+                f"Imagen demasiado pequeña ({w}x{h} px). "
+                f"Mínimo requerido: {settings.min_image_dim}x{settings.min_image_dim} px."
             ),
         )
     if h > settings.max_image_dim or w > settings.max_image_dim:
@@ -155,7 +155,7 @@ def _decode_and_validate(file_bytes: bytes, filename: str) -> np.ndarray:
             status_code=422,
             detail=(
                 f"Imagen demasiado grande ({w}x{h} px). "
-                f"Maximo permitido: {settings.max_image_dim}x{settings.max_image_dim} px."
+                f"Máximo permitido: {settings.max_image_dim}x{settings.max_image_dim} px."
             ),
         )
     return img_array

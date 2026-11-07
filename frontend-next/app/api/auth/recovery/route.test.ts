@@ -29,7 +29,7 @@ describe('recovery request response', () => {
     expect(await response.json()).toEqual({ message: RECOVERY_MESSAGE, requestId: '00000000-0000-4000-8000-000000000000' })
   })
   it('returns rate limiting without opening a challenge', async () => {
-    mocks.request.mockRejectedValue(new RecoveryRequestError('Espere un minuto antes de solicitar otro codigo.', 429))
+    mocks.request.mockRejectedValue(new RecoveryRequestError('Espere un minuto antes de solicitar otro código.', 429))
     const response = await POST(request())
     expect(response.status).toBe(429)
     expect(await response.json()).not.toHaveProperty('requestId')

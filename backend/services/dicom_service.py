@@ -68,7 +68,7 @@ def extract_pixels_from_dicom(dicom_bytes: bytes) -> np.ndarray:
     try:
         ds = pydicom.dcmread(io.BytesIO(dicom_bytes), force=False)
     except InvalidDicomError as exc:
-        raise ValueError("Archivo DICOM invalido.") from exc
+        raise ValueError("Archivo DICOM inválido.") from exc
 
     try:
         pixels = ds.pixel_array.astype(np.float32)

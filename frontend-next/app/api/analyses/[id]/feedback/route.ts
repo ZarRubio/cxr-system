@@ -54,7 +54,7 @@ export async function PUT(
     createdAt: new Date().toISOString(),
   }
 
-  if (body.reviewPriority && !['routine', 'priority', 'urgent'].includes(body.reviewPriority)) return NextResponse.json({ error: 'Prioridad profesional no valida.' }, { status: 400 })
+  if (body.reviewPriority && !['routine', 'priority', 'urgent'].includes(body.reviewPriority)) return NextResponse.json({ error: 'Prioridad profesional no válida.' }, { status: 400 })
   const updated = await store.setAnalysisFeedback(id, feedback)
   return NextResponse.json(updated)
 }

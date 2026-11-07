@@ -39,7 +39,7 @@ def validate_source_channels(file_bytes: bytes, fmt: str) -> None:
     img = Image.open(io.BytesIO(file_bytes))
     bands = img.getbands()
     if len(bands) > 3:
-        raise ValueError(f"La imagen tiene {len(bands)} canales; maximo permitido: 3.")
+        raise ValueError(f"La imagen tiene {len(bands)} canales; máximo permitido: 3.")
 
 
 def preprocess_for_model(img_array: np.ndarray) -> torch.Tensor:

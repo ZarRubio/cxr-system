@@ -78,7 +78,7 @@ async def lifespan(app: FastAPI):
                 manifest = build_manifest(_ARTIFACTS_DIR)
             labels = json.loads((_ARTIFACTS_DIR / "labels_14.json").read_text(encoding="utf-8"))
             if [labels.get(str(index)) for index in range(14)] != CLASSES_14:
-                raise ValueError("El orden de etiquetas no coincide con el codigo de inferencia")
+                raise ValueError("El orden de etiquetas no coincide con el código de inferencia")
             app.state.model_manifest = manifest
             app.state.ensemble = load_ensemble(str(_ARTIFACTS_DIR))
             thr_config = json.loads(

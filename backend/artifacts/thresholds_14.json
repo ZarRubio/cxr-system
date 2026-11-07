@@ -15,5 +15,5 @@
     "Pneumonia": 0.25,
     "Pneumothorax": 0.3
   },
-  "note": "Infiltration y Pneumonia usan threshold bajo por alta incidencia TB en HNAL"
+  "note": "Infiltration y Pneumonia usan un umbral menor (0.25) para priorizar sensibilidad; umbrales experimentales de investigacion, no metas clinicas aprobadas"
 }

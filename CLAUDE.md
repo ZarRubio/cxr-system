@@ -20,7 +20,7 @@ CXR_SKIP_MODEL_LOAD=1 python -m pytest tests/test_predict.py::TestCXRScreening -
 python -m ruff check .
 ```
 
-Frontend (run from `frontend-next/`; copy `.env.local.example` to `.env.local` first; dev login `admin` / `hnal2026`):
+Frontend (run from `frontend-next/`; copy `.env.local.example` to `.env.local` first; dev login `admin` / the `SEED_ADMIN_PASSWORD` value, min. 12 chars):
 
 ```bash
 npm run dev                         # http://localhost:3000

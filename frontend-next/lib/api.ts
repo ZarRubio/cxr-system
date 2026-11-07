@@ -149,6 +149,15 @@ export async function saveAnalysisNotes(analysisId: string, notes: string): Prom
   return res.json()
 }
 
+/** Elimina un estudio del historial (solo administradores; la API valida el rol). */
+export async function deleteAnalysis(analysisId: string): Promise<void> {
+  const res = await fetch(`/api/analyses/${analysisId}`, { method: 'DELETE' })
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}))
+    throw new Error(body.error ?? 'No se pudo eliminar el estudio.')
+  }
+}
+
 export async function retryAnalysisEmail(analysisId: string, role: 'admin' | 'radiologist'): Promise<void> {
   const res = await fetch(`/api/analyses/${analysisId}/retry-email`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ role }),

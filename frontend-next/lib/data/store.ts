@@ -35,6 +35,8 @@ export interface DataStore {
   /** Últimos análisis (desc por fecha). Sin userId lista todos (vista admin). */
   listAnalyses(opts: { userId?: string; limit?: number; after?: { createdAt: string; id: string } }): Promise<AnalysisRecord[]>
   setAnalysisFeedback(id: string, feedback: AnalysisFeedback): Promise<AnalysisRecord | null>
+  /** Elimina el estudio (derecho de cancelación, Ley 29733). Devuelve false si no existía. */
+  deleteAnalysis(id: string): Promise<boolean>
 }
 
 export function getDataStore(): DataStore {

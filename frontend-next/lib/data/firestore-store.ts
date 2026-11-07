@@ -116,6 +116,10 @@ export const firestoreStore: DataStore = {
     await fsSetDoc(ANALYSES, record.id, record as unknown as Record<string, unknown>)
   },
 
+  async deleteAnalysis(id) {
+    return fsDeleteDoc(ANALYSES, id)
+  },
+
   async getAnalysis(id) {
     const doc = await fsGetDoc(ANALYSES, id)
     return doc ? toAnalysis(doc) : null

@@ -6,6 +6,7 @@ import { buildAnalysisRecord } from '@/lib/data/analysis'
 import type { Prediction } from '@/lib/types'
 import { notifyCriticalAnalysis } from '@/lib/critical-email'
 import { readBoundedBody, UploadLimitError } from '@/lib/upload-body'
+import { COMPARE_NOT_SAVED_MESSAGE } from '@/lib/constants'
 
 export const maxDuration = 300
 
@@ -26,7 +27,10 @@ export async function POST(request: NextRequest) {
     return Response.json({ detail: 'No autorizado.' }, { status: 401 })
   }
 
+  // mode=compare: contraste puntual de dos imágenes (US43). No crea estudios ni envía alertas.
+  const compareOnly = request.nextUrl.searchParams.get('mode') === 'compare'
   const explanationId = request.nextUrl.searchParams.get('explain_analysis_id')
+  if (compareOnly && explanationId) return Response.json({ detail: 'Solicitud no válida.' }, { status: 400 })
   const existing = explanationId ? await getDataStore().getAnalysis(explanationId) : null
   if (explanationId && !existing) return Response.json({ detail: 'Estudio no encontrado.' }, { status: 404 })
   if (existing && existing.userId !== principal.user.id && principal.user.role !== 'admin') {
@@ -44,12 +48,13 @@ export async function POST(request: NextRequest) {
   let body: Uint8Array
   try { body = await readBoundedBody(request, 15 * 1024 * 1024 + 64 * 1024) }
   catch (error) {
-    if (error instanceof UploadLimitError) return Response.json({ detail: 'Maximo 15 MB por imagen.' }, { status: 413 })
+    if (error instanceof UploadLimitError) return Response.json({ detail: 'Máximo 15 MB por imagen.' }, { status: 413 })
     throw error
   }
 
   const params = new URLSearchParams(request.nextUrl.searchParams)
   params.delete('explain_analysis_id')
+  params.delete('mode')
   if (existing) params.set('include_gradcam', 'true')
   const res = await fetch(backendUrl('/predict', params.toString()), {
     method: 'POST',
@@ -69,6 +74,12 @@ export async function POST(request: NextRequest) {
     }
     if (!prediction.gradcam_image) return Response.json({ detail: 'El servicio no generó el mapa. Intente nuevamente.' }, { status: 502 })
     return Response.json({ gradcam_image: prediction.gradcam_image, gradcam_heatmap: prediction.gradcam_heatmap, gradcam_class: prediction.gradcam_class, image_preview: prediction.image_preview })
+  }
+  if (compareOnly) {
+    // Sin datos del paciente: solo quién comparó y cuándo (el backend ya audita la huella de la imagen).
+    console.info('[predict] comparación sin guardar', { actorId: principal.user.id, at: new Date().toISOString() })
+    prediction.persistence = { status: 'not_saved', message: COMPARE_NOT_SAVED_MESSAGE }
+    return Response.json(prediction)
   }
   const record = buildAnalysisRecord(
     { id: principal.user.id, name: principal.user.name },

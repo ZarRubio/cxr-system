@@ -17,6 +17,8 @@ export interface StudyHeaders {
   studyId?: string
   projection?: string
   clinicalIndication?: string
+  /** Comparación puntual: el resultado no se guarda en el historial ni envía alertas. */
+  compareOnly?: boolean
 }
 
 export async function predict(
@@ -34,6 +36,7 @@ export async function predict(
     include_gradcam: String(includeGradcam),
   })
   if (study?.explanationId) params.set('explain_analysis_id', study.explanationId)
+  if (study?.compareOnly) params.set('mode', 'compare')
 
   // Metadatos del estudio para el historial persistente. URI-encoded porque
   // los headers HTTP no admiten caracteres fuera de ASCII (tildes, ñ).
@@ -116,7 +119,7 @@ export async function fetchAllAnalyses(filters: AnalysisFilters = {}) {
     isAdmin = result.isAdmin
     for (const record of result.analyses) if (!seen.has(record.id)) { seen.add(record.id); analyses.push(record) }
     if (!result.nextCursor) return { analyses, isAdmin }
-    if (result.nextCursor === cursor) throw new Error('El historial no avanzo de pagina.')
+    if (result.nextCursor === cursor) throw new Error('El historial no avanzó de página.')
     cursor = result.nextCursor
   }
   throw new Error('El historial supera el limite de consulta. Acote el rango de fechas para exportar o consultar estadisticas.')
@@ -147,6 +150,15 @@ export async function saveAnalysisNotes(analysisId: string, notes: string): Prom
     throw new Error(body.error ?? 'No se pudieron guardar las observaciones.')
   }
   return res.json()
+}
+
+/** Elimina un estudio del historial (solo administradores; la API valida el rol). */
+export async function deleteAnalysis(analysisId: string): Promise<void> {
+  const res = await fetch(`/api/analyses/${analysisId}`, { method: 'DELETE' })
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}))
+    throw new Error(body.error ?? 'No se pudo eliminar el estudio.')
+  }
 }
 
 export async function retryAnalysisEmail(analysisId: string, role: 'admin' | 'radiologist'): Promise<void> {

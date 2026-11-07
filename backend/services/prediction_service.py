@@ -53,17 +53,17 @@ class PredictOptions:
 
 def validate_file_size(file_bytes: bytes) -> None:
     if not file_bytes:
-        raise HTTPException(status_code=400, detail="El archivo esta vacio.")
+        raise HTTPException(status_code=400, detail="El archivo está vacío.")
     if len(file_bytes) < settings.min_file_bytes:
         raise HTTPException(
             status_code=400,
-            detail=f"Archivo demasiado pequeno ({len(file_bytes)} bytes). Es una imagen valida?",
+            detail=f"Archivo demasiado pequeño ({len(file_bytes)} bytes). ¿Es una imagen válida?",
         )
     if len(file_bytes) > settings.max_file_bytes:
         size_mb = len(file_bytes) / 1024 / 1024
         raise HTTPException(
             status_code=413,
-            detail=f"Imagen demasiado grande ({size_mb:.1f} MB). Maximo permitido: {settings.max_upload_mb} MB.",
+            detail=f"Imagen demasiado grande ({size_mb:.1f} MB). Máximo permitido: {settings.max_upload_mb} MB.",
         )
 
 
@@ -78,12 +78,12 @@ def image_warnings(
     # Aspecto no tipico de CXR (PA/AP ~1:1 a 1:1.4)
     aspect = max(h, w) / max(min(h, w), 1)
     if aspect > 2.0:
-        warnings.append("Relacion de aspecto inusual para CXR PA/AP. Verificar recorte o proyeccion.")
+        warnings.append("Relación de aspecto inusual para CXR PA/AP. Verificar recorte o proyección.")
 
     # Contraste muy bajo -> imagen sobreexpuesta o invalida
     std = float(img_array.std())
     if std < 8.0:
-        warnings.append("Imagen con muy bajo contraste. Verificar exposicion o que sea una CXR valida.")
+        warnings.append("Imagen con muy bajo contraste. Verificar exposición o que sea una CXR válida.")
 
     # Contraste muy alto -> posible artefacto o imagen sintetica
     if std > 115.0:
@@ -97,7 +97,7 @@ def image_warnings(
         bot_third = img_f[2 * h // 3 :, :]
         if top_third.mean() > bot_third.mean() * 1.5:
             warnings.append(
-                "Distribucion de brillo desigual entre zonas superior e inferior. Verificar la imagen; este control no evalua inspiracion."
+                "Distribución de brillo desigual entre zonas superior e inferior. Verificar la imagen; este control no evalúa inspiración."
             )
     except Exception:
         pass
@@ -109,15 +109,15 @@ def image_warnings(
         ratio = max(left_half, right_half) / max(min(left_half, right_half), 1)
         if ratio > 1.6:
             warnings.append(
-                "Asimetria de brillo entre ambas mitades. Verificar la imagen; este control no determina rotacion del paciente."
+                "Asimetría de brillo entre ambas mitades. Verificar la imagen; este control no determina rotación del paciente."
             )
     except Exception:
         pass
 
     if screening and screening.status == "uncertain":
         warnings.append(
-            "El control automatico no pudo confirmar que sea una radiografia de torax. "
-            "Revise modalidad, proyeccion y calidad antes de interpretar el resultado."
+            "El control automático no pudo confirmar que sea una radiografía de tórax. "
+            "Revise modalidad, proyección y calidad antes de interpretar el resultado."
         )
 
     return warnings
@@ -270,8 +270,8 @@ def predict_image(
         raise HTTPException(
             status_code=422,
             detail=(
-                "La imagen no es compatible con una radiografia de torax. "
-                f"{screening.reasons[0]} Cargue una CXR valida en PNG, JPG o DICOM."
+                "La imagen no es compatible con una radiografía de tórax. "
+                f"{screening.reasons[0]} Cargue una CXR válida en PNG, JPG o DICOM."
             ),
         )
 

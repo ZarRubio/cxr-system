@@ -4,13 +4,13 @@ import Link from 'next/link'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSearchParams } from 'next/navigation'
 import { useSession } from 'next-auth/react'
-import { fetchAnalyses, fetchAllAnalyses, retryAnalysisEmail } from '@/lib/api'
+import { deleteAnalysis, fetchAnalyses, fetchAllAnalyses, retryAnalysisEmail } from '@/lib/api'
 import { filterAnalyses, nextEmailRetry, type AnalysisFilters, type AnalysisRecord, type FeedbackFilter } from '@/lib/data/analysis'
 import { formatTimestamp, formatConfidence, downloadBlob, cn, csvCell } from '@/lib/utils'
 import { SEVERITY_COLORS, BADGES, SEVERITY_LABELS } from '@/lib/constants'
 import { Button } from '@/components/ui/button'
 import { buildPdf, type StudyMeta } from '@/lib/pdf'
-import { ClipboardList, Download, ChevronDown, ChevronUp, Search, Check, X, Clock, Loader2, FileText, SlidersHorizontal, Calendar, RotateCcw } from 'lucide-react'
+import { ClipboardList, Download, ChevronDown, ChevronUp, Search, Check, X, Clock, Loader2, FileText, SlidersHorizontal, Calendar, RotateCcw, Trash2 } from 'lucide-react'
 import { ProbabilityBars } from '@/components/analyze/ProbabilityBars'
 import { FeedbackCard } from '@/components/analyze/FeedbackCard'
 import { EmailAlertStatus } from '@/components/EmailAlertStatus'
@@ -447,6 +447,21 @@ function HistoryDetail({ analysis, canValidate, isAdmin }: { analysis: AnalysisR
   const [pdfError, setPdfError] = useState<string | null>(null)
   const [retrying, setRetrying] = useState<'admin' | 'radiologist' | null>(null)
   const [retryError, setRetryError] = useState<string | null>(null)
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
+
+  const removeStudy = async () => {
+    setDeleting(true)
+    setDeleteError(null)
+    try {
+      await deleteAnalysis(analysis.id)
+      await queryClient.invalidateQueries({ queryKey: ['analyses'] })
+    } catch (error) {
+      setDeleteError(error instanceof Error ? error.message : 'No se pudo eliminar el estudio.')
+      setConfirmDelete(false)
+    } finally { setDeleting(false) }
+  }
 
   const retryEmail = async (role: 'admin' | 'radiologist') => {
     if (!window.confirm('El envío anterior pudo haber llegado aunque figure como fallido. ¿Reintentar?')) return
@@ -550,6 +565,24 @@ function HistoryDetail({ analysis, canValidate, isAdmin }: { analysis: AnalysisR
           </Button>
         </span>
       </div>
+      {isAdmin && (
+        <div className="flex flex-wrap items-center gap-2 text-xs">
+          {!confirmDelete ? (
+            <Button size="sm" variant="secondary" onClick={() => setConfirmDelete(true)} title="Atender una solicitud de cancelación de datos (Ley 29733)">
+              <Trash2 size={13} /> Eliminar estudio
+            </Button>
+          ) : (
+            <>
+              <span role="alert" className="text-[var(--fg)]">Se eliminará este estudio del historial de forma definitiva. ¿Confirma?</span>
+              <Button size="sm" variant="secondary" onClick={removeStudy} loading={deleting} disabled={deleting}>
+                <Trash2 size={13} /> Sí, eliminar
+              </Button>
+              <Button size="sm" variant="secondary" onClick={() => setConfirmDelete(false)} disabled={deleting}>Cancelar</Button>
+            </>
+          )}
+        </div>
+      )}
+      {deleteError && <p role="alert" className="text-xs badge-high p-2">{deleteError}</p>}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         <div className="card p-4">

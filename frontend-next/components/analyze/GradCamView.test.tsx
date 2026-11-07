@@ -1,4 +1,5 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { StrictMode } from 'react'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { GradCamView } from './GradCamView'
 import { blendImagesOnCanvas } from '@/lib/utils'
@@ -17,12 +18,27 @@ it('does not display or blend an uninterpretable map', () => {
   expect(screen.queryByAltText('Overlay Grad-CAM')).toBeNull()
   expect(screen.queryByRole('button', { name: 'Generar mapa de calor' })).toBeNull()
   expect(blendImagesOnCanvas).not.toHaveBeenCalled()
-  expect(screen.getByAltText('Radiografia sin mapa de calor')).toBeTruthy()
+  expect(screen.getByAltText('Radiografía sin mapa de calor')).toBeTruthy()
 })
 beforeEach(() => {
   vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: vi.fn(() => 'blob:preview'), revokeObjectURL: vi.fn() }))
 })
 afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals() })
+
+it('keeps a live preview URL after the strict-mode double mount', async () => {
+  let n = 0
+  const revoked = new Set<string>()
+  vi.stubGlobal('URL', Object.assign(URL, {
+    createObjectURL: vi.fn(() => `blob:preview-${++n}`),
+    revokeObjectURL: vi.fn((url: string) => { revoked.add(url) }),
+  }))
+  vi.mocked(blendImagesOnCanvas).mockResolvedValue('data:image/png;base64,bmV3')
+  render(<StrictMode><GradCamView prediction={prediction} originalBytes={new Uint8Array([0])} /></StrictMode>)
+  await waitFor(() => expect(screen.getAllByAltText('Radiografía sin mapa de calor')[0].getAttribute('src')).toMatch(/^blob:preview-/))
+  for (const img of screen.getAllByAltText('Radiografía sin mapa de calor')) {
+    expect(revoked.has(img.getAttribute('src') ?? '')).toBe(false)
+  }
+})
 
 it('ignores an obsolete blend when the opacity changes quickly', async () => {
   const pending: Array<(value: string) => void> = []
@@ -63,7 +79,7 @@ it('blends the pure heatmap, never the server overlay, without requesting infere
   fireEvent.change(screen.getByRole('slider'), { target: { value: '0' } })
   await waitFor(() => expect(blendImagesOnCanvas).toHaveBeenLastCalledWith(new Uint8Array([0]), new Uint8Array([1]), 0))
   expect(predict).not.toHaveBeenCalled()
-  expect(screen.getByAltText('Radiografia sin mapa de calor')).toBeTruthy()
+  expect(screen.getByAltText('Radiografía sin mapa de calor')).toBeTruthy()
 })
 
 it('does not blend legacy overlays again or offer an inaccurate opacity slider', () => {

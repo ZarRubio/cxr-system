@@ -90,6 +90,10 @@ export const sqliteStore: DataStore = {
     return row ? rowToAnalysis(row) : null
   },
 
+  async deleteAnalysis(id) {
+    return getDb().prepare('DELETE FROM analyses WHERE id = ?').run(id).changes > 0
+  },
+
   async claimEmailAlert(id, alert) {
     return getDb().transaction(() => {
       const row = getDb().prepare('SELECT data FROM analyses WHERE id = ?').get(id) as { data: string } | undefined

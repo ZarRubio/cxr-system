@@ -8,7 +8,7 @@ export function alertText(record: AnalysisRecord, baseUrl: string, missingEmail:
   const url = new URL('/history', baseUrl)
   url.searchParams.set('q', record.id)
   return [
-    'Alerta de IA: hallazgos que requieren revision profesional prioritaria. No determina gravedad clinica.',
+    'Alerta de IA: hallazgos que requieren revisión profesional prioritaria. No determina gravedad clínica.',
     `ID de estudio: ${record.studyId || record.id}`,
     `ID de análisis: ${record.id}`,
     `Responsable: ${record.userName}`,

@@ -31,10 +31,25 @@ function localDate(iso: string): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
+function ymd(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
 function daysAgo(n: number): string {
   const d = new Date()
   d.setDate(d.getDate() - n)
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  return ymd(d)
+}
+
+/** Fecha YYYY-MM-DD desplazada n días (n negativo = hacia atrás), en hora local. */
+function shiftDate(date: string, n: number): string {
+  const [y, m, d] = date.split('-').map(Number)
+  return ymd(new Date(y, m - 1, d + n))
+}
+
+function shortLabel(date: string): string {
+  const [, m, d] = date.split('-')
+  return `${d}/${m}`
 }
 
 export default function StatsPage() {
@@ -67,7 +82,9 @@ export default function StatsPage() {
     )
 
   const scoped = useMemo(() => applySel(dated), [dated, selSeverity, selFinding, selUser]) // eslint-disable-line react-hooks/exhaustive-deps
-  const stats = useMemo(() => computeStats(scoped), [scoped])
+  // Las ventanas de 7 y 14 días terminan en la fecha «Hasta» del filtro (o hoy), para que respeten el rango elegido.
+  const windowEnd = dateTo && dateTo < daysAgo(0) ? dateTo : daysAgo(0)
+  const stats = useMemo(() => computeStats(scoped, windowEnd), [scoped, windowEnd])
   const sevRows = useMemo(() => countBy(applySel(dated, 'severity'), (r) => r.severity), [dated, selFinding, selUser]) // eslint-disable-line react-hooks/exhaustive-deps
   const findingRows = useMemo(
     () => Object.entries(countBy(applySel(dated, 'finding'), (r) => r.predictedClass)).sort((a, b) => b[1] - a[1]).slice(0, 6),
@@ -160,7 +177,7 @@ export default function StatsPage() {
                 <p className="readout text-3xl font-extrabold mt-1 text-[var(--fg)]">{stats.total}</p>
                 <Sparkline points={stats.daily.map((d) => d.count)} />
               </div>
-              <p className="text-[11px] text-[var(--fg-subtle)] mt-0.5">{stats.last7} en los últimos 7 días</p>
+              <p className="text-[11px] text-[var(--fg-subtle)] mt-0.5">{stats.last7} en los 7 días hasta {shortLabel(windowEnd)}</p>
             </div>
             <StatTile label="Radiólogos activos" value={String(userRows.length)} sub="con al menos un análisis" />
             <StatTile label="Estudios validados" value={`${stats.validatedPct}%`} sub={`${stats.validated} de ${stats.total}`} />
@@ -187,7 +204,7 @@ export default function StatsPage() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
             {/* Volumen diario — área con crosshair + tooltip */}
             <div className="card p-4">
-              <h2 className="tech-label mb-1">Volumen diario — últimos 14 días</h2>
+              <h2 className="tech-label mb-1">Volumen diario — 14 días hasta {shortLabel(windowEnd)}</h2>
               <p className="text-[10px] text-[var(--fg-subtle)] mb-3">Análisis por día en el filtro actual</p>
               <VolumeArea days={stats.daily} />
               <details className="mt-2">
@@ -353,21 +370,19 @@ interface Stats {
   recentDisagreements: AnalysisRecord[]
 }
 
-function computeStats(records: AnalysisRecord[]): Stats {
+function computeStats(records: AnalysisRecord[], windowEnd: string): Stats {
   const total = records.length
-  const cut7 = daysAgo(6)
-  const last7 = records.filter((r) => localDate(r.createdAt) >= cut7).length
+  const cut7 = shiftDate(windowEnd, -6)
+  const last7 = records.filter((r) => { const day = localDate(r.createdAt); return day >= cut7 && day <= windowEnd }).length
   const withFb = records.filter((r) => r.feedback)
   const agrees = withFb.filter((r) => r.feedback!.agrees).length
 
   const daily: Stats['daily'] = []
   for (let i = 13; i >= 0; i--) {
-    const date = daysAgo(i)
-    const d = new Date()
-    d.setDate(d.getDate() - i)
+    const date = shiftDate(windowEnd, -i)
     daily.push({
       date,
-      label: `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`,
+      label: shortLabel(date),
       count: records.filter((r) => localDate(r.createdAt) === date).length,
     })
   }

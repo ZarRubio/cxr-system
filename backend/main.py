@@ -127,7 +127,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="CXR Classification API",
-    description="Clasificacion de radiografias de torax — Proyecto academico",
+    description="Clasificación de radiografías de tórax — Proyecto académico",
     version=__version__,
     lifespan=lifespan,
 )

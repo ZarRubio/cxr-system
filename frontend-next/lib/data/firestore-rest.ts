@@ -120,10 +120,10 @@ export async function fsMutateSecurity<T>(id: string, change: (current: Record<s
     if (next.passwordChange) {
       const p = next.passwordChange
       const userRes = await firestoreFetch(`/users/${encodeURIComponent(p.id)}`)
-      if (!userRes.ok) throw new Error('La cuenta ha cambiado. Solicite otro codigo.')
+      if (!userRes.ok) throw new Error('La cuenta ha cambiado. Solicite otro código.')
       const userDoc = await userRes.json() as { fields: Record<string, FsValue>; updateTime: string }
       const user = fromFsFields(userDoc.fields)
-      if (user.password !== p.previousPassword || user.active !== true || String(user.email).toLowerCase() !== p.email) throw new Error('La cuenta ha cambiado. Solicite otro codigo.')
+      if (user.password !== p.previousPassword || user.active !== true || String(user.email).toLowerCase() !== p.email) throw new Error('La cuenta ha cambiado. Solicite otro código.')
       writes.push({ update: { name: `${root}/users/${p.id}`, fields: toFsFields({ password: p.password }) },
         updateMask: { fieldPaths: ['password'] }, currentDocument: { updateTime: userDoc.updateTime } })
     }

@@ -73,14 +73,14 @@ def classify_cxr(file_bytes: bytes, fmt: str, img_array: np.ndarray) -> CXRScree
                 status="likely_cxr",
                 score=0.99,
                 method="dicom_modality",
-                reasons=(f"Modalidad DICOM {modality} compatible con radiografia.",),
+                reasons=(f"Modalidad DICOM {modality} compatible con radiografía.",),
             )
         if modality in _NON_CXR_MODALITIES:
             return CXRScreeningResult(
                 status="not_cxr",
                 score=0.01,
                 method="dicom_modality",
-                reasons=(f"Modalidad DICOM {modality} no compatible con radiografia de torax.",),
+                reasons=(f"Modalidad DICOM {modality} no compatible con radiografía de tórax.",),
                 reject=True,
             )
 
@@ -97,7 +97,7 @@ def classify_cxr(file_bytes: bytes, fmt: str, img_array: np.ndarray) -> CXRScree
             status="not_cxr",
             score=0.02,
             method="visual_heuristics_v1",
-            reasons=("La imagen contiene color en gran parte del campo, compatible con una fotografia.",),
+            reasons=("La imagen contiene color en gran parte del campo, compatible con una fotografía.",),
             reject=True,
         )
 
@@ -106,7 +106,7 @@ def classify_cxr(file_bytes: bytes, fmt: str, img_array: np.ndarray) -> CXRScree
             status="not_cxr",
             score=0.05,
             method="visual_heuristics_v1",
-            reasons=("La imagen no contiene variacion de intensidad suficiente para una radiografia.",),
+            reasons=("La imagen no contiene variación de intensidad suficiente para una radiografía.",),
             reject=True,
         )
 
@@ -115,22 +115,22 @@ def classify_cxr(file_bytes: bytes, fmt: str, img_array: np.ndarray) -> CXRScree
 
     if color_fraction <= 0.02:
         score += 0.20
-        reasons.append("Predominio monocromatico compatible con radiografia.")
+        reasons.append("Predominio monocromático compatible con radiografía.")
     elif color_fraction > 0.12:
         score -= 0.25
-        reasons.append("Se detecto color visible en una proporcion inusual para radiografia.")
+        reasons.append("Se detectó color visible en una proporción inusual para radiografía.")
 
     if aspect <= 1.8:
         score += 0.15
     else:
         score -= 0.30
-        reasons.append("Relacion de aspecto atipica para una radiografia de torax.")
+        reasons.append("Relación de aspecto atípica para una radiografía de tórax.")
 
     if 12.0 <= std <= 110.0 and dynamic_range >= 60.0:
         score += 0.15
     else:
         score -= 0.15
-        reasons.append("Distribucion de intensidades poco habitual para una radiografia.")
+        reasons.append("Distribución de intensidades poco habitual para una radiografía.")
 
     # Un campo circular o sectorial con las cuatro esquinas negras es frecuente
     # en CT/US exportadas como imagen. Solo reduce el score: no basta para rechazar.
@@ -147,12 +147,12 @@ def classify_cxr(file_bytes: bytes, fmt: str, img_array: np.ndarray) -> CXRScree
     center = image[h // 3 : 2 * h // 3, w // 3 : 2 * w // 3]
     if float(corners.mean()) + 55.0 < float(center.mean()):
         score -= 0.20
-        reasons.append("Campo circular o sectorial posible; verificar que no sea CT o ecografia.")
+        reasons.append("Campo circular o sectorial posible; verificar que no sea CT o ecografía.")
 
     score = round(min(max(score, 0.0), 1.0), 3)
     status = "likely_cxr" if score >= 0.65 else "uncertain"
     if not reasons:
-        reasons.append("Caracteristicas tecnicas compatibles con radiografia de torax.")
+        reasons.append("No se detectaron señales técnicas de una entrada distinta a radiografía de tórax.")
     return CXRScreeningResult(
         status=status,
         score=score,

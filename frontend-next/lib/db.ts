@@ -49,7 +49,7 @@ function seedDefaultAdmin(database: Database.Database): void {
   const count = (database.prepare('SELECT COUNT(*) AS n FROM users').get() as { n: number }).n
   if (count > 0) return
   const password = process.env.SEED_ADMIN_PASSWORD
-  if (!password || password.length < 12) throw new Error('Configure SEED_ADMIN_PASSWORD (minimo 12 caracteres) para crear el administrador inicial.')
+  if (!password || password.length < 12) throw new Error('Configure SEED_ADMIN_PASSWORD (mínimo 12 caracteres) para crear el administrador inicial.')
   database
     .prepare(
       `INSERT INTO users (id, name, username, password, role, cmp, specialty, active, createdAt)

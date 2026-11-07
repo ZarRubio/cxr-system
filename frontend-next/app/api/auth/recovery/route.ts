@@ -14,13 +14,13 @@ export async function POST(request: Request) {
     }
     if (body.action === 'confirm') {
       const ok = await completePasswordRecovery(body.requestId, body.code, body.password, ip)
-      return Response.json({ message: ok ? 'Contrasena actualizada. Inicie sesion nuevamente.' : 'Codigo no valido, caducado o agotado. Solicite uno nuevo.' }, { status: ok ? 200 : 400, headers: { 'Cache-Control': 'no-store' } })
+      return Response.json({ message: ok ? 'Contraseña actualizada. Inicie sesión nuevamente.' : 'Código no válido, caducado o agotado. Solicite uno nuevo.' }, { status: ok ? 200 : 400, headers: { 'Cache-Control': 'no-store' } })
     }
-    return Response.json({ message: 'Solicitud no valida.' }, { status: 400 })
+    return Response.json({ message: 'Solicitud no válida.' }, { status: 400 })
   } catch (error) {
     if (error instanceof RecoveryRequestError) {
       return Response.json({ message: error.message }, { status: error.status, headers: { 'Cache-Control': 'no-store' } })
     }
-    return Response.json({ message: 'No se pudo completar la solicitud. Verifique el correo e intente mas tarde.' }, { status: 503 })
+    return Response.json({ message: 'No se pudo completar la solicitud. Verifique el correo e intente más tarde.' }, { status: 503 })
   }
 }

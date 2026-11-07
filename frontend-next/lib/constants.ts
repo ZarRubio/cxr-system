@@ -1,32 +1,5 @@
 import type { Severity } from './types'
 
-// Clases que requieren alerta STAT (modal bloqueante antes de mostrar resultados)
-export const STAT_CLASSES = new Set([
-  'Pneumothorax',
-  'Mass',
-  'Edema',
-  'Pneumonia',
-])
-
-// Diagnóstico diferencial clínico por clase (orden por frecuencia en contexto clínico general)
-export const DIFFERENTIALS: Record<string, string[]> = {
-  Atelectasis:        ['Obstrucción bronquial', 'Compresión extrínseca', 'Cicatriz post-TB', 'Post-quirúrgico'],
-  Cardiomegaly:       ['Insuficiencia cardíaca', 'Derrame pericárdico', 'Miocardiopatía', 'Proyección AP (pseudo)'],
-  Consolidation:      ['Neumonía bacteriana', 'Tuberculosis', 'Atelectasia lobar', 'Neoplasia', 'Edema focal'],
-  Edema:              ['ICC (edema cardiogénico)', 'SDRA', 'Neumonía bilateral', 'Hemorragia alveolar'],
-  Effusion:           ['Trasudado (ICC, cirrosis)', 'Exudado (infección, neoplasia)', 'Hemotórax', 'Empiema'],
-  Emphysema:          ['EPOC', 'Asma severa', 'Hiperinsuflación compensatoria', 'Déficit de alfa-1 antitripsina'],
-  Fibrosis:           ['Fibrosis pulmonar idiopática', 'Secuela de TB', 'Neumoconiosis', 'Sarcoidosis'],
-  Hernia:             ['Hernia de Bochdalek', 'Hernia de Morgagni', 'Eventración diafragmática'],
-  Infiltration:       ['Tuberculosis pulmonar', 'Neumonía atípica', 'Edema', 'Hemorragia alveolar'],
-  Mass:               ['Neoplasia primaria (CBP)', 'Metástasis', 'Granuloma (TB/histoplasma)', 'Hamartoma', 'Absceso'],
-  Nodule:             ['Granuloma calcificado (TB)', 'CBP temprano', 'Linfonodo intrapulmonar', 'Artefacto'],
-  Pleural_Thickening: ['Secuela de derrame/empiema', 'Mesotelioma', 'Asbestosis', 'Tuberculosis pleural'],
-  Pneumonia:          ['Neumonía bacteriana típica', 'Tuberculosis', 'Neumonía atípica (Mycoplasma)', 'Edema focal'],
-  Pneumothorax:       ['Neumotórax espontáneo primario', 'Neumotórax a tensión (urgencia)', 'Neumotórax traumático'],
-  'No Finding':       [],
-}
-
 export const SEVERITY_MAP: Record<string, Severity> = {
   Pneumothorax:       'critical',
   Mass:               'critical',
@@ -79,204 +52,57 @@ export const BADGES: Record<string, string> = {
 
 export const DESCRIPTIONS: Record<string, string> = {
   Atelectasis:
-    'Colapso pulmonar parcial o total de uno o más lóbulos. Frecuente en postoperados, pacientes encamados o con obstrucción bronquial.',
+    'Etiqueta asociada a pérdida de volumen o colapso de una parte del pulmón.',
   Cardiomegaly:
-    'Posible aumento de la silueta cardíaca (ICT > 0.5). Puede asociarse a insuficiencia cardíaca o derrame pericárdico. Correlación clínica recomendada.',
+    'Etiqueta asociada a un aumento aparente de la silueta cardíaca. La proyección AP puede sobrestimar su tamaño.',
   Consolidation:
-    'Ocupación alveolar por líquido o tejido. Considerar neumonía bacteriana; correlacionar con fiebre y clínica.',
+    'Etiqueta asociada a ocupación del espacio alveolar, por ejemplo por líquido o material inflamatorio.',
   Edema:
-    'Edema pulmonar. Evaluar insuficiencia cardíaca o causas no cardiogénicas. Patrón típico: opacidades perihiliares bilaterales.',
+    'Etiqueta asociada a patrones de acumulación de líquido en el pulmón.',
   Effusion:
-    'Posible derrame pleural con opacidad basal o borramiento del seno costodiafragmático. Se recomienda proyección lateral o ecografía complementaria.',
+    'Etiqueta asociada a líquido en el espacio pleural, como el borramiento del seno costodiafragmático.',
   Emphysema:
-    'Hiperinsuflación y destrucción alveolar. Correlacionar con espirometría y antecedentes tabáquicos o de exposición.',
+    'Etiqueta asociada a hiperinsuflación pulmonar.',
   Fibrosis:
-    'Patrón fibrótico pulmonar. Considerar fibrosis intersticial. Correlacionar con antecedentes y TCAR de alta resolución.',
+    'Etiqueta asociada a patrones de cicatrización o engrosamiento del tejido pulmonar.',
   Hernia:
-    'Posible hernia diafragmática. Confirmar con tomografía computada; evaluar contenido herniado.',
+    'Etiqueta asociada a una hernia a través del diafragma. Es una de las categorías con menos casos en los datos.',
   Infiltration:
-    'Posible infiltrado pulmonar compatible con consolidación, neumonía o proceso inflamatorio. En considerar tamizaje de tuberculosis según protocolo local.',
+    'Etiqueta amplia asociada a opacidades pulmonares de distinto origen. En la evaluación interna fue una de las clases con menor especificidad.',
   Mass:
     'Resultado para la categoría Mass del conjunto de entrenamiento. El clasificador no mide lesiones ni confirma su presencia o naturaleza.',
   Nodule:
     'Resultado para la categoría Nodule del conjunto de entrenamiento. El clasificador no mide lesiones ni establece una conducta de seguimiento.',
   Pleural_Thickening:
-    'Engrosamiento pleural. Correlacionar con antecedentes de exposición, derrame previo o infección.',
+    'Etiqueta asociada a engrosamiento de la pleura.',
   Pneumonia:
-    'Compatible con consolidación neumónica. Correlación clínica recomendada. En descartar tuberculosis según protocolo local.',
+    'Etiqueta tomada de los informes del conjunto NIH; la imagen por sí sola no permite confirmar una neumonía. En la evaluación interna su valor predictivo positivo fue muy bajo.',
   Pneumothorax:
-    'Posible neumotórax: ausencia de trama vascular en periferia del campo pulmonar. Verificar línea pleural en radiografía en espiración. Urgencia si es a tensión.',
+    'Etiqueta asociada a aire en el espacio pleural.',
   'No Finding':
     'Ninguna clase superó el umbral del modelo. Este resultado no confirma normalidad ni excluye enfermedad.',
 }
 
-// Recomendaciones clínicas por hallazgo — para mostrar en la UI y el PDF
-export type Urgency = 'stat' | 'urgente' | 'electivo' | 'rutina'
-
-export const URGENCY_LABELS: Record<Urgency, string> = {
-  stat:     'STAT — Atención inmediata',
-  urgente:  'Urgente — Evaluación < 24 h',
-  electivo: 'Electivo — Evaluación dentro de la semana',
-  rutina:   'Rutina — Seguimiento programado',
-}
-
-export const URGENCY_COLORS: Record<Urgency, { bg: string; text: string; border: string }> = {
-  stat:     { bg: '#FEE2E2', text: '#991B1B', border: '#FCA5A5' },
-  urgente:  { bg: '#FEF3C7', text: '#92400E', border: '#FCD34D' },
-  electivo: { bg: '#E0F2FE', text: '#075985', border: '#BAE6FD' },
-  rutina:   { bg: '#F0FDF4', text: '#166534', border: '#86EFAC' },
-}
-
-export const RECOMMENDATIONS: Record<string, { urgency: Urgency; actions: string[] }> = {
-  Pneumothorax: {
-    urgency: 'stat',
-    actions: [
-      'Evaluar clínicamente de inmediato — auscultar ambos campos pulmonares',
-      'Si sospecha de neumotórax a tensión: descompresión emergente con aguja',
-      'Solicitar Rx en espiración para confirmar y medir tamaño',
-      'Interconsulta urgente a cirugía torácica o neumología',
-      'Preparar equipo para colocación de tubo de tórax si es indicado',
-    ],
-  },
-  Edema: {
-    urgency: 'stat',
-    actions: [
-      'Evaluar signos de insuficiencia cardíaca descompensada',
-      'Solicitar BNP/NT-proBNP, ECG y ecocardiografía de urgencia',
-      'Interconsulta a cardiología de guardia',
-      'Iniciar manejo según protocolo de edema pulmonar agudo si aplica',
-    ],
-  },
-  Pneumonia: {
-    urgency: 'urgente',
-    actions: [
-      'Solicitar hemograma, PCR, hemocultivos y cultivo de esputo',
-      'Descartar tuberculosis pulmonar según protocolo clínico vigente (BK en esputo)',
-      'Calcular índice de gravedad (PSI/CURB-65)',
-      'Iniciar antibioticoterapia empírica según guía institucional',
-      'Evaluar necesidad de hospitalización vs manejo ambulatorio',
-    ],
-  },
-  Mass: {
-    urgency: 'urgente',
-    actions: [
-      'Solicitar TAC de tórax con contraste (prioridad < 1 semana)',
-      'Completar anamnesis: tabaquismo, pérdida de peso, hemoptisis, exposiciones',
-      'Interconsulta a neumología u oncología torácica',
-      'No diferir — lesiones > 3 cm requieren caracterización urgente',
-    ],
-  },
-  Effusion: {
-    urgency: 'urgente',
-    actions: [
-      'Solicitar proyección lateral y ecografía pleural para cuantificar',
-      'Evaluar causas: ICC, hepatopatía, neoplasia, infección, TB pleural',
-      'Si derrame significativo: considerar toracocentesis diagnóstica',
-      'Interconsulta a neumología',
-    ],
-  },
-  Consolidation: {
-    urgency: 'urgente',
-    actions: [
-      'Correlacionar con cuadro clínico y fiebre',
-      'Solicitar hemograma, PCR y cultivos',
-      'Descartar tuberculosis (BK en esputo) si clínica compatible',
-      'Iniciar tratamiento si cuadro clínico confirma neumonía',
-    ],
-  },
-  Nodule: {
-    urgency: 'electivo',
-    actions: [
-      'Solicitar TAC de tórax de alta resolución para caracterización',
-      'Aplicar criterios de Fleischner para seguimiento según tamaño y riesgo',
-      'Revisar radiografías previas para evaluar crecimiento',
-      'Interconsulta a neumología en < 7 días si nódulo > 8 mm',
-    ],
-  },
-  Cardiomegaly: {
-    urgency: 'electivo',
-    actions: [
-      'Solicitar ecocardiograma transtorácico',
-      'Evaluar signos de ICC: ortopnea, edema de miembros, ingurgitación yugular',
-      'Verificar proyección — AP puede sobreestimar el tamaño cardíaco',
-      'Interconsulta a cardiología',
-    ],
-  },
-  Atelectasis: {
-    urgency: 'electivo',
-    actions: [
-      'Evaluar causa: obstrucción bronquial, cuerpo extraño, compresión extrínseca',
-      'Kinesioterapia respiratoria y cambios posturales si postoperado',
-      'Solicitar broncoscopía si atelectasia persistente sin causa clara',
-      'Seguimiento con Rx control en 4-6 semanas',
-    ],
-  },
-  Infiltration: {
-    urgency: 'electivo',
-    actions: [
-      'Descartar tuberculosis activa según protocolo clínico vigente (BK × 3)',
-      'Correlacionar con síntomas: tos, fiebre, sudoración nocturna',
-      'Solicitar hemograma y prueba de tuberculina si aplica',
-      'Seguimiento en 2-4 semanas con Rx de control',
-    ],
-  },
-  Emphysema: {
-    urgency: 'rutina',
-    actions: [
-      'Solicitar espirometría con prueba broncodilatadora',
-      'Confirmar antecedente de tabaquismo u otras exposiciones',
-      'Interconsulta a neumología para estadificación GOLD',
-      'Programa de cesación tabáquica si fumador activo',
-    ],
-  },
-  Fibrosis: {
-    urgency: 'rutina',
-    actions: [
-      'Solicitar TCAR (tomografía de alta resolución) para patrón fibrótico',
-      'Descartar exposición ocupacional (sílice, asbestos)',
-      'Interconsulta a neumología para diagnóstico diferencial de EPI',
-      'Pruebas de función pulmonar completas',
-    ],
-  },
-  Pleural_Thickening: {
-    urgency: 'rutina',
-    actions: [
-      'Revisar antecedentes: exposición a asbesto, empiema previo, TB pleural',
-      'Ecografía pleural para descartar derrame asociado',
-      'Seguimiento en 6 meses con Rx si hallazgo incidental',
-    ],
-  },
-  Hernia: {
-    urgency: 'rutina',
-    actions: [
-      'Confirmar con TAC de tórax para caracterizar contenido herniado',
-      'Evaluar síntomas gastrointestinales asociados',
-      'Interconsulta a cirugía general o torácica',
-    ],
-  },
-  'No Finding': {
-    urgency: 'rutina',
-    actions: [
-      'No se requieren acciones basadas en este estudio de imagen',
-      'Continuar manejo clínico según cuadro del paciente',
-      'Repetir estudio si la clínica evoluciona o aparecen nuevos síntomas',
-    ],
-  },
-}
+/** Nota común a todas las etiquetas: se muestra junto a la descripción del hallazgo. */
+export const FINDING_NOTE =
+  'Las etiquetas del conjunto NIH provienen de informes, no de una revisión experta. El score no confirma el hallazgo: requiere confirmación profesional en la imagen original.'
 
 export const CLASSES_INFO: Record<string, string> = {
-  Atelectasis:        'Colapso pulmonar parcial/total',
-  Cardiomegaly:       'Posible cardiomegalia',
+  Atelectasis:        'Pérdida de volumen pulmonar',
+  Cardiomegaly:       'Silueta cardíaca aumentada',
   Consolidation:      'Ocupación alveolar',
-  Edema:              'Edema pulmonar',
-  Effusion:           'Posible derrame pleural',
-  Emphysema:          'Hiperinsuflación alveolar',
-  Fibrosis:           'Patrón fibrótico pulmonar',
+  Edema:              'Patrón de edema pulmonar',
+  Effusion:           'Líquido pleural',
+  Emphysema:          'Hiperinsuflación pulmonar',
+  Fibrosis:           'Patrón fibrótico',
   Hernia:             'Hernia diafragmática',
-  Infiltration:       'Infiltrado / TB / neumonía',
-  Mass:               'Lesión > 3 cm',
-  Nodule:             'Lesión focal < 3 cm',
+  Infiltration:       'Opacidad pulmonar (etiqueta amplia)',
+  Mass:               'Categoría Mass (no mide lesiones)',
+  Nodule:             'Categoría Nodule (no mide lesiones)',
   Pleural_Thickening: 'Engrosamiento pleural',
-  Pneumonia:          'Consolidación neumónica',
-  Pneumothorax:       'Posible neumotórax',
+  Pneumonia:          'Etiqueta de neumonía (VPP interno bajo)',
+  Pneumothorax:       'Aire en el espacio pleural',
 }
+
+/** Comparar (US43): contraste puntual que no crea estudios ni envía alertas. */
+export const COMPARE_NOT_SAVED_MESSAGE = 'Resultado de comparación: no se guardó en el historial ni generó alertas por correo.'

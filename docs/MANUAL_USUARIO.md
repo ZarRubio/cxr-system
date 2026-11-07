@@ -116,8 +116,11 @@ No use nombres, documentos de identidad ni otros datos personales en los campos 
 ## 7. Modelo y comparación
 
 La sección **Modelo** muestra arquitectura, versión, clases, umbrales y métricas AUC.
-La sección de comparación permite contrastar resultados disponibles. Las probabilidades
-son estimaciones del modelo y no equivalen a certeza diagnóstica.
+La sección **Comparar** analiza dos radiografías y muestra sus resultados lado a lado. Es un
+contraste puntual: no guarda estudios en el historial ni envía alertas por correo, y no
+establece progresión de enfermedad. Para registrar un estudio use **Nuevo estudio**. Los
+scores son salidas del modelo sin calibrar; no son probabilidades clínicas ni certeza
+diagnóstica.
 
 ## 8. Administración
 

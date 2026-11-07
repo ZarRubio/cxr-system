@@ -132,6 +132,14 @@ describe('sqliteStore — análisis', () => {
     expect(saved?.feedback?.agrees).toBe(true)
   })
 
+  it('deletes a study so it no longer appears in the history', async () => {
+    await sqliteStore.createAnalysis(mk({ id: 'delete-me', userId: 'delete-user' }))
+    expect(await sqliteStore.deleteAnalysis('delete-me')).toBe(true)
+    expect(await sqliteStore.getAnalysis('delete-me')).toBeNull()
+    expect(await sqliteStore.listAnalyses({ userId: 'delete-user' })).toEqual([])
+    expect(await sqliteStore.deleteAnalysis('delete-me')).toBe(false)
+  })
+
   it('claims a retry atomically and updates only one recipient', async () => {
     const id = 'retry-test'
     await sqliteStore.createAnalysis(mk({ id }))

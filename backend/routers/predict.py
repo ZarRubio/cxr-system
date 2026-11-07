@@ -23,7 +23,7 @@ _INFERENCE_LOCK = threading.Lock()
 async def _read_image(file: UploadFile) -> bytes:
     content = await file.read(settings.max_file_bytes + 1)
     if len(content) > settings.max_file_bytes:
-        raise HTTPException(status_code=413, detail="Imagen excede el limite de carga.")
+        raise HTTPException(status_code=413, detail="Imagen excede el límite de carga.")
     return content
 
 
@@ -71,7 +71,7 @@ async def predict_batch(request: Request, files: list[UploadFile] = File(...)):
     if len(files) > settings.batch_max_files:
         raise HTTPException(
             status_code=413,
-            detail=f"Maximo {settings.batch_max_files} imagenes por lote.",
+            detail=f"Máximo {settings.batch_max_files} imágenes por lote.",
         )
 
     options = _parse_options(request)

@@ -29,16 +29,20 @@ export function GradCamView({ prediction, originalBytes, filename = 'image.png',
   const blended = blendResult?.source === heatmapUri && blendResult?.bytes === displayBytes ? blendResult.uri : null
   const renderedMap = heatmapUri ? blended : gradcamUri
 
-  // URL de objeto para la imagen original; el effect solo revoca al desmontar
-  const originalSrc = useMemo(() => {
-    if (!displayBytes) return null
-    return URL.createObjectURL(new Blob([new Uint8Array(displayBytes)]))
-  }, [displayBytes])
-
+  // URL de objeto para la imagen original. Se crea y se revoca en el mismo effect: con useMemo,
+  // el doble montaje del modo estricto revocaba la URL memorizada y la imagen quedaba rota.
+  const [objectUrl, setObjectUrl] = useState<{ url: string; bytes: Uint8Array } | null>(null)
   useEffect(() => {
-    if (!originalSrc) return
-    return () => URL.revokeObjectURL(originalSrc)
-  }, [originalSrc])
+    if (!displayBytes) return
+    const url = URL.createObjectURL(new Blob([new Uint8Array(displayBytes)]))
+    let active = true
+    Promise.resolve().then(() => { if (active) setObjectUrl({ url, bytes: displayBytes }) })
+    return () => {
+      active = false
+      URL.revokeObjectURL(url)
+    }
+  }, [displayBytes])
+  const originalSrc = objectUrl?.bytes === displayBytes ? objectUrl.url : null
 
   // Blend original + Grad-CAM whenever opacity or gradcam changes
   useEffect(() => {
@@ -118,7 +122,7 @@ export function GradCamView({ prediction, originalBytes, filename = 'image.png',
               Esto no confirma ni descarta enfermedad.
             </p>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={originalSrc ?? undefined} alt="Radiografia sin mapa de calor" className="w-full max-w-sm aspect-square object-contain rounded-md bg-[#111111]" />
+            <img src={originalSrc ?? undefined} alt="Radiografía sin mapa de calor" className="w-full max-w-sm aspect-square object-contain rounded-md bg-[#111111]" />
           </div>
         )}
 
@@ -129,7 +133,7 @@ export function GradCamView({ prediction, originalBytes, filename = 'image.png',
               <figure className="min-w-0">
                 <figcaption className="text-xs text-[var(--fg-muted)] mb-2">Imagen de entrada (224 x 224)</figcaption>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={originalSrc ?? undefined} alt="Radiografia sin mapa de calor" className="w-full aspect-square object-contain rounded-md bg-[#111111]" />
+                <img src={originalSrc ?? undefined} alt="Radiografía sin mapa de calor" className="w-full aspect-square object-contain rounded-md bg-[#111111]" />
               </figure>
               <figure className="min-w-0">
                 <figcaption className="text-xs text-[var(--fg-muted)] mb-2">Atribución relativa - modelo v2</figcaption>

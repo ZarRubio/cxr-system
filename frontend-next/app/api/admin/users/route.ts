@@ -41,7 +41,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Nombre, usuario y contraseña son obligatorios.' }, { status: 400 })
   }
   if (!validNewPassword(password)) {
-    return NextResponse.json({ error: 'La contraseña debe tener al menos 12 caracteres y como maximo 72 bytes.' }, { status: 400 })
+    return NextResponse.json({ error: 'La contraseña debe tener al menos 12 caracteres y como máximo 72 bytes.' }, { status: 400 })
   }
   if ((await getDataStore().getUsersByEmail(email!)).length) return NextResponse.json({ error: 'El correo ya pertenece a otra cuenta.' }, { status: 409 })
   if (await getUserByUsername(username)) {

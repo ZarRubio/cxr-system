@@ -113,7 +113,7 @@ def _decision_support(
         status = "borderline"
         if margin <= 0.05:
             reasons.append(
-                f"El score de {focus_class} esta a {margin * 100:.1f} puntos porcentuales del umbral."
+                f"El score de {focus_class} está a {margin * 100:.1f} puntos porcentuales del umbral."
             )
         if disagreement >= 0.10:
             reasons.append(
@@ -121,13 +121,13 @@ def _decision_support(
             )
     else:
         status = "stable"
-        reasons.append("Los dos modelos muestran concordancia tecnica para la decision principal.")
+        reasons.append("Los dos modelos muestran concordancia técnica para la decisión principal.")
 
     heightened = status != "stable"
     recommendation = (
-        "Realizar revision radiologica reforzada antes de interpretar este resultado."
+        "Realizar revisión radiológica reforzada antes de interpretar este resultado."
         if heightened
-        else "Mantener la revision radiologica habitual y correlacionar con el contexto clinico."
+        else "Mantener la revisión radiológica habitual y correlacionar con el contexto clínico."
     )
     return {
         "status": status,

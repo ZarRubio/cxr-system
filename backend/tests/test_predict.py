@@ -578,7 +578,7 @@ class TestPredictEndpoint:
             files={"file": ("selfie.png", _make_color_photo_bytes(), "image/png")},
         )
         assert resp.status_code == 422
-        assert "radiografia de torax" in resp.json()["detail"]
+        assert "radiografía de tórax" in resp.json()["detail"]
 
     def test_cmyk_jpg_returns_422_with_channels_message(self, client: TestClient):
         resp = client.post(

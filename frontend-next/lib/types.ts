@@ -1,5 +1,5 @@
 export interface Prediction {
-  persistence?: { status: 'saved' | 'failed'; message?: string }
+  persistence?: { status: 'saved' | 'failed' | 'not_saved'; message?: string }
   notification_error?: boolean
   feedback?: import('./data/analysis').AnalysisFeedback | null
   email_alert?: import('./data/analysis').EmailAlert

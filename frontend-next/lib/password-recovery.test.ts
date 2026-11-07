@@ -48,20 +48,25 @@ describe('password recovery', () => {
     for (let i = 0; i < 5; i++) expect(await completePasswordRecovery(id, wrong, 'new-password-test-123', 'ip')).toBe(false)
     expect(await completePasswordRecovery(id, code, 'new-password-test-123', 'ip')).toBe(false)
   })
-  it('rejects unknown emails without creating a challenge or sending mail', async () => {
-    mocks.getUsersByEmail.mockResolvedValue([])
-    await expect(requestPasswordRecovery('unknown@example.com', 'ip')).rejects.toThrow('El correo no esta registrado')
+  // Sin enumeración: estos casos responden igual que una cuenta válida, pero sin código ni correo.
+  async function expectIndistinguishable(emailUsers: unknown[], email = user.email) {
+    mocks.getUsersByEmail.mockResolvedValue(emailUsers)
+    const id = await requestPasswordRecovery(email, 'ip')
+    expect(id).toMatch(/^[a-f0-9-]{36}$/)
     expect(mocks.sendMail).not.toHaveBeenCalled()
+    expect(db.prepare('SELECT COUNT(*) AS n FROM security_state WHERE id LIKE ?').get('recovery:%')).toEqual({ n: 0 })
+    expect(await completePasswordRecovery(id, '123456', 'new-password-test-123', 'ip')).toBe(false)
+    const row = db.prepare('SELECT password FROM users').get() as { password: string }
+    expect(row.password).toBe(user.password)
+  }
+  it('answers unknown emails like a valid account, without a challenge or mail', async () => {
+    await expectIndistinguishable([], 'unknown@example.com')
   })
-  it('rejects disabled accounts without sending mail', async () => {
-    mocks.getUsersByEmail.mockResolvedValue([{ ...user, active: false }])
-    await expect(requestPasswordRecovery(user.email, 'ip')).rejects.toThrow('El correo no esta registrado')
-    expect(mocks.sendMail).not.toHaveBeenCalled()
+  it('answers disabled accounts like a valid account, without a challenge or mail', async () => {
+    await expectIndistinguishable([{ ...user, active: false }])
   })
-  it('rejects duplicate active emails instead of selecting an account', async () => {
-    mocks.getUsersByEmail.mockResolvedValue([user, { ...user, id: 'other' }])
-    await expect(requestPasswordRecovery(user.email, 'ip')).rejects.toThrow('Contacte al administrador')
-    expect(mocks.sendMail).not.toHaveBeenCalled()
+  it('never selects an account for duplicate active emails', async () => {
+    await expectIndistinguishable([user, { ...user, id: 'other' }])
   })
   it('rejects repeated requests without resending mail', async () => {
     await challenge()

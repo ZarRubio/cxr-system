@@ -33,9 +33,13 @@ export async function requestPasswordRecovery(emailInput: unknown, ip: string, s
   if (!(await consumeLimit(`recovery-ip:${ip}`, 10, 900_000))) throw new RecoveryRequestError('Demasiadas solicitudes. Intente mas tarde.', 429)
   if (!(await consumeLimit(`recovery-email:${email}`, 1, 60_000))) throw new RecoveryRequestError('Espere un minuto antes de solicitar otro codigo.', 429)
   const users = (await getDataStore().getUsersByEmail(email)).filter(u => u.active)
-  // Ambiguous legacy emails must be resolved by an administrator, never pick a random account.
-  if (users.length === 0) throw new RecoveryRequestError('El correo no esta registrado en una cuenta activa.', 400)
-  if (users.length !== 1) throw new RecoveryRequestError('No se puede recuperar esta cuenta por correo. Contacte al administrador.', 400)
+  // Misma respuesta pública exista o no la cuenta, para no permitir enumerar correos registrados.
+  // El requestId devuelto no tiene código asociado, así que cualquier confirmación falla como un código incorrecto.
+  if (users.length !== 1) {
+    // Los correos compartidos por varias cuentas los resuelve un administrador; nunca se elige una al azar.
+    if (users.length > 1) console.warn('[password-recovery] correo asociado a varias cuentas activas', { request: securityId(requestId) })
+    return requestId
+  }
   const user = users[0]
   await mutateSecurity(`recovery:${requestId}`, () => ({ data: {
     userId: user.id, previousPassword: user.password, email, codeHash, attempts: 0,

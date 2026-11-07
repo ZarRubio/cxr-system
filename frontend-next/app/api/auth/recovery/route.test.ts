@@ -8,7 +8,7 @@ vi.mock('@/lib/password-recovery', async importOriginal => ({
   completePasswordRecovery: mocks.confirm,
 }))
 vi.mock('next/server', () => ({ after: vi.fn() }))
-import { RecoveryRequestError } from '@/lib/password-recovery'
+import { RECOVERY_MESSAGE, RecoveryRequestError } from '@/lib/password-recovery'
 import { POST } from './route'
 
 beforeEach(() => vi.clearAllMocks())
@@ -21,12 +21,12 @@ function request() {
 }
 
 describe('recovery request response', () => {
-  it('returns the unregistered error without a request ID', async () => {
-    mocks.request.mockRejectedValue(new RecoveryRequestError('El correo no esta registrado en una cuenta activa.', 400))
+  it('answers an unregistered email with the generic message and a request ID', async () => {
+    mocks.request.mockResolvedValue('00000000-0000-4000-8000-000000000000')
     const response = await POST(request())
-    expect(response.status).toBe(400)
+    expect(response.status).toBe(200)
     expect(response.headers.get('Cache-Control')).toBe('no-store')
-    expect(await response.json()).toEqual({ message: 'El correo no esta registrado en una cuenta activa.' })
+    expect(await response.json()).toEqual({ message: RECOVERY_MESSAGE, requestId: '00000000-0000-4000-8000-000000000000' })
   })
   it('returns rate limiting without opening a challenge', async () => {
     mocks.request.mockRejectedValue(new RecoveryRequestError('Espere un minuto antes de solicitar otro codigo.', 429))

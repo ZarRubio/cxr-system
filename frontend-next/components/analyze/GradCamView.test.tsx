@@ -17,7 +17,7 @@ it('does not display or blend an uninterpretable map', () => {
   expect(screen.queryByAltText('Overlay Grad-CAM')).toBeNull()
   expect(screen.queryByRole('button', { name: 'Generar mapa de calor' })).toBeNull()
   expect(blendImagesOnCanvas).not.toHaveBeenCalled()
-  expect(screen.getByAltText('Radiografia sin mapa de calor')).toBeTruthy()
+  expect(screen.getByAltText('Radiografía sin mapa de calor')).toBeTruthy()
 })
 beforeEach(() => {
   vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: vi.fn(() => 'blob:preview'), revokeObjectURL: vi.fn() }))
@@ -63,7 +63,7 @@ it('blends the pure heatmap, never the server overlay, without requesting infere
   fireEvent.change(screen.getByRole('slider'), { target: { value: '0' } })
   await waitFor(() => expect(blendImagesOnCanvas).toHaveBeenLastCalledWith(new Uint8Array([0]), new Uint8Array([1]), 0))
   expect(predict).not.toHaveBeenCalled()
-  expect(screen.getByAltText('Radiografia sin mapa de calor')).toBeTruthy()
+  expect(screen.getByAltText('Radiografía sin mapa de calor')).toBeTruthy()
 })
 
 it('does not blend legacy overlays again or offer an inaccurate opacity slider', () => {

@@ -26,7 +26,7 @@ export async function mutateSecurity<T>(key: string, change: (current: Record<st
       const p = next.passwordChange
       const updated = db.prepare('UPDATE users SET password = ? WHERE id = ? AND password = ? AND lower(email) = ? AND active = 1')
         .run(p.password, p.id, p.previousPassword, p.email)
-      if (updated.changes !== 1) throw new Error('La cuenta ha cambiado. Solicite otro codigo.')
+      if (updated.changes !== 1) throw new Error('La cuenta ha cambiado. Solicite otro código.')
     }
     db.prepare('INSERT INTO security_state(id, data) VALUES (?, ?) ON CONFLICT(id) DO UPDATE SET data = excluded.data')
       .run(id, JSON.stringify(next.data))

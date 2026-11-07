@@ -99,7 +99,7 @@ export function ImageLightbox({
       }}
     >
       <Dialog.Title className="sr-only">Visor ampliado del mapa Grad-CAM</Dialog.Title>
-      <Dialog.Description className="sr-only">Comparacion de la radiografia original y las regiones que influyeron en el modelo. No confirma una lesion ni su localizacion.</Dialog.Description>
+      <Dialog.Description className="sr-only">Comparación de la radiografía original y las regiones que influyeron en el modelo. No confirma una lesion ni su localizacion.</Dialog.Description>
       {/* ── Top bar ── */}
       <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-b border-white/10 shrink-0">
         <div>

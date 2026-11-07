@@ -37,7 +37,7 @@ function ensureSeed(): Promise<void> {
       return
     }
     const password = process.env.SEED_ADMIN_PASSWORD
-    if (!password || password.length < 12) throw new Error('Configure SEED_ADMIN_PASSWORD (minimo 12 caracteres) para crear el administrador inicial.')
+    if (!password || password.length < 12) throw new Error('Configure SEED_ADMIN_PASSWORD (mínimo 12 caracteres) para crear el administrador inicial.')
     const user: CXRUser = {
       id: 'usr_admin',
       name: 'Administrador',

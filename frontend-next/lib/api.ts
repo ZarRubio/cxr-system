@@ -116,7 +116,7 @@ export async function fetchAllAnalyses(filters: AnalysisFilters = {}) {
     isAdmin = result.isAdmin
     for (const record of result.analyses) if (!seen.has(record.id)) { seen.add(record.id); analyses.push(record) }
     if (!result.nextCursor) return { analyses, isAdmin }
-    if (result.nextCursor === cursor) throw new Error('El historial no avanzo de pagina.')
+    if (result.nextCursor === cursor) throw new Error('El historial no avanzó de página.')
     cursor = result.nextCursor
   }
   throw new Error('El historial supera el limite de consulta. Acote el rango de fechas para exportar o consultar estadisticas.')

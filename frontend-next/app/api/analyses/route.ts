@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
       after = JSON.parse(Buffer.from(params.get('cursor')!, 'base64url').toString())
       if (!after || typeof after.createdAt !== 'string' || !Number.isFinite(Date.parse(after.createdAt)) || typeof after.id !== 'string' || !/^[a-zA-Z0-9_-]{1,128}$/.test(after.id)) throw new Error('cursor')
     }
-  } catch { return NextResponse.json({ error: 'Cursor no valido.' }, { status: 400 }) }
+  } catch { return NextResponse.json({ error: 'Cursor no válido.' }, { status: 400 }) }
   const analyses: AnalysisRecord[] = []
   let more = false
   let scanned = 0

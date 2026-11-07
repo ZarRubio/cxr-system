@@ -118,7 +118,7 @@ export function GradCamView({ prediction, originalBytes, filename = 'image.png',
               Esto no confirma ni descarta enfermedad.
             </p>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={originalSrc ?? undefined} alt="Radiografia sin mapa de calor" className="w-full max-w-sm aspect-square object-contain rounded-md bg-[#111111]" />
+            <img src={originalSrc ?? undefined} alt="Radiografía sin mapa de calor" className="w-full max-w-sm aspect-square object-contain rounded-md bg-[#111111]" />
           </div>
         )}
 
@@ -129,7 +129,7 @@ export function GradCamView({ prediction, originalBytes, filename = 'image.png',
               <figure className="min-w-0">
                 <figcaption className="text-xs text-[var(--fg-muted)] mb-2">Imagen de entrada (224 x 224)</figcaption>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={originalSrc ?? undefined} alt="Radiografia sin mapa de calor" className="w-full aspect-square object-contain rounded-md bg-[#111111]" />
+                <img src={originalSrc ?? undefined} alt="Radiografía sin mapa de calor" className="w-full aspect-square object-contain rounded-md bg-[#111111]" />
               </figure>
               <figure className="min-w-0">
                 <figcaption className="text-xs text-[var(--fg-muted)] mb-2">Atribución relativa - modelo v2</figcaption>

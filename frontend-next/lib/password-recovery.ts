@@ -6,7 +6,7 @@ import { getDataStore } from './data/store'
 import { configured, transport } from './critical-email'
 import { consumeLimit, mutateSecurity, securityId } from './security-state'
 
-export const RECOVERY_MESSAGE = 'Si existe una cuenta activa con ese correo, recibira un codigo valido durante 10 minutos.'
+export const RECOVERY_MESSAGE = 'Si existe una cuenta activa con ese correo, recibirá un código válido durante 10 minutos.'
 
 export class RecoveryRequestError extends Error {
   constructor(message: string, public readonly status: number) {
@@ -16,7 +16,7 @@ export class RecoveryRequestError extends Error {
 
 function digest(requestId: string, code: string): string {
   const secret = process.env.AUTH_SECRET
-  if (!secret || secret.length < 32) throw new Error('Servicio de recuperacion no configurado.')
+  if (!secret || secret.length < 32) throw new Error('Servicio de recuperación no configurado.')
   return createHmac('sha256', secret).update(`${requestId}:${code}`).digest('hex')
 }
 
@@ -26,12 +26,12 @@ export function validNewPassword(password: unknown): password is string {
 
 export async function requestPasswordRecovery(emailInput: unknown, ip: string, schedule?: (job: () => Promise<void>) => void): Promise<string> {
   const email = parseEmail(emailInput, true)!
-  if (!configured()) throw new Error('Servicio de recuperacion no disponible.')
+  if (!configured()) throw new Error('Servicio de recuperación no disponible.')
   const requestId = randomUUID()
   const code = String(randomInt(0, 1_000_000)).padStart(6, '0')
   const codeHash = digest(requestId, code)
-  if (!(await consumeLimit(`recovery-ip:${ip}`, 10, 900_000))) throw new RecoveryRequestError('Demasiadas solicitudes. Intente mas tarde.', 429)
-  if (!(await consumeLimit(`recovery-email:${email}`, 1, 60_000))) throw new RecoveryRequestError('Espere un minuto antes de solicitar otro codigo.', 429)
+  if (!(await consumeLimit(`recovery-ip:${ip}`, 10, 900_000))) throw new RecoveryRequestError('Demasiadas solicitudes. Intente más tarde.', 429)
+  if (!(await consumeLimit(`recovery-email:${email}`, 1, 60_000))) throw new RecoveryRequestError('Espere un minuto antes de solicitar otro código.', 429)
   const users = (await getDataStore().getUsersByEmail(email)).filter(u => u.active)
   // Misma respuesta pública exista o no la cuenta, para no permitir enumerar correos registrados.
   // El requestId devuelto no tiene código asociado, así que cualquier confirmación falla como un código incorrecto.
@@ -49,9 +49,9 @@ export async function requestPasswordRecovery(emailInput: unknown, ip: string, s
   const mailer = transport()
   try {
     const info = await mailer.sendMail({
-      from: { name: 'CXR Investigacion', address: process.env.SMTP_USER! }, to: email,
-      subject: 'Codigo de recuperacion de acceso - CXR',
-      text: `Su codigo de recuperacion es: ${code}\n\nCaduca en 10 minutos y solo puede utilizarse una vez. No lo comparta.\nSi no solicito este cambio, ignore este mensaje. Su contrasena no ha cambiado.`,
+      from: { name: 'CXR Investigación', address: process.env.SMTP_USER! }, to: email,
+      subject: 'Código de recuperación de acceso - CXR',
+      text: `Su código de recuperación es: ${code}\n\nCaduca en 10 minutos y solo puede utilizarse una vez. No lo comparta.\nSi no solicitó este cambio, ignore este mensaje. Su contraseña no ha cambiado.`,
     })
     if (!info.accepted.length) throw new Error('SMTP did not accept recovery mail')
   } catch {

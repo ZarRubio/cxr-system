@@ -31,7 +31,7 @@ export async function PATCH(
   }
   const { name, cmp, specialty, active } = body
   if (active !== undefined && typeof active !== 'boolean') return NextResponse.json({ error: 'Estado activo no válido.' }, { status: 400 })
-  for (const field of [name, cmp, specialty]) if (field !== undefined && field !== null && (typeof field !== 'string' || field.length > 120)) return NextResponse.json({ error: 'Campo de usuario no valido.' }, { status: 400 })
+  for (const field of [name, cmp, specialty]) if (field !== undefined && field !== null && (typeof field !== 'string' || field.length > 120)) return NextResponse.json({ error: 'Campo de usuario no válido.' }, { status: 400 })
   if (email && (await getDataStore().getUsersByEmail(email)).some(u => u.id !== id)) return NextResponse.json({ error: 'El correo ya pertenece a otra cuenta.' }, { status: 409 })
   const updated = await updateUser(id, {
     ...(email !== undefined ? { email } : {}),

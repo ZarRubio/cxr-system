@@ -207,7 +207,7 @@ export async function buildPdf(
   if (prediction.analysis_id) y = kvRow('ID de análisis', prediction.analysis_id, y)
   if (meta?.radiologistName) y = kvRow('Registrado por', meta.radiologistName, y)
   y = kvRow('Revisión profesional', feedback ? 'Concordancia o discrepancia registrada; no equivale a firma del informe.' : 'Pendiente de validación del radiólogo.', y)
-  y = kvRow('Prioridad profesional', feedback?.reviewPriority ? ({ routine: 'Habitual', priority: 'Prioritaria', urgent: 'Urgente' })[feedback.reviewPriority] : 'No registrada. La alerta de IA no determina gravedad clinica.', y)
+  y = kvRow('Prioridad profesional', feedback?.reviewPriority ? ({ routine: 'Habitual', priority: 'Prioritaria', urgent: 'Urgente' })[feedback.reviewPriority] : 'No registrada. La alerta de IA no determina gravedad clínica.', y)
   if (meta?.analyzedAt) y = kvRow('Fecha del análisis', new Date(meta.analyzedAt).toLocaleString('es-PE', { timeZone: 'America/Lima' }), y)
   if (!originalBytes) y = kvRow('Tipo de reporte', 'Resumen histórico sin imágenes (no se almacenan).', y)
   if (prediction.persistence?.status === 'failed') y = kvRow('Historial', 'Resultado no guardado. Notificaciones no enviadas.', y)
@@ -588,7 +588,7 @@ export async function buildPdf(
   const sysLines = [
     `Estudio: ${meta?.studyId ?? '—'}`,
     `Informe: ${now}`,
-    prediction.model_version ? `Modelo: ${prediction.model_version.slice(0, 26)}...` : 'Version del modelo no registrada',
+    prediction.model_version ? `Modelo: ${prediction.model_version.slice(0, 26)}...` : 'Versión del modelo no registrada',
     'Resultado sujeto a validación clínica',
   ]
   sysLines.forEach((line, i) => {

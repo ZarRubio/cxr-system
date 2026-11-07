@@ -33,7 +33,7 @@ def _validate_config(artifacts: Path) -> dict:
 
     classes = [labels.get(str(index)) for index in range(14)]
     if model.get("num_classes") != 14 or any(not name for name in classes):
-        raise ValueError("La configuracion debe contener exactamente 14 clases ordenadas")
+        raise ValueError("La configuración debe contener exactamente 14 clases ordenadas")
     if len(set(classes)) != 14 or set(thresholds) != set(classes):
         raise ValueError("Las clases y los umbrales no coinciden")
     if any(
@@ -43,7 +43,7 @@ def _validate_config(artifacts: Path) -> dict:
         raise ValueError("Los umbrales deben ser numeros finitos entre 0 y 1")
     weights = [ensemble.get("weight_v1"), ensemble.get("weight_v2")]
     if any(not isinstance(w, (int, float)) or not math.isfinite(w) or w < 0 for w in weights):
-        raise ValueError("Pesos del ensemble invalidos")
+        raise ValueError("Pesos del ensemble inválidos")
     if not math.isclose(sum(weights), 1.0, abs_tol=1e-6):
         raise ValueError("Los pesos del ensemble deben sumar 1")
     if (ensemble.get("checkpoint_v1"), ensemble.get("checkpoint_v2")) != ARTIFACT_NAMES[:2]:
@@ -79,7 +79,7 @@ def verify_manifest(artifacts_dir: Path, required: bool = False) -> dict | None:
         return None
     saved = json.loads(manifest_path.read_text(encoding="utf-8"))
     if saved.get("schema_version") != 1:
-        raise ValueError("Version del manifiesto no soportada")
+        raise ValueError("Versión del manifiesto no soportada")
     actual = build_manifest(artifacts, app_commit=saved.get("app_commit"))
     if saved != actual:
         raise ValueError("El manifiesto no coincide con los artefactos del modelo")

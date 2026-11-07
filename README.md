@@ -57,7 +57,7 @@ Resultado de la auditoría local NIH: [`docs/NIH_AUDIT_2026-09-25.md`](docs/NIH_
 - **Persistencia** (`DATA_BACKEND`): en desarrollo y docker-compose, SQLite (`data/cxr.db`);
   en Cloud Run, **Firestore** (colecciones `users` y `analyses`) — los usuarios creados en
   `/admin`, el historial clínico y las validaciones sobreviven reinicios. El admin se siembra
-  automáticamente (`SEED_ADMIN_PASSWORD`, default `hnal2026` — cambiarla en producción).
+  automáticamente (`SEED_ADMIN_PASSWORD`, obligatoria, mínimo 12 caracteres; no hay valor por defecto).
 - **Historial clínico**: cada análisis se persiste server-side (metadatos del estudio, scores
   y severidad; nunca la imagen ni el Grad-CAM). Cada radiólogo ve los suyos; el admin ve todos.
 - **Validación del radiólogo**: sobre cada análisis se registra concordancia o discrepancia
@@ -144,7 +144,7 @@ uvicorn main:app --reload --port 8000
 cd frontend-next
 cp .env.local.example .env.local   # editar BACKEND_URL=http://localhost:8000
 npm install
-npm run dev          # http://localhost:3000 — login inicial: admin / hnal2026
+npm run dev          # http://localhost:3000 — login inicial: admin / valor de SEED_ADMIN_PASSWORD
 ```
 
 ### 3. Docker Compose
@@ -179,7 +179,7 @@ docker compose up --build
 | `AUTH_SECRET` | Secreto NextAuth — **obligatorio en producción** (`openssl rand -base64 32`) |
 | `AUTH_URL` | URL pública de la app — **obligatoria en el server standalone** (Docker/Cloud Run); sin ella los redirects de auth apuntan a `0.0.0.0:3000` |
 | `AUTH_TRUST_HOST` | `true` detrás de un proxy (Cloud Run/Docker); sin ella NextAuth v5 lanza `UntrustedHost` |
-| `SEED_ADMIN_PASSWORD` | Contraseña del admin sembrado (default `hnal2026`) |
+| `SEED_ADMIN_PASSWORD` | Contraseña del admin sembrado (obligatoria, mínimo 12 caracteres) |
 | `DATA_BACKEND` | `sqlite` (default) o `firestore` (producción, requiere correr en GCP) |
 | `GOOGLE_CLOUD_PROJECT` | Proyecto GCP para Firestore (en Cloud Run se autodetecta) |
 | `CXR_DATA_DIR` | Directorio de la BD SQLite (default `./data`) |

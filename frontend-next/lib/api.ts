@@ -17,6 +17,8 @@ export interface StudyHeaders {
   studyId?: string
   projection?: string
   clinicalIndication?: string
+  /** Comparación puntual: el resultado no se guarda en el historial ni envía alertas. */
+  compareOnly?: boolean
 }
 
 export async function predict(
@@ -34,6 +36,7 @@ export async function predict(
     include_gradcam: String(includeGradcam),
   })
   if (study?.explanationId) params.set('explain_analysis_id', study.explanationId)
+  if (study?.compareOnly) params.set('mode', 'compare')
 
   // Metadatos del estudio para el historial persistente. URI-encoded porque
   // los headers HTTP no admiten caracteres fuera de ASCII (tildes, ñ).

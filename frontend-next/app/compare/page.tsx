@@ -18,6 +18,10 @@ interface ImageSlot {
   error: string | null
 }
 
+function errorText(reason: unknown): string {
+  return reason instanceof Error && reason.message ? reason.message : 'No se pudo analizar la imagen.'
+}
+
 function emptySlot(): ImageSlot {
   return { bytes: new Uint8Array(), name: '', prediction: null, loading: false, error: null }
 }
@@ -39,21 +43,21 @@ export default function ComparePage() {
     setSlotB((s) => ({ ...s, loading: true, error: null }))
 
     const [ra, rb] = await Promise.allSettled([
-      predict(slotA.bytes, slotA.name, 'gradcam', true),
-      predict(slotB.bytes, slotB.name, 'gradcam', true),
+      predict(slotA.bytes, slotA.name, 'gradcam', true, { compareOnly: true }),
+      predict(slotB.bytes, slotB.name, 'gradcam', true, { compareOnly: true }),
     ])
 
     setSlotA((s) => ({
       ...s,
       loading: false,
       prediction: ra.status === 'fulfilled' ? ra.value : null,
-      error: ra.status === 'rejected' ? String(ra.reason) : null,
+      error: ra.status === 'rejected' ? errorText(ra.reason) : null,
     }))
     setSlotB((s) => ({
       ...s,
       loading: false,
       prediction: rb.status === 'fulfilled' ? rb.value : null,
-      error: rb.status === 'rejected' ? String(rb.reason) : null,
+      error: rb.status === 'rejected' ? errorText(rb.reason) : null,
     }))
     setRunning(false)
   }
@@ -64,6 +68,9 @@ export default function ComparePage() {
         <h1 className="text-2xl font-extrabold text-[var(--fg)]">Comparación de radiografías</h1>
         <p className="text-sm text-[var(--fg-subtle)] mt-1">
           Dos resultados independientes del mismo modelo. No establece progresión de enfermedad.
+        </p>
+        <p className="text-xs text-[var(--fg-subtle)] mt-1">
+          Esta comparación no se guarda en el historial ni genera alertas por correo. Para registrar un estudio use Nuevo estudio.
         </p>
       </div>
 

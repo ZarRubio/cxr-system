@@ -103,3 +103,6 @@ export const CLASSES_INFO: Record<string, string> = {
   Pneumonia:          'Etiqueta de neumonía (VPP interno bajo)',
   Pneumothorax:       'Aire en el espacio pleural',
 }
+
+/** Comparar (US43): contraste puntual que no crea estudios ni envía alertas. */
+export const COMPARE_NOT_SAVED_MESSAGE = 'Resultado de comparación: no se guardó en el historial ni generó alertas por correo.'

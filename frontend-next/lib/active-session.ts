@@ -4,6 +4,7 @@ import { auth } from '@/auth'
 import { getUserById } from '@/lib/user-store'
 import type { CXRUser } from '@/lib/types'
 import { passwordVersion } from './session-version'
+import { needsEmailSetup } from './email-address'
 
 export interface ActiveSession {
   session: Session
@@ -24,6 +25,8 @@ export async function getActiveSession(): Promise<ActiveSession | null> {
   if (!user?.active) return null
   const version = (session.user as unknown as Record<string, unknown>).passwordVersion
   if (version !== passwordVersion(user.password)) return null
+  // /api/predict* no pasa por el proxy: un radiólogo sin correo tampoco puede analizar por esa vía.
+  if (needsEmailSetup(user)) return null
 
   return { session, user }
 }

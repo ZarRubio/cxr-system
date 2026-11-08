@@ -33,7 +33,8 @@ export async function POST(req: Request) {
   const body = await req.json()
   const { name, username, password, cmp, specialty } = body
   let email: string | null
-  try { email = parseEmail(body.email, true) } catch (error) {
+  // Opcional: si se omite, el radiólogo deberá registrarlo al ingresar (ver needsEmailSetup).
+  try { email = parseEmail(body.email, false) } catch (error) {
     return NextResponse.json({ error: (error as Error).message }, { status: 400 })
   }
 
@@ -43,7 +44,7 @@ export async function POST(req: Request) {
   if (!validNewPassword(password)) {
     return NextResponse.json({ error: 'La contraseña debe tener al menos 12 caracteres y como máximo 72 bytes.' }, { status: 400 })
   }
-  if ((await getDataStore().getUsersByEmail(email!)).length) return NextResponse.json({ error: 'El correo ya pertenece a otra cuenta.' }, { status: 409 })
+  if (email && (await getDataStore().getUsersByEmail(email)).length) return NextResponse.json({ error: 'El correo ya pertenece a otra cuenta.' }, { status: 409 })
   if (await getUserByUsername(username)) {
     return NextResponse.json({ error: 'El nombre de usuario ya existe.' }, { status: 409 })
   }

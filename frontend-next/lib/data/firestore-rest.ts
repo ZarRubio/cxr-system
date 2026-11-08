@@ -26,13 +26,16 @@ export async function fsUpdateUser(id: string, fields: Record<string, unknown>):
   const key = (email: unknown) => createHash('sha256').update(`email:${String(email).toLowerCase()}`).digest('hex')
   const writes: Record<string, unknown>[] = [{ update: { name: `${root}/users/${id}`, fields: toFsFields(fields) }, updateMask: { fieldPaths: Object.keys(fields) }, currentDocument: { updateTime: doc.updateTime } }]
   if (fields.email !== current.email) {
-    const reservationId = key(fields.email)
-    const reserved = await firestoreFetch(`/user_identity/${reservationId}`)
-    if (!reserved.ok && reserved.status !== 404) throw new Error('Reserva de correo no disponible.')
-    if (reserved.ok) {
-      const owner = await reserved.json() as { fields: Record<string, FsValue> }
-      if (fromFsFields(owner.fields).userId !== id) throw new Error('Cuenta duplicada.')
-    } else writes.push({ update: { name: `${root}/user_identity/${reservationId}`, fields: toFsFields({ userId: id }) }, currentDocument: { exists: false } })
+    // Un correo vacío no se reserva: si no, todas las cuentas sin correo compartirían la reserva de «null».
+    if (fields.email) {
+      const reservationId = key(fields.email)
+      const reserved = await firestoreFetch(`/user_identity/${reservationId}`)
+      if (!reserved.ok && reserved.status !== 404) throw new Error('Reserva de correo no disponible.')
+      if (reserved.ok) {
+        const owner = await reserved.json() as { fields: Record<string, FsValue> }
+        if (fromFsFields(owner.fields).userId !== id) throw new Error('Cuenta duplicada.')
+      } else writes.push({ update: { name: `${root}/user_identity/${reservationId}`, fields: toFsFields({ userId: id }) }, currentDocument: { exists: false } })
+    }
     if (current.email) {
       const previous = await firestoreFetch(`/user_identity/${key(current.email)}`)
       if (previous.ok) {

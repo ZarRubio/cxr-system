@@ -21,7 +21,8 @@ export async function PATCH(
   if (!existing) return NextResponse.json({ error: 'Usuario no encontrado.' }, { status: 404 })
   const body = await req.json()
   let email: string | null | undefined
-  try { if ('email' in body) email = parseEmail(body.email, true) } catch (error) {
+  // El correo del administrador es obligatorio; el de un radiólogo puede vaciarse para que lo registre al ingresar.
+  try { if ('email' in body) email = parseEmail(body.email, existing.role === 'admin') } catch (error) {
     return NextResponse.json({ error: (error as Error).message }, { status: 400 })
   }
   if (existing.role === 'admin') {

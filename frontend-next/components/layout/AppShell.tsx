@@ -6,7 +6,8 @@ import { Header }    from './Header'
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
-  const isPublic = pathname === '/login' || pathname === '/recover'
+  // /registrar-correo va sin menú: hasta guardar el correo no hay otra página disponible.
+  const isPublic = pathname === '/login' || pathname === '/recover' || pathname === '/registrar-correo'
 
   if (isPublic) {
     return <div className="h-full w-full overflow-auto">{children}</div>

@@ -15,6 +15,7 @@ const user = {
   password: 'hash',
   role: 'radiologist',
   cmp: '12345',
+  email: 'radio@example.com',
   active: true,
   createdAt: '2026-01-01T00:00:00.000Z',
 }
@@ -26,6 +27,10 @@ beforeEach(() => {
 })
 
 describe('getActiveSession', () => {
+  it('blocks a radiologist who has not registered an email yet', async () => {
+    mocks.getUserById.mockResolvedValue({ ...user, email: null })
+    expect(await getActiveSession()).toBeNull()
+  })
   it('revokes sessions after a password change', async () => {
     mocks.getUserById.mockResolvedValue({ ...user, password: 'new-hash' })
     expect(await getActiveSession()).toBeNull()

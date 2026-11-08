@@ -260,7 +260,7 @@ export default function AdminPage() {
               {[
                 { id: 'name',      label: 'Nombre completo',  placeholder: 'Dr. Juan Pérez García',  type: 'text',     required: true  },
                 { id: 'username',  label: 'Usuario de acceso', placeholder: 'jperez',                 type: 'text',     required: true  },
-                { id: 'email', label: 'Correo de recuperación', placeholder: 'nombre@correo.com', type: 'email', required: true },
+                { id: 'email', label: 'Correo de recuperación', placeholder: 'Opcional: si lo deja vacío, lo registrará al ingresar', type: 'email', required: false },
                 { id: 'cmp',       label: 'N° CMP',           placeholder: '12345',                   type: 'text',     required: false },
                 { id: 'specialty', label: 'Especialidad',     placeholder: 'Radiología',              type: 'text',     required: false },
               ].map(({ id, label, placeholder, type, required }) => (

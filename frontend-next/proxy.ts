@@ -3,6 +3,7 @@ import { authConfig } from './auth.config'
 import { NextResponse } from 'next/server'
 import { getUserById } from './lib/user-store'
 import { passwordVersion } from './lib/session-version'
+import { EMAIL_SETUP_PATH, EMAIL_SETUP_REQUIRED, needsEmailSetup } from './lib/email-address'
 
 const { auth } = NextAuth(authConfig)
 
@@ -28,10 +29,12 @@ export default auth(async (req) => {
   }
 
   let accountActive = false
+  let mustRegisterEmail = false
   if (isLoggedIn) {
     const id = (req.auth?.user as Record<string, unknown> | undefined)?.id
     try {
       const account = id ? await getUserById(String(id)) : null
+      mustRegisterEmail = Boolean(account && needsEmailSetup(account))
       const version = (req.auth?.user as unknown as Record<string, unknown> | undefined)?.passwordVersion
       accountActive = Boolean(account?.active && version === passwordVersion(account.password))
     } catch (error) {
@@ -54,6 +57,14 @@ export default auth(async (req) => {
     const response = NextResponse.redirect(loginUrl)
     return isLoggedIn ? clearSessionCookies(response) : response
   }
+
+  // Radiólogo sin correo: solo puede registrarlo (pantalla y API de perfil); todo lo demás queda bloqueado.
+  if (mustRegisterEmail) {
+    if (pathname === EMAIL_SETUP_PATH || pathname === '/api/profile') return NextResponse.next()
+    if (pathname.startsWith('/api/')) return NextResponse.json({ error: EMAIL_SETUP_REQUIRED }, { status: 403 })
+    return NextResponse.redirect(new URL(EMAIL_SETUP_PATH, req.nextUrl))
+  }
+  if (pathname === EMAIL_SETUP_PATH) return NextResponse.redirect(new URL('/analyze', req.nextUrl))
 
   // /admin y /api/admin: solo rol admin
   if (pathname.startsWith('/admin') || pathname.startsWith('/api/admin')) {

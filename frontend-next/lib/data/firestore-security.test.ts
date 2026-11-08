@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { fsMutateSecurity, fsCreateUser, fsQuery } from './firestore-rest'
+import { fsMutateSecurity, fsCreateUser, fsQuery, fsUpdateUser } from './firestore-rest'
 
 const fetchMock = vi.fn()
 const response = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status })
@@ -45,6 +45,20 @@ describe('Firestore atomic security', () => {
     await fsCreateUser({ id: 'radio', username: 'radio', email: 'radio@example.com' })
     const call = fetchMock.mock.calls.find(([url]) => url.endsWith(':commit'))!
     expect(JSON.parse(call[1].body).writes).toHaveLength(3)
+  })
+  it('clears an email without reserving a shared null identity', async () => {
+    const base = fetchMock.getMockImplementation()!
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.includes('/user_identity/')) return response({ fields: { userId: { stringValue: 'radio' } }, updateTime: 'stamp' })
+      return base(url, init)
+    })
+    await fsUpdateUser('radio', { email: null })
+    const call = fetchMock.mock.calls.find(([url]) => url.endsWith(':commit'))!
+    const writes = JSON.parse(call[1].body).writes
+    expect(writes).toHaveLength(2)
+    expect(writes[0].update.fields.email).toEqual({ nullValue: null })
+    expect(writes[1].delete).toContain('/user_identity/')
+    expect(writes.some((w: { update?: { name: string } }) => w.update?.name.includes('/user_identity/'))).toBe(false)
   })
   it('uses a stable timestamp/document cursor for historical queries', async () => {
     await fsQuery({ collection: 'analyses', after: { createdAt: '2026-09-30T12:00:00Z', id: 'study-1' }, limit: 100 })

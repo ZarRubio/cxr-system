@@ -58,6 +58,12 @@ def _color_fraction(file_bytes: bytes) -> float:
     return float(np.mean(chroma > 24))
 
 
+def _dominant_levels_fraction(image: np.ndarray, levels: int = 3) -> float:
+    """Fraccion de pixeles ocupada por los ``levels`` valores de intensidad mas frecuentes."""
+    _, counts = np.unique(np.rint(image), return_counts=True)
+    return float(np.sort(counts)[::-1][:levels].sum() / max(image.size, 1))
+
+
 def classify_cxr(file_bytes: bytes, fmt: str, img_array: np.ndarray) -> CXRScreeningResult:
     """
     Clasifica la compatibilidad tecnica de la entrada con una radiografia de torax.
@@ -107,6 +113,21 @@ def classify_cxr(file_bytes: bytes, fmt: str, img_array: np.ndarray) -> CXRScree
             score=0.05,
             method="visual_heuristics_v1",
             reasons=("La imagen no contiene variación de intensidad suficiente para una radiografía.",),
+            reject=True,
+        )
+
+    # Patrones graficos o sinteticos (tableros, bandas, logotipos) concentran casi
+    # todos sus pixeles en muy pocos niveles de gris. En radiografias reales los
+    # tres niveles mas frecuentes no superan ~30 % (bordes negros incluidos).
+    if _dominant_levels_fraction(image) >= 0.80:
+        return CXRScreeningResult(
+            status="not_cxr",
+            score=0.05,
+            method="visual_heuristics_v1",
+            reasons=(
+                "La imagen tiene muy pocos niveles de gris, compatible con un gráfico o patrón sintético, "
+                "no con una radiografía.",
+            ),
             reject=True,
         )
 

@@ -117,7 +117,7 @@ export function ResultsSection({
         {prediction.analysis_id && onSaveNotes ? (
           <div className="flex flex-wrap items-center gap-3">
             <Button variant="secondary" onClick={onSaveNotes} loading={notesSaving} disabled={!notesDirty || notesSaving}>Guardar observaciones</Button>
-            <p role="status" className="text-xs text-[var(--fg-muted)]">{notesDirty ? 'Cambios sin guardar en el historial' : 'Observaciones guardadas en el historial'}</p>
+            <p role="status" className="text-xs text-[var(--fg-muted)]">{notesDirty ? 'Cambios sin guardar en el historial' : notes.trim() ? 'Observaciones guardadas en el historial' : 'Aún no hay observaciones guardadas.'}</p>
           </div>
         ) : <p className="text-xs text-[var(--fg-muted)]">Las observaciones solo se incluirán en este PDF; el estudio no está guardado.</p>}
         {notesError && <p role="alert" className="text-sm badge-high p-3">{notesError}</p>}

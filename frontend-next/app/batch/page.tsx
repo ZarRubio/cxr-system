@@ -1,8 +1,8 @@
 'use client'
 import { EmailAlertStatus } from '@/components/EmailAlertStatus'
 import { StudySaveStatus } from '@/components/StudySaveStatus'
-import { useCallback, useMemo, useState } from 'react'
-import { useDropzone } from 'react-dropzone'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useDropzone, type FileRejection } from 'react-dropzone'
 import Link from 'next/link'
 import {
   Layers, Upload, X, AlertCircle, FileImage, ClipboardList,
@@ -18,6 +18,19 @@ import type { Severity } from '@/lib/types'
 const MAX_FILES = 8
 const MAX_BYTES = 15 * 1024 * 1024
 const ACCEPTED = { 'image/png': ['.png'], 'image/jpeg': ['.jpg', '.jpeg'], 'application/octet-stream': ['.dcm'] }
+
+/** Explica, archivo por archivo, por qué no se aceptó (formato, tamaño máximo o mínimo). */
+function describeRejections(rejections: FileRejection[]): string {
+  const reasons = rejections.map(({ file, errors }) => {
+    const code = errors[0]?.code
+    const why = code === 'file-too-large' ? 'supera 15 MB'
+      : code === 'file-too-small' ? 'pesa menos de 1 KB'
+      : code === 'file-invalid-type' ? 'no es PNG, JPG ni DICOM'
+      : 'no es válido'
+    return `«${file.name}» ${why}`
+  })
+  return `No se agregaron estos archivos: ${reasons.join('; ')}.`
+}
 
 interface QueuedFile {
   bytes: Uint8Array
@@ -35,14 +48,31 @@ export default function BatchPage() {
   const [batchId, setBatchId]   = useState<string | null>(null)
   const [analyzing, setAnalyzing] = useState(false)
   const [error, setError]       = useState<string | null>(null)
+  const [elapsed, setElapsed]   = useState(0)
 
-  const onDrop = useCallback((accepted: File[]) => {
-    setError(null)
-    accepted.forEach((file) => {
-      if (file.size > MAX_BYTES) {
-        setError(`"${file.name}" supera el límite de 15 MB y fue omitida.`)
-        return
-      }
+  // Hallazgo H12: el lote tarda decenas de segundos; se muestra el tiempo transcurrido.
+  useEffect(() => {
+    if (!analyzing) return
+    const started = Date.now()
+    const timer = setInterval(() => setElapsed(Math.round((Date.now() - started) / 1000)), 1000)
+    return () => clearInterval(timer)
+  }, [analyzing])
+
+  const onDrop = useCallback((accepted: File[], rejections: FileRejection[]) => {
+    // Hallazgo H09: si se superan las 8 placas se agregan las que caben y se nombran las omitidas,
+    // en lugar de rechazar todo el lote.
+    const fresh = accepted.filter((file) => !queue.some((f) => f.name === file.name))
+    const free = Math.max(MAX_FILES - queue.length, 0)
+    const kept = fresh.slice(0, free)
+    const overflow = fresh.slice(free).map((file) => file.name)
+    const messages = [
+      overflow.length
+        ? `Límite de ${MAX_FILES} placas por lote: no se agregaron ${overflow.map((n) => `«${n}»`).join(', ')}. Analícelas en otro lote.`
+        : '',
+      rejections.length ? describeRejections(rejections) : '',
+    ].filter(Boolean)
+    setError(messages.length ? messages.join(' ') : null)
+    kept.forEach((file) => {
       const reader = new FileReader()
       reader.onload = (e) => {
         const bytes = new Uint8Array(e.target!.result as ArrayBuffer)
@@ -54,22 +84,21 @@ export default function BatchPage() {
       }
       reader.readAsArrayBuffer(file)
     })
-  }, [])
+  }, [queue])
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
     accept: ACCEPTED,
     multiple: true,
-    maxFiles: MAX_FILES,
     disabled: analyzing,
     maxSize: MAX_BYTES,
     minSize: 1024,
-    onDropRejected: () => setError('Uno o más archivos fueron rechazados. Límite: 8 imágenes PNG, JPG o DICOM de hasta 15 MB.'),
   })
 
   const handleAnalyze = async () => {
     if (queue.length === 0 || analyzing) return
     if (queue.reduce((total, file) => total + file.bytes.length, 0) > 30 * 1024 * 1024) { setError('El lote supera 30 MB en total. Retire algunas imágenes.'); return }
+    setElapsed(0)
     setAnalyzing(true)
     setError(null)
     try {
@@ -171,7 +200,7 @@ export default function BatchPage() {
               </ul>
               <Button onClick={handleAnalyze} disabled={analyzing} loading={analyzing} size="lg" className="w-full">
                 <Layers size={16} />
-                {analyzing ? `Analizando ${queue.length} placas…` : `Analizar lote (${queue.length})`}
+                {analyzing ? `Analizando ${queue.length} placas… ${elapsed} s` : `Analizar lote (${queue.length})`}
               </Button>
             </div>
           )}

@@ -211,7 +211,8 @@ export async function buildPdf(
   if (meta?.analyzedAt) y = kvRow('Fecha del análisis', new Date(meta.analyzedAt).toLocaleString('es-PE', { timeZone: 'America/Lima' }), y)
   if (!originalBytes) y = kvRow('Tipo de reporte', 'Resumen histórico sin imágenes (no se almacenan).', y)
   if (prediction.persistence?.status === 'failed') y = kvRow('Historial', 'Resultado no guardado. Notificaciones no enviadas.', y)
-  y = kvRow('Archivo de imagen', filename, y)
+  // Hallazgo H14: el nombre del archivo puede contener el nombre u otros datos del paciente;
+  // la imagen se identifica solo por su huella SHA-256.
   y = kvRow('Modelo IA',         prediction.model_version ?? 'CXR-Ensemble (DenseNet121 + ViT)', y)
   y = kvRow('Tiempo de proceso', `${prediction.processing_time_ms.toFixed(0)} ms`, y)
   if (prediction.image_hash) y = kvRow('SHA-256 de imagen', prediction.image_hash, y)

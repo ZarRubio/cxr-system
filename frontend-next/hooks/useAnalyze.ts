@@ -1,7 +1,7 @@
 'use client'
 import { useState, useCallback, useRef } from 'react'
 import { useSession } from 'next-auth/react'
-import { predict, saveAnalysisNotes } from '@/lib/api'
+import { isRetryableError, predict, saveAnalysisNotes } from '@/lib/api'
 import { useQueryClient } from '@tanstack/react-query'
 import { useSessionStore } from '@/store/session'
 import { buildPdf } from '@/lib/pdf'
@@ -31,6 +31,7 @@ export function useAnalyze() {
   const [prediction, setPrediction] = useState<Prediction | null>(null)
   const [analyzing, setAnalyzing]   = useState(false)
   const [error, setError]           = useState<string | null>(null)
+  const [retryable, setRetryable]   = useState(true)
   const [pdfLoading, setPdfLoading] = useState(false)
   const [notes, setNotes]           = useState<string>('')
   const [savedNotes, setSavedNotes] = useState('')
@@ -84,6 +85,7 @@ export function useAnalyze() {
     if (!fileBytes || !filename || analyzing) return
     setAnalyzing(true)
     setError(null)
+    setRetryable(true)
     try {
       const result = await predict(fileBytes, filename, 'gradcam', true, {
         studyId:            studyMeta.studyId,
@@ -107,8 +109,9 @@ export function useAnalyze() {
         resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
       }, 100)
     } catch (e: unknown) {
-      // El archivo se mantiene cargado: el usuario puede reintentar.
+      // El archivo se mantiene cargado; solo se ofrece reintentar si el fallo no es del propio archivo.
       setError(e instanceof Error ? e.message : 'Error desconocido')
+      setRetryable(isRetryableError(e))
     } finally {
       setAnalyzing(false)
     }
@@ -173,7 +176,7 @@ export function useAnalyze() {
     notesSaving, notesError, notesDirty: notes !== savedNotes, handleSaveNotes,
     user, resultsRef,
     /** true si hay un archivo cargado y se puede reintentar tras un error */
-    canRetry: !!fileBytes,
+    canRetry: !!fileBytes && retryable,
     // acciones
     setNotes, setShowToast, setStatDismissed, setPrediction, setMeta,
     handleFile, clearFile, handleLoadDemo, handleAnalyze, handleDownloadPdf, reset,

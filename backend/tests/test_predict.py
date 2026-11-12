@@ -411,6 +411,25 @@ class TestCXRScreening:
         assert result.status == "not_cxr"
         assert result.reject is True
 
+    def test_gray_checkerboard_is_rejected(self):
+        """Hallazgo H05 (ciclo 1): un patrón gráfico de dos tonos no debe pasar como radiografía."""
+        board = (np.indices((512, 512)).sum(axis=0) // 64 % 2).astype(np.uint8) * 255
+        buf = io.BytesIO()
+        Image.fromarray(board, mode="L").save(buf, format="PNG")
+        result = classify_cxr(buf.getvalue(), "png", board)
+        assert result.status == "not_cxr"
+        assert result.reject is True
+        assert "pocos niveles de gris" in result.reasons[0]
+
+    def test_wide_black_border_is_not_treated_as_graphic(self):
+        """Los bordes negros de una radiografía real no deben activar el rechazo por pocos niveles."""
+        image = np.random.default_rng(0).integers(30, 220, (512, 512)).astype(np.uint8)
+        image[:, :128] = 0
+        buf = io.BytesIO()
+        Image.fromarray(image, mode="L").save(buf, format="PNG")
+        result = classify_cxr(buf.getvalue(), "png", image)
+        assert result.reject is False
+
     def test_dx_dicom_is_accepted_from_modality(self):
         file_bytes = _make_dicom_bytes(modality="DX")
         result = classify_cxr(file_bytes, "dicom", np.zeros((224, 224), dtype=np.uint8))

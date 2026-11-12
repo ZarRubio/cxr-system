@@ -1,6 +1,7 @@
 import { Info } from 'lucide-react'
 import { getSeverity } from '@/lib/utils'
 import { BADGES, DESCRIPTIONS, FINDING_NOTE, SEVERITY_LABELS } from '@/lib/constants'
+import { predictionSeverity } from '@/lib/data/analysis'
 import type { Prediction } from '@/lib/types'
 
 export function FindingCard({ prediction, compact = false }: { prediction: Prediction; compact?: boolean }) {
@@ -45,9 +46,19 @@ export function MultipleFindingsCard({ prediction }: { prediction: Prediction })
   const positive = prediction.positive_findings ?? []
   if (!positive.length) return <NoFindingCard />
   const secondary = positive.filter(cls => cls !== prediction.predicted_class)
+  // Hallazgo H06: la prioridad del estudio (la que se guarda y muestra «Estudios») es la mayor entre
+  // todos los hallazgos sobre umbral; puede ser distinta de la del hallazgo con mayor score.
+  const studySeverity = predictionSeverity(prediction)
+  const driver = positive.find(cls => getSeverity(cls) === studySeverity)
   return (
     <div className="space-y-3">
       <h3 className="section-heading">{positive.length === 1 ? 'Hallazgo sobre umbral' : `${positive.length} hallazgos sobre umbral`}</h3>
+      {positive.length > 1 && (
+        <p className="text-sm text-[var(--fg-muted)]">
+          Prioridad del estudio: <span className={`badge-${studySeverity} rounded px-2 py-0.5 text-xs font-medium`}>{SEVERITY_LABELS[studySeverity]}</span>
+          {driver && driver !== prediction.predicted_class && <> por {BADGES[driver] ?? driver}, el hallazgo de mayor prioridad (no el de mayor score)</>}.
+        </p>
+      )}
       <FindingCard prediction={prediction} />
       {secondary.length > 0 && <p className="text-sm text-[var(--fg-muted)] pt-2">Hallazgos adicionales</p>}
       {secondary.map(cls => <FindingCard key={cls} compact prediction={{ ...prediction, predicted_class: cls }} />)}

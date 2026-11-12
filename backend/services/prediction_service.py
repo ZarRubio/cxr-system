@@ -123,17 +123,32 @@ def image_warnings(
     return warnings
 
 
+def _unreadable_image(fmt: str, exc: Exception) -> HTTPException:
+    """Error 422 en español y sin detalle técnico; la causa queda solo en el log del servidor."""
+    logger.info("Imagen ilegible (%s): %s", fmt, type(exc).__name__)
+    label = {"png": "PNG", "jpg": "JPG", "jpeg": "JPG", "dicom": "DICOM"}.get(fmt, "de imagen")
+    return HTTPException(
+        status_code=422,
+        detail=(
+            f"No se pudo leer la imagen: el archivo {label} parece dañado o incompleto. "
+            "Vuelva a exportarlo desde el equipo de origen y cargue el archivo nuevo."
+        ),
+    )
+
+
 def _decode_and_validate(file_bytes: bytes, filename: str) -> np.ndarray:
     """Detecta formato, decodifica a escala de grises y valida dimensiones."""
     fmt = detect_format(file_bytes, filename)
     try:
         validate_source_channels(file_bytes, fmt)
+    except ValueError as exc:  # mensaje propio, ya redactado para el usuario
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except Exception as exc:
+        raise _unreadable_image(fmt, exc) from exc
+    try:
         img_array = load_image_as_array(file_bytes, fmt)
     except Exception as exc:
-        raise HTTPException(
-            status_code=422,
-            detail=f"No se pudo decodificar la imagen ({fmt}): {exc}",
-        ) from exc
+        raise _unreadable_image(fmt, exc) from exc
 
     if len(img_array.shape) != 2:
         raise HTTPException(

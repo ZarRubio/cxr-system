@@ -166,6 +166,9 @@ export function GradCamView({ prediction, originalBytes, filename = 'image.png',
               </figure>
             </div>
             <p className="text-xs text-[var(--fg-muted)]">Azul: menor atribución. Rojo: mayor atribución relativa en esta imagen; no indica gravedad ni probabilidad. Los colores no son comparables entre estudios.</p>
+            <p role="note" className="badge-high rounded p-3 text-xs leading-5">
+              Visualización exploratoria: el mapa no señala la ubicación de una lesión. En la evaluación del proyecto solo entre 0 y 25 % de los mapas superó los controles de fidelidad, por lo que no debe usarse para localizar hallazgos.
+            </p>
 
             {/* Opacity slider */}
             {heatmapUri ? <div className="space-y-1">

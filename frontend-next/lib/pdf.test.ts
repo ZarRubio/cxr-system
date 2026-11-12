@@ -26,6 +26,13 @@ describe('buildPdf desde el historial (sin imagen)', () => {
     expect(source).toContain('Profesional validador:')
     expect(source).not.toContain('CMP 999999')
   })
+  it('does not print the original file name, which may identify the patient (H14)', async () => {
+    const bytes = await buildPdf('PEREZ_JUAN_DNI12345678.png', null, prediction, '')
+    const source = new TextDecoder('latin1').decode(bytes)
+    expect(source).not.toContain('PEREZ_JUAN')
+    expect(source).not.toContain('Archivo de imagen')
+    expect(source).toContain('SHA-256 de imagen')
+  })
   it('paginates long notes and keeps a neutral institutional identity', async () => {
     const notes = 'Observación del radiólogo. '.repeat(190)
     const bytes = await buildPdf('img.png', null, prediction, notes)

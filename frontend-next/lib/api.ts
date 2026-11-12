@@ -6,6 +6,19 @@ import type { AnalysisFilters, AnalysisRecord } from './data/analysis'
  * frontend (route handlers), que validan la sesión y reenvían al backend.
  */
 
+/** Error HTTP con su código, para distinguir fallos que se corrigen reintentando de los que no. */
+export class ApiError extends Error {
+  constructor(message: string, readonly status: number) {
+    super(message)
+    this.name = 'ApiError'
+  }
+}
+
+/** 4xx de validación (archivo dañado, tamaño, formato): reintentar con el mismo archivo repite el fallo. */
+export function isRetryableError(error: unknown): boolean {
+  return !(error instanceof ApiError && [400, 413, 415, 422].includes(error.status))
+}
+
 export async function fetchModelInfo(): Promise<ModelInfo> {
   const res = await fetch('/api/model-info')
   if (!res.ok) throw new Error(`Backend error: ${res.status}`)
@@ -54,7 +67,7 @@ export async function predict(
 
   if (!res.ok) {
     const detail = await res.json().catch(() => ({}))
-    throw new Error(detail?.detail ?? `Error ${res.status}`)
+    throw new ApiError(detail?.detail ?? `Error ${res.status}`, res.status)
   }
   return res.json()
 }
@@ -86,7 +99,7 @@ export async function predictBatch(
   })
   if (!res.ok) {
     const detail = await res.json().catch(() => ({}))
-    throw new Error(detail?.detail ?? `Error ${res.status}`)
+    throw new ApiError(detail?.detail ?? `Error ${res.status}`, res.status)
   }
   return res.json()
 }

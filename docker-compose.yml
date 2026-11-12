@@ -13,6 +13,9 @@ services:
       - CXR_RATE_LIMIT_PREDICT=${CXR_RATE_LIMIT_PREDICT:-20/minute}
       - CXR_AUDIT_LOG_PATH=${CXR_AUDIT_LOG_PATH:-logs/audit.jsonl}
       - CXR_API_KEY=${CXR_API_KEY:-dev-local-key}
+      # Sin checkpoints en backend/artifacts: CXR_SKIP_MODEL_LOAD=1 docker compose up --build
+      # levanta ambos servicios para revisar la integración (sin inferencia).
+      - CXR_SKIP_MODEL_LOAD=${CXR_SKIP_MODEL_LOAD:-false}
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s

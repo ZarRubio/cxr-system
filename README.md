@@ -316,3 +316,7 @@ cxr-system/
 > Este sistema es de uso exclusivamente académico.
 > No reemplaza el criterio clínico del radiólogo.
 > Proyecto de investigación académica en radiografía de tórax, sin afiliación hospitalaria específica.
+
+## Licencia
+
+El código fuente se distribuye bajo la licencia [MIT](LICENSE). La licencia cubre solo el código de este repositorio: no incluye las imágenes de NIH ChestX-ray14, que se rigen por los términos del NIH Clinical Center, ni los pesos de los modelos, que no forman parte del repositorio. La licencia no cambia el alcance académico descrito en el Disclaimer: el sistema no está validado para uso clínico.

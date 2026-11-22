@@ -220,7 +220,7 @@ El correo contiene ID de estudio (o ID del análisis si no se ingresó uno), res
 fecha en Lima, hallazgos, puntuaciones y enlace autenticado al historial. No incluye imágenes,
 nombre de archivo, indicación clínica ni datos demográficos del paciente.
 
-- Remitente: `SMTP_USER=Adcejuma@gmail.com`; clave de aplicación en el secreto GitHub `SMTP_PASSWORD`.
+- Remitente: cuenta Gmail definida en `SMTP_USER` (en producción la fija `deploy.yml`); clave de aplicación en el secreto GitHub `SMTP_PASSWORD`. En local y en Docker no hay remitente por defecto: sin `SMTP_USER` y `SMTP_PASSWORD` no se envían alertas.
 - El workflow pasa estas variables al servidor Cloud Run, nunca al navegador o al build.
 - Administrador inicial: `aerubio2305@gmail.com`, obligatorio y editable en Gestión de radiólogos.
 - Cada usuario puede modificar su correo desde "Correo de alertas"; el administrador también puede editarlo en la tabla de usuarios.
@@ -262,7 +262,7 @@ Secrets requeridos en el repositorio de GitHub:
 |---|---|
 | `CXR_API_KEY` | `openssl rand -hex 32` |
 | `AUTH_SECRET` | `openssl rand -base64 32` |
-| `SMTP_PASSWORD` | Contraseña de aplicación de Gmail para `Adcejuma@gmail.com` |
+| `SMTP_PASSWORD` | Contraseña de aplicación de Gmail de la cuenta remitente (`SMTP_USER`) |
 
 Workload Identity Federation usa el proveedor y la cuenta de servicio del proyecto
 definidos en `.github/workflows/deploy.yml`; no requiere guardar llaves JSON en GitHub.

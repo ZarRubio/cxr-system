@@ -160,6 +160,10 @@ def client(monkeypatch):
         "services.prediction_service.generate_gradcam_layers",
         lambda model, tensor, img_array, label, method="gradcam": ("data:image/png;base64,ZmFrZQ==", "data:image/png;base64,bWFw"),
     )
+    # Cada test parte con el contador de rate limit vacío (20/minuto en /predict).
+    from rate_limit import limiter
+    if hasattr(limiter, "reset"):
+        limiter.reset()
     with TestClient(app) as c:
         app.state.ensemble = _make_ensemble(_effusion_logits(), _effusion_logits())
         app.state.prediction_cache = LRUCache(maxsize=20)
@@ -294,6 +298,34 @@ class TestRunEnsembleInference:
             + 0.5 * float(torch.sigmoid(torch.tensor(-5.0)).item())
         )
         assert result["probabilities"]["Effusion"] == pytest.approx(expected_prob, abs=1e-5)
+
+    # Pruebas específicas por criterio (hallazgo H11 del ciclo 1 de pruebas cruzadas).
+    def test_ensemble_uses_configured_weights_0_3_and_0_7(self):  # CP002
+        ensemble = _make_ensemble(_effusion_logits(), _low_logits(), w1=0.3, w2=0.7)
+        result = run_ensemble_inference(ensemble, self._TENSOR)
+        expected = 0.3 * torch.sigmoid(torch.tensor(3.0)).item() + 0.7 * torch.sigmoid(torch.tensor(-5.0)).item()
+        assert result["probabilities"]["Effusion"] == pytest.approx(expected, abs=1e-5)
+
+    def test_each_class_uses_its_own_threshold(self):  # CP007
+        ensemble = _make_ensemble(_effusion_logits(), _effusion_logits())
+        # Effusion (≈0.953) queda bajo un umbral propio de 0.99; Atelectasis (≈0.0067) supera uno de 0.005.
+        ensemble["thresholds"] = {**THRESHOLDS_14, "Effusion": 0.99, "Atelectasis": 0.005}
+        result = run_ensemble_inference(ensemble, self._TENSOR)
+        assert "Effusion" not in result["positive_findings"]
+        assert "Atelectasis" in result["positive_findings"]
+
+    def test_temperature_divides_logits_before_sigmoid(self):  # CP014
+        ensemble = _make_ensemble(_effusion_logits(), _effusion_logits())
+        ensemble["temperature"] = 2.0
+        result = run_ensemble_inference(ensemble, self._TENSOR)
+        expected = torch.sigmoid(torch.tensor(3.0 / 2.0)).item()
+        assert result["probabilities"]["Effusion"] == pytest.approx(expected, abs=1e-5)
+
+    def test_missing_temperature_is_neutral(self):  # CP015
+        ensemble = _make_ensemble(_effusion_logits(), _effusion_logits())
+        assert "temperature" not in ensemble
+        result = run_ensemble_inference(ensemble, self._TENSOR)
+        assert result["probabilities"]["Effusion"] == pytest.approx(torch.sigmoid(torch.tensor(3.0)).item(), abs=1e-5)
 
     def test_sub_threshold_findings_are_between_0_10_and_threshold(self):
         # sigmoid(-1.735) ≈ 0.15 → above 0.10 sub-min, below 0.30 threshold
@@ -465,6 +497,23 @@ class TestHealthEndpoint:
             assert resp.json()["status"] == "degraded"
             assert resp.json()["ensemble_loaded"] is False
 
+    def test_startup_error_reports_cause_without_secrets(self, monkeypatch):  # CP033
+        import main
+        secret = "clave-secreta-de-prueba-0123456789"
+        monkeypatch.setattr(main.settings, "skip_model_load", False)
+        monkeypatch.setattr(main.settings, "api_key", secret)
+
+        def _fail(*_args, **_kwargs):
+            raise FileNotFoundError("Faltan checkpoints del ensemble")
+
+        monkeypatch.setattr(main, "verify_manifest", _fail)
+        with TestClient(app) as c:
+            resp = c.get("/health")
+        data = resp.json()
+        assert data["status"] == "degraded"
+        assert "Faltan checkpoints del ensemble" in data["startup_error"]
+        assert secret not in resp.text
+
 
 # ══════════════════════════════════════════════════════════════════════════════
 # 8. /model-info endpoint
@@ -611,6 +660,28 @@ class TestPredictEndpoint:
         client.post("/predict", files={"file": ("test.png", png, "image/png")})
         resp2 = client.post("/predict", files={"file": ("test.png", png, "image/png")})
         assert resp2.json()["cached"] is True
+
+    def test_cached_flag_is_false_first_and_true_on_repeat(self, client: TestClient):  # CP030
+        png = _make_png_bytes()
+        first = client.post("/predict", files={"file": ("test.png", png, "image/png")}).json()
+        second = client.post("/predict", files={"file": ("test.png", png, "image/png")}).json()
+        assert first["cached"] is False
+        assert second["cached"] is True
+
+    def test_response_reports_model_version(self, client: TestClient):  # CP019
+        data = client.post("/predict", files={"file": ("test.png", _make_png_bytes(), "image/png")}).json()
+        assert isinstance(data["model_version"], str) and data["model_version"]
+
+    def test_processing_time_is_a_non_negative_number(self, client: TestClient):  # CP020
+        data = client.post("/predict", files={"file": ("test.png", _make_png_bytes(), "image/png")}).json()
+        assert isinstance(data["processing_time_ms"], (int, float))
+        assert data["processing_time_ms"] >= 0
+
+    def test_image_hash_is_sha256_of_uploaded_bytes(self, client: TestClient):  # CP028
+        import hashlib
+        png = _make_png_bytes()
+        data = client.post("/predict", files={"file": ("test.png", png, "image/png")}).json()
+        assert data["image_hash"] == hashlib.sha256(png).hexdigest()
 
     def test_no_ensemble_returns_503(self, monkeypatch):
         monkeypatch.setattr("services.prediction_service.generate_gradcam_layers", lambda *a, **kw: ("", ""))

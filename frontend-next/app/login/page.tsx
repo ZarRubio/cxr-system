@@ -1,11 +1,22 @@
 'use client'
-import { useState } from 'react'
+import { Suspense, useState } from 'react'
 import { signIn } from 'next-auth/react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Eye, EyeOff, LogIn } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
 import { AccessLayout } from '@/components/layout/AccessLayout'
+
+/** El proxy redirige con ?reason=inactive cuando la cuenta se deshabilitó o cambió su contraseña. */
+function SessionClosedNotice() {
+  const reason = useSearchParams().get('reason')
+  if (reason !== 'inactive') return null
+  return (
+    <p role="status" className="rounded-md border border-[var(--border-subtle)] p-3 text-sm text-[var(--fg-muted)] mb-5">
+      Su sesión se cerró porque la cuenta fue deshabilitada o su contraseña cambió. Inicie sesión de nuevo o contacte al administrador.
+    </p>
+  )
+}
 
 export default function LoginPage() {
   const [username, setUsername] = useState('')
@@ -39,7 +50,9 @@ export default function LoginPage() {
           <p className="text-sm text-[var(--primary)] font-medium mb-3">Radiografía de tórax</p>
           <h1 className="text-2xl font-semibold">Acceso al sistema</h1>
           <p className="text-sm text-[var(--fg-muted)] mt-2 mb-8">Personal autorizado · Proyecto de investigación</p>
-          <form onSubmit={handleSubmit} className="space-y-5">
+          <Suspense fallback={null}><SessionClosedNotice /></Suspense>
+          {/* method="post": si el JavaScript no carga, el envío nativo no debe poner la contraseña en la URL. */}
+          <form method="post" onSubmit={handleSubmit} className="space-y-5">
             <div>
               <label htmlFor="username" className="block text-sm font-medium mb-2">Usuario</label>
               <input id="username" name="username" autoComplete="username" required value={username} onChange={e => setUsername(e.target.value)} className={inputClass} aria-describedby={error ? 'login-error' : undefined} />

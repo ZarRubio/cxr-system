@@ -56,14 +56,23 @@ export async function POST(request: NextRequest) {
   params.delete('explain_analysis_id')
   params.delete('mode')
   if (existing) params.set('include_gradcam', 'true')
-  const res = await fetch(backendUrl('/predict', params.toString()), {
-    method: 'POST',
-    headers,
-    body: body as BodyInit,
-    signal: AbortSignal.timeout(280_000),
-  })
+  // Hallazgo H13: si el usuario cancela, el navegador cierra la solicitud (request.signal) y se
+  // interrumpe también la llamada al backend; un estudio cancelado no se guarda ni envía alertas.
+  let res: Response
+  try {
+    res = await fetch(backendUrl('/predict', params.toString()), {
+      method: 'POST',
+      headers,
+      body: body as BodyInit,
+      signal: AbortSignal.any([request.signal, AbortSignal.timeout(280_000)]),
+    })
+  } catch (error) {
+    if (request.signal.aborted) return new Response(null, { status: 499 })
+    throw error
+  }
 
   if (!res.ok) return passthrough(res)
+  if (request.signal.aborted) return new Response(null, { status: 499 })
 
   // Predicción exitosa: persistir en el historial clínico antes de responder.
   // Si el guardado falla, la predicción se devuelve igual (sin analysis_id).

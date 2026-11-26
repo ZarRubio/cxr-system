@@ -14,11 +14,11 @@ import { useAnalyze } from '@/hooks/useAnalyze'
 
 export default function AnalyzePage() {
   const {
-    fileBytes, filename, prediction, analyzing, error,
+    fileBytes, filename, prediction, analyzing, error, cancelled,
     pdfLoading, notes, showToast, loadingDemo, statDismissed, studyMeta,
     user, resultsRef, canRetry,
     setNotes, setShowToast, setStatDismissed, setPrediction, setMeta,
-    handleFile, clearFile, handleLoadDemo, handleAnalyze, handleDownloadPdf, reset,
+    handleFile, clearFile, handleLoadDemo, handleAnalyze, handleCancel, handleDownloadPdf, reset,
     notesSaving, notesError, notesDirty, handleSaveNotes,
   } = useAnalyze()
 
@@ -41,11 +41,11 @@ export default function AnalyzePage() {
 
   return (
     <>
-      {analyzing && <AnalyzingOverlay fileBytes={fileBytes ?? undefined} filename={filename} />}
+      {analyzing && <AnalyzingOverlay fileBytes={fileBytes ?? undefined} filename={filename} onCancel={handleCancel} />}
 
       {/* Estado del análisis para lectores de pantalla */}
       <div aria-live="polite" className="sr-only">
-        {analyzing ? 'Analizando radiografía…' : prediction ? 'Análisis completado' : ''}
+        {analyzing ? 'Analizando radiografía…' : cancelled ? 'Análisis cancelado' : prediction ? 'Análisis completado' : ''}
       </div>
 
       {prediction && priorityFinding && !statDismissed && (
@@ -142,6 +142,13 @@ export default function AnalyzePage() {
                 </p>
               )}
             </div>
+          )}
+
+          {cancelled && !error && (
+            <p role="status" className="text-sm text-[var(--fg-muted)]">
+              Análisis cancelado. La radiografía sigue cargada y puede analizarla de nuevo. Si el servicio ya había
+              terminado de procesarla, el estudio podría figurar en el historial.
+            </p>
           )}
 
           {error && (

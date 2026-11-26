@@ -30,6 +30,7 @@ export function useAnalyze() {
   const [filename, setFilename]     = useState<string>('')
   const [prediction, setPrediction] = useState<Prediction | null>(null)
   const [analyzing, setAnalyzing]   = useState(false)
+  const [cancelled, setCancelled]   = useState(false)
   const [error, setError]           = useState<string | null>(null)
   const [retryable, setRetryable]   = useState(true)
   const [pdfLoading, setPdfLoading] = useState(false)
@@ -47,6 +48,7 @@ export function useAnalyze() {
   })
 
   const resultsRef = useRef<HTMLDivElement>(null)
+  const abortRef   = useRef<AbortController | null>(null)
   const addEntry   = useSessionStore((s) => s.addEntry)
 
   const handleFile = useCallback((bytes: Uint8Array, name: string) => {
@@ -57,6 +59,7 @@ export function useAnalyze() {
     setSavedNotes('')
     setNotesError(null)
     setError(null)
+    setCancelled(false)
     setStudyMeta((m) => ({ ...m, studyId: genStudyId() }))
   }, [])
 
@@ -65,7 +68,11 @@ export function useAnalyze() {
     setFilename('')
     setPrediction(null)
     setError(null)
+    setCancelled(false)
   }, [])
+
+  /** Hallazgo H13: el usuario cancela la espera; el archivo cargado se conserva. */
+  const handleCancel = useCallback(() => abortRef.current?.abort(), [])
 
   const handleLoadDemo = async () => {
     setLoadingDemo(true)
@@ -83,15 +90,18 @@ export function useAnalyze() {
 
   const handleAnalyze = async () => {
     if (!fileBytes || !filename || analyzing) return
+    const controller = new AbortController()
+    abortRef.current = controller
     setAnalyzing(true)
     setError(null)
+    setCancelled(false)
     setRetryable(true)
     try {
       const result = await predict(fileBytes, filename, 'gradcam', true, {
         studyId:            studyMeta.studyId,
         projection:         studyMeta.projection,
         clinicalIndication: studyMeta.clinicalIndication,
-      })
+      }, controller.signal)
       setPrediction(result)
       void queryClient.invalidateQueries({ queryKey: ['analyses'] })
       // DICOM: la proyección real (ViewPosition) reemplaza la del formulario
@@ -109,10 +119,15 @@ export function useAnalyze() {
         resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
       }, 100)
     } catch (e: unknown) {
-      // El archivo se mantiene cargado; solo se ofrece reintentar si el fallo no es del propio archivo.
-      setError(e instanceof Error ? e.message : 'Error desconocido')
-      setRetryable(isRetryableError(e))
+      if (controller.signal.aborted) {
+        setCancelled(true)
+      } else {
+        // El archivo se mantiene cargado; solo se ofrece reintentar si el fallo no es del propio archivo.
+        setError(e instanceof Error ? e.message : 'Error desconocido')
+        setRetryable(isRetryableError(e))
+      }
     } finally {
+      abortRef.current = null
       setAnalyzing(false)
     }
   }
@@ -161,6 +176,7 @@ export function useAnalyze() {
     setSavedNotes('')
     setNotesError(null)
     setError(null)
+    setCancelled(false)
     setStudyMeta({ studyId: genStudyId(), projection: 'PA', clinicalIndication: '' })
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }, [])
@@ -171,7 +187,7 @@ export function useAnalyze() {
 
   return {
     // estado
-    fileBytes, filename, prediction, analyzing, error,
+    fileBytes, filename, prediction, analyzing, error, cancelled,
     pdfLoading, notes, showToast, loadingDemo, statDismissed, studyMeta,
     notesSaving, notesError, notesDirty: notes !== savedNotes, handleSaveNotes,
     user, resultsRef,
@@ -179,6 +195,6 @@ export function useAnalyze() {
     canRetry: !!fileBytes && retryable,
     // acciones
     setNotes, setShowToast, setStatDismissed, setPrediction, setMeta,
-    handleFile, clearFile, handleLoadDemo, handleAnalyze, handleDownloadPdf, reset,
+    handleFile, clearFile, handleLoadDemo, handleAnalyze, handleCancel, handleDownloadPdf, reset,
   }
 }

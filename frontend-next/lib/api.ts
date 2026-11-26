@@ -19,6 +19,12 @@ export function isRetryableError(error: unknown): boolean {
   return !(error instanceof ApiError && [400, 413, 415, 422].includes(error.status))
 }
 
+/** Combina la cancelación pedida por el usuario con el tiempo máximo de espera. */
+function withTimeout(signal: AbortSignal | undefined, ms: number): AbortSignal {
+  const timeout = AbortSignal.timeout(ms)
+  return signal ? AbortSignal.any([signal, timeout]) : timeout
+}
+
 export async function fetchModelInfo(): Promise<ModelInfo> {
   const res = await fetch('/api/model-info')
   if (!res.ok) throw new Error(`Backend error: ${res.status}`)
@@ -40,6 +46,8 @@ export async function predict(
   gradcamMethod = 'gradcam',
   includeGradcam = true,
   study?: StudyHeaders,
+  /** Hallazgo H13: permite cancelar la espera del análisis desde la interfaz. */
+  signal?: AbortSignal,
 ): Promise<Prediction> {
   const form = new FormData()
   form.append('file', new Blob([fileBytes.buffer as ArrayBuffer]), filename)
@@ -62,7 +70,7 @@ export async function predict(
     method: 'POST',
     body: form,
     headers,
-    signal: AbortSignal.timeout(300_000),
+    signal: withTimeout(signal, 300_000),
   })
 
   if (!res.ok) {
@@ -85,17 +93,26 @@ export interface BatchResponse {
   batch_id?: string
 }
 
+export interface BatchOptions {
+  signal?: AbortSignal
+  /** ID de lote (LOTE-YYYYMMDD-nnn) para agrupar en el historial varias solicitudes del mismo lote. */
+  batchId?: string
+}
+
 export async function predictBatch(
   files: Array<{ bytes: Uint8Array; name: string }>,
+  options: BatchOptions = {},
 ): Promise<BatchResponse> {
   const form = new FormData()
   for (const f of files) {
     form.append('files', new Blob([f.bytes.buffer as ArrayBuffer]), f.name)
   }
-  const res = await fetch('/api/predict-batch?include_gradcam=false', {
+  const params = new URLSearchParams({ include_gradcam: 'false' })
+  if (options.batchId) params.set('batch_id', options.batchId)
+  const res = await fetch(`/api/predict-batch?${params}`, {
     method: 'POST',
     body: form,
-    signal: AbortSignal.timeout(300_000),
+    signal: withTimeout(options.signal, 300_000),
   })
   if (!res.ok) {
     const detail = await res.json().catch(() => ({}))

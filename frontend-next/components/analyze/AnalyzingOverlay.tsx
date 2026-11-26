@@ -2,10 +2,16 @@
 import { useEffect, useState } from 'react'
 import * as Dialog from '@radix-ui/react-dialog'
 import { Loader2 } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 
-interface Props { fileBytes?: Uint8Array; filename?: string }
+interface Props {
+  fileBytes?: Uint8Array
+  filename?: string
+  /** Hallazgo H13: cancela la espera del análisis; la radiografía sigue cargada. */
+  onCancel?: () => void
+}
 
-export function AnalyzingOverlay({ filename }: Props) {
+export function AnalyzingOverlay({ filename, onCancel }: Props) {
   const [elapsed, setElapsed] = useState(0)
   useEffect(() => {
     const start = Date.now()
@@ -22,6 +28,11 @@ export function AnalyzingOverlay({ filename }: Props) {
           <p className="text-sm break-all mt-4">{filename}</p>
           <p className="text-sm text-[var(--fg-subtle)] mt-4">Tiempo transcurrido: <span className="readout">{elapsed} s</span></p>
           {elapsed >= 30 && <p role="status" className="text-sm text-[var(--fg-muted)] mt-3">El servicio sigue procesando. El primer estudio puede tardar más mientras se carga el modelo.</p>}
+          {onCancel && (
+            <div className="mt-5 flex justify-end">
+              <Button type="button" variant="secondary" onClick={onCancel}>Cancelar análisis</Button>
+            </div>
+          )}
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>

@@ -1,7 +1,7 @@
 'use client'
 import { EmailAlertStatus } from '@/components/EmailAlertStatus'
 import { StudySaveStatus } from '@/components/StudySaveStatus'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useDropzone, type FileRejection } from 'react-dropzone'
 import Link from 'next/link'
 import {
@@ -9,7 +9,8 @@ import {
   AlertTriangle, RotateCcw,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { predictBatch, type BatchResultItem } from '@/lib/api'
+import type { BatchResultItem } from '@/lib/api'
+import { runBatchByPlate, type BatchProgress } from '@/lib/batch'
 import { triageRank, predictionSeverity } from '@/lib/data/analysis'
 import { SEVERITY_COLORS, SEVERITY_LABELS, BADGES } from '@/lib/constants'
 import { formatConfidence, cn } from '@/lib/utils'
@@ -49,8 +50,12 @@ export default function BatchPage() {
   const [analyzing, setAnalyzing] = useState(false)
   const [error, setError]       = useState<string | null>(null)
   const [elapsed, setElapsed]   = useState(0)
+  const [progress, setProgress] = useState<BatchProgress | null>(null)
+  const [cancelledInfo, setCancelledInfo] = useState<{ done: number; total: number } | null>(null)
+  const abortRef = useRef<AbortController | null>(null)
 
-  // Hallazgo H12: el lote tarda decenas de segundos; se muestra el tiempo transcurrido.
+  // Hallazgo H12: el lote tarda decenas de segundos; se muestra el tiempo transcurrido
+  // y, junto a él, el avance por placa (ver handleAnalyze).
   useEffect(() => {
     if (!analyzing) return
     const started = Date.now()
@@ -98,25 +103,39 @@ export default function BatchPage() {
   const handleAnalyze = async () => {
     if (queue.length === 0 || analyzing) return
     if (queue.reduce((total, file) => total + file.bytes.length, 0) > 30 * 1024 * 1024) { setError('El lote supera 30 MB en total. Retire algunas imágenes.'); return }
+    const controller = new AbortController()
+    abortRef.current = controller
     setElapsed(0)
     setAnalyzing(true)
     setError(null)
+    setCancelledInfo(null)
+    setProgress({ completed: 0, total: queue.length, current: queue[0]?.name ?? null })
     try {
-      const res = await predictBatch(queue)
-      setResults(res.results)
-      setBatchId(res.batch_id ?? null)
+      // Hallazgos H12 y H13: se analiza placa por placa (avance real) y el usuario puede cancelar
+      // conservando las placas ya analizadas; las no analizadas no se guardan.
+      const outcome = await runBatchByPlate(queue, { signal: controller.signal, onProgress: setProgress })
+      if (outcome.cancelled) setCancelledInfo({ done: outcome.items.length, total: queue.length })
+      if (outcome.items.length > 0) {
+        setResults(outcome.items)
+        setBatchId(outcome.batchId)
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Error desconocido')
     } finally {
+      abortRef.current = null
+      setProgress(null)
       setAnalyzing(false)
     }
   }
+
+  const handleCancel = () => abortRef.current?.abort()
 
   const reset = () => {
     setQueue([])
     setResults(null)
     setBatchId(null)
     setError(null)
+    setCancelledInfo(null)
   }
 
   // Triage: severidad más grave primero, luego confianza descendente;
@@ -200,11 +219,49 @@ export default function BatchPage() {
               </ul>
               <Button onClick={handleAnalyze} disabled={analyzing} loading={analyzing} size="lg" className="w-full">
                 <Layers size={16} />
-                {analyzing ? `Analizando ${queue.length} placas… ${elapsed} s` : `Analizar lote (${queue.length})`}
+                {analyzing && progress
+                  ? `Analizando placa ${Math.min(progress.completed + 1, progress.total)} de ${progress.total}… ${elapsed} s`
+                  : `Analizar lote (${queue.length})`}
               </Button>
+              {analyzing && progress && (
+                <div className="space-y-2">
+                  <div
+                    role="progressbar"
+                    aria-label="Avance del lote"
+                    aria-valuemin={0}
+                    aria-valuemax={progress.total}
+                    aria-valuenow={progress.completed}
+                    aria-valuetext={`${progress.completed} de ${progress.total} placas analizadas`}
+                    className="h-2 w-full overflow-hidden rounded-full bg-[var(--surface2)]"
+                  >
+                    <div
+                      className="h-full bg-[var(--primary)] transition-all duration-300"
+                      style={{ width: `${(progress.completed / progress.total) * 100}%` }}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <p role="status" className="text-xs text-[var(--fg-subtle)] truncate">
+                      {progress.completed} de {progress.total} placas analizadas
+                      {progress.current ? ` · en curso: ${progress.current}` : ''}
+                    </p>
+                    <Button type="button" variant="secondary" size="sm" onClick={handleCancel}>
+                      Cancelar análisis
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </>
+      )}
+
+      {cancelledInfo && (
+        <p role="status" className="text-sm text-[var(--fg-muted)]">
+          Análisis cancelado: se analizaron {cancelledInfo.done} de {cancelledInfo.total} placas.
+          {cancelledInfo.done > 0
+            ? ' Se muestran y guardan solo las placas ya analizadas; el resto no se registró.'
+            : ' No se guardó ninguna placa; las imágenes siguen en la cola.'}
+        </p>
       )}
 
       {error && (

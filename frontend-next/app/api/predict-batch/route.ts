@@ -35,14 +35,27 @@ export async function POST(request: NextRequest) {
     throw error
   }
 
-  const res = await fetch(backendUrl('/predict-batch', request.nextUrl.searchParams.toString()), {
-    method: 'POST',
-    headers,
-    body: body as BodyInit,
-    signal: AbortSignal.timeout(280_000),
-  })
+  // El ID de lote lo puede fijar el cliente cuando envía el lote placa por placa (hallazgo H12);
+  // solo se acepta el formato propio y no se reenvía al backend.
+  const params = new URLSearchParams(request.nextUrl.searchParams)
+  const requestedBatchId = params.get('batch_id')
+  params.delete('batch_id')
+
+  let res: Response
+  try {
+    res = await fetch(backendUrl('/predict-batch', params.toString()), {
+      method: 'POST',
+      headers,
+      body: body as BodyInit,
+      signal: AbortSignal.any([request.signal, AbortSignal.timeout(280_000)]),
+    })
+  } catch (error) {
+    if (request.signal.aborted) return new Response(null, { status: 499 })
+    throw error
+  }
 
   if (!res.ok) return passthrough(res)
+  if (request.signal.aborted) return new Response(null, { status: 499 })
 
   // Persistir cada análisis exitoso del lote en el historial clínico,
   // todos con el mismo ID de lote para trazabilidad.
@@ -50,7 +63,9 @@ export async function POST(request: NextRequest) {
   const store = getDataStore()
 
   const stamp = new Date().toISOString().slice(0, 10).replace(/-/g, '')
-  const batchId = `LOTE-${stamp}-${String(Math.floor(Math.random() * 1000)).padStart(3, '0')}`
+  const batchId = requestedBatchId && /^LOTE-\d{8}-\d{3}$/.test(requestedBatchId)
+    ? requestedBatchId
+    : `LOTE-${stamp}-${String(Math.floor(Math.random() * 1000)).padStart(3, '0')}`
   data.batch_id = batchId
 
   await Promise.all((data.results ?? []).map(async (item) => {

@@ -50,6 +50,24 @@ it('a regular analysis is still saved and checked for alerts', async () => {
   expect(body.persistence).toEqual({ status: 'saved' })
 })
 
+it('H13: a study cancelled by the user is not saved and sends no alerts', async () => {
+  const controller = new AbortController()
+  backend.mockImplementation(async () => { controller.abort(); return Response.json(prediction) })
+  const aborted = new NextRequest('http://localhost/api/predict?include_gradcam=true', { method: 'POST', body: 'imagen', signal: controller.signal })
+  const response = await POST(aborted)
+  expect(response.status).toBe(499)
+  expect(mocks.createAnalysis).not.toHaveBeenCalled()
+  expect(mocks.notifyCriticalAnalysis).not.toHaveBeenCalled()
+})
+
+it('H13: cancelling while the backend call is in flight ends quietly without saving', async () => {
+  const controller = new AbortController()
+  backend.mockImplementation(async () => { controller.abort(); throw new DOMException('cancelado', 'AbortError') })
+  const aborted = new NextRequest('http://localhost/api/predict?include_gradcam=true', { method: 'POST', body: 'imagen', signal: controller.signal })
+  expect((await POST(aborted)).status).toBe(499)
+  expect(mocks.createAnalysis).not.toHaveBeenCalled()
+})
+
 it('rejects compare mode combined with a stored-study explanation', async () => {
   expect((await POST(request('mode=compare&explain_analysis_id=study-a'))).status).toBe(400)
   expect(backend).not.toHaveBeenCalled()
